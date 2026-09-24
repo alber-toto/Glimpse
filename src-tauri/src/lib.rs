@@ -803,7 +803,6 @@ pub struct AppState {
     hotkeys: core::hotkeys::HotkeyCoordinator,
     shortcut_capture_active: AtomicBool,
     pub(crate) tray: parking_lot::Mutex<Option<TrayIcon<AppRuntime>>>,
-    pub(crate) settings_close_handler_registered: AtomicBool,
     transcription_cancelled: AtomicBool,
     transcription_token: parking_lot::Mutex<Option<CancellationToken>>,
     ffmpeg_toast_shown: AtomicBool,
@@ -889,7 +888,6 @@ impl AppState {
             hotkeys: core::hotkeys::HotkeyCoordinator::default(),
             shortcut_capture_active: AtomicBool::new(false),
             tray: parking_lot::Mutex::new(None),
-            settings_close_handler_registered: AtomicBool::new(false),
             transcription_cancelled: AtomicBool::new(false),
             transcription_token: parking_lot::Mutex::new(None),
             ffmpeg_toast_shown: AtomicBool::new(false),
@@ -1629,11 +1627,10 @@ struct AppInfo {
     data_dir_path: String,
     storage_breakdown: StorageBreakdown,
     store_build: bool,
-    os_major: u32,
 }
 
 #[cfg(target_os = "macos")]
-fn macos_major_version() -> u32 {
+pub(crate) fn macos_major_version() -> u32 {
     static MAJOR: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
     *MAJOR.get_or_init(|| {
         std::process::Command::new("sw_vers")
@@ -1647,7 +1644,7 @@ fn macos_major_version() -> u32 {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn macos_major_version() -> u32 {
+pub(crate) fn macos_major_version() -> u32 {
     0
 }
 
@@ -1697,7 +1694,6 @@ fn get_app_info(app: AppHandle<AppRuntime>) -> Result<AppInfo, String> {
             total_bytes,
         },
         store_build: platform::is_store_build(),
-        os_major: macos_major_version(),
     })
 }
 

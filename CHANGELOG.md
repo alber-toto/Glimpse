@@ -1,3 +1,9 @@
+1.3.0
+
+### Improvements
+
+- Glimpse opens in your theme without flashing light and dark first, and the home screen appears all at once instead of filling in piece by piece.
+
 1.2.7
 
 ### Speaker Detection

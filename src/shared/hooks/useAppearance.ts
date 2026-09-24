@@ -6,21 +6,8 @@ import {
   resolveTextScale,
   TEXT_SIZE_MODE_STORAGE_KEY,
 } from "../lib/textSize";
+import { parseThemeMode, resolveThemeAttribute } from "../lib/theme";
 import type { TextSizeMode, ThemeMode } from "../../types";
-
-const parseThemeMode = (value: string | null): ThemeMode =>
-  value === "light" || value === "dark" || value === "system"
-    ? value
-    : "system";
-
-const resolveThemeAttribute = (mode: ThemeMode): "light" | "dark" => {
-  if (mode === "system") {
-    return window.matchMedia("(prefers-color-scheme: light)").matches
-      ? "light"
-      : "dark";
-  }
-  return mode;
-};
 
 /// Follows the app's text size setting, including live changes.
 export function useTextScale() {
@@ -55,12 +42,10 @@ export function useTextScale() {
 /// Follows the app's theme setting, the system appearance and live changes.
 export function useTheme(themeMode: string | null, isLoading: boolean) {
   useEffect(() => {
-    const root = document.documentElement;
-    if (isLoading) {
-      root.dataset.theme = "dark";
-      return;
-    }
+    // main.tsx already applied the saved mode for the first paint.
+    if (isLoading) return;
 
+    const root = document.documentElement;
     let currentMode = parseThemeMode(themeMode);
 
     const applyTheme = (mode: ThemeMode) => {

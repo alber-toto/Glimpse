@@ -21,6 +21,7 @@ const EDGE_INSET: f64 = 12.0;
 static EXPANDED_HEIGHT: Mutex<Option<f64>> = Mutex::new(None);
 
 fn build(app: &AppHandle<AppRuntime>) -> tauri::Result<WebviewWindow<AppRuntime>> {
+    let settings = app.state::<crate::AppState>().current_settings();
     let window = WebviewWindowBuilder::new(app, WINDOW_LABEL, WebviewUrl::default())
         .title("Glimpse Live")
         .inner_size(WIDTH, MAX_HEIGHT)
@@ -34,6 +35,7 @@ fn build(app: &AppHandle<AppRuntime>) -> tauri::Result<WebviewWindow<AppRuntime>
         .skip_taskbar(true)
         .resizable(true)
         .visible(false)
+        .initialization_script(crate::tray::boot_script(&settings))
         .build()?;
     crate::platform::live::init(app, &window);
     Ok(window)
