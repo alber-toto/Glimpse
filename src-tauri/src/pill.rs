@@ -214,6 +214,8 @@ fn cursor_over_pill_window(app: &AppHandle<AppRuntime>) -> Option<bool> {
 
 pub struct PillController {
     status: Mutex<PillStatus>,
+    // Mirrors status == Listening for audio threads, which shouldn't lock.
+    listening: Arc<AtomicBool>,
     recording_mode: Mutex<Option<RecordingMode>>,
     shortcut_origin: Mutex<Option<hotkeys::ShortcutAction>>,
     recording_options: Mutex<hotkeys::ShortcutOptions>,
@@ -236,6 +238,7 @@ impl PillController {
     pub fn new(recorder: Arc<RecorderManager>) -> Self {
         Self {
             status: Mutex::new(PillStatus::Idle),
+            listening: Arc::new(AtomicBool::new(false)),
             recording_mode: Mutex::new(None),
             shortcut_origin: Mutex::new(None),
             recording_options: Mutex::new(hotkeys::ShortcutOptions::default()),
@@ -257,6 +260,10 @@ impl PillController {
 
     pub fn status(&self) -> PillStatus {
         *self.status.lock()
+    }
+
+    pub fn listening_flag(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.listening)
     }
 
     pub fn set_expanded(&self, expanded: bool) {
@@ -427,6 +434,8 @@ impl PillController {
             }
             let previous = *status;
             *status = new_status;
+            self.listening
+                .store(new_status == PillStatus::Listening, Ordering::Relaxed);
             previous
         };
 

@@ -1,8 +1,14 @@
 1.3.0
 
+### New Features
+
+- Live transcripts for recordings. While you record, open a small window that shows what's being said as it happens, labeled by speaker. You can rename speakers, add bookmarks, pause or stop from it, and shrink it down to just the controls.
+
 ### Improvements
 
 - Glimpse opens in your theme without flashing light and dark first, and the home screen appears all at once instead of filling in piece by piece.
+- Dictating while you record no longer ends up in the recording.
+- The microphone meter while recording now moves with your voice at a normal speaking volume.
 
 1.2.7
 

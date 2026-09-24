@@ -48,9 +48,13 @@ const SYSTEM_FILE: &str = "system.wav";
 const STATE_TICK: Duration = Duration::from_millis(100);
 // How often a recording without a working microphone looks for one.
 const MICROPHONE_RETRY: Duration = Duration::from_secs(2);
-// RMS window mapped onto the 0..1 level meter.
-const LEVEL_FLOOR: f32 = 0.006;
-const LEVEL_CEILING: f32 = 0.22;
+// Loudness window in dBFS mapped onto the 0..1 level meter. Speech into a
+// laptop microphone sits around the middle; a raised voice fills it.
+const LEVEL_FLOOR_DB: f32 = -55.0;
+const LEVEL_CEILING_DB: f32 = -25.0;
+// Capture buffers are ~10 ms and the state tick samples one every 100 ms, so
+// the meter holds peaks and lets them fall by half this often.
+const LEVEL_HALF_LIFE_S: f32 = 0.08;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AudioApp {
@@ -613,6 +617,7 @@ impl Worker {
 
         let clock = Arc::new(SessionClock::new());
         let started_at = Local::now();
+        let listening = app.state::<AppState>().pill().listening_flag();
         self.shared.paused.store(false, Ordering::Relaxed);
         self.shared.paused_by_user.store(false, Ordering::Relaxed);
         self.shared
@@ -649,6 +654,7 @@ impl Worker {
                     clock: Arc::clone(&clock),
                     paused: Arc::clone(&self.shared.paused),
                     level: Arc::clone(&self.shared.system_level),
+                    silenced: None,
                 };
                 let (writer_tx, writer_rx) = bounded::<Result<TrackWriter>>(1);
                 let capture = system_audio::SystemAudioCapture::start(&scope, move |rate| {
@@ -699,6 +705,7 @@ impl Worker {
                     clock: Arc::clone(&clock),
                     paused: Arc::clone(&self.shared.paused),
                     level: Arc::clone(&self.shared.microphone_level),
+                    silenced: Some(listening),
                 };
                 let (writer_tx, writer_rx) = bounded::<Result<TrackWriter>>(1);
                 let make_sink = move |rate| match TrackWriter::spawn(
@@ -874,6 +881,7 @@ impl Worker {
         let Some(session) = self.active.as_mut() else {
             return;
         };
+        let listening = session.app.state::<AppState>().pill().listening_flag();
         let Some(mic) = session.microphone.as_mut() else {
             return;
         };
@@ -887,6 +895,7 @@ impl Worker {
                 clock: Arc::clone(&session.clock),
                 paused: Arc::clone(&self.shared.paused),
                 level: Arc::clone(&self.shared.microphone_level),
+                silenced: Some(Arc::clone(&listening)),
             };
             microphone::start(
                 device_id,
@@ -977,17 +986,37 @@ struct SinkParts {
     clock: Arc<SessionClock>,
     paused: Arc<AtomicBool>,
     level: Arc<AtomicU32>,
+    // While set, silence is recorded in place of the input. The microphone
+    // takes the pill's listening flag so dictation stays out of recordings.
+    silenced: Option<Arc<AtomicBool>>,
 }
 
 impl SinkParts {
     fn into_callback(self, input: TrackInput) -> Box<dyn FnMut(&[f32]) + Send> {
+        let (mut peak, mut peak_at) = (0f32, Instant::now());
+        let mut quiet = Vec::new();
         Box::new(move |samples: &[f32]| {
             if self.paused.load(Ordering::Relaxed) {
+                peak = 0.0;
                 self.level.store(0f32.to_bits(), Ordering::Relaxed);
                 return;
             }
-            self.level
-                .store(meter_level(samples).to_bits(), Ordering::Relaxed);
+            if self
+                .silenced
+                .as_ref()
+                .is_some_and(|flag| flag.load(Ordering::Relaxed))
+            {
+                peak = 0.0;
+                self.level.store(0f32.to_bits(), Ordering::Relaxed);
+                quiet.resize(samples.len(), 0.0);
+                input.push(&quiet, self.clock.elapsed_ms());
+                return;
+            }
+            let now = Instant::now();
+            let held =
+                peak * 0.5f32.powf(now.duration_since(peak_at).as_secs_f32() / LEVEL_HALF_LIFE_S);
+            (peak, peak_at) = (meter_level(samples).max(held), now);
+            self.level.store(peak.to_bits(), Ordering::Relaxed);
             input.push(samples, self.clock.elapsed_ms());
         })
     }
@@ -999,9 +1028,8 @@ fn meter_level(samples: &[f32]) -> f32 {
     }
     let energy: f32 = samples.iter().map(|s| s * s).sum();
     let rms = (energy / samples.len() as f32).sqrt();
-    ((rms - LEVEL_FLOOR) / (LEVEL_CEILING - LEVEL_FLOOR))
-        .clamp(0.0, 1.0)
-        .powf(0.7)
+    let db = 20.0 * rms.max(1e-6).log10();
+    ((db - LEVEL_FLOOR_DB) / (LEVEL_CEILING_DB - LEVEL_FLOOR_DB)).clamp(0.0, 1.0)
 }
 
 fn sessions_root(app: &AppHandle<AppRuntime>) -> Result<PathBuf> {

@@ -48,7 +48,8 @@ const BEHIND_FRAMES: usize = 200;
 const MAX_BACKLOG_FRAMES: usize = 10_000;
 const MIN_TURN_MS: u64 = 300;
 const DIARIZE_STEP: usize = LIVE_RATE as usize;
-const SPEAKING_LEVEL: f32 = 0.12;
+// About -35 dBFS on the level meter.
+const SPEAKING_LEVEL: f32 = 0.67;
 const SPEAKING_HOLD: Duration = Duration::from_millis(600);
 // System audio this far behind the microphone counts as silence. A source
 // with nothing to render can stop delivering.
@@ -1028,11 +1029,13 @@ impl Runner {
             .iter()
             .any(|track| track.untranscribed_speech() >= BEHIND_FRAMES);
         if self.must_yield(&model) {
+            // Waiting out a dictation is expected, not falling behind.
+            let dictating = self.state().pill().status() != crate::pill::PillStatus::Idle;
             let pending = self
                 .tracks
                 .iter()
                 .any(|track| track.untranscribed_speech() > 0);
-            self.set_status(pending || behind);
+            self.set_status(!dictating && (pending || behind));
             return false;
         }
 

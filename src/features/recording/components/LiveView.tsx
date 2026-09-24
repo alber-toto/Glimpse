@@ -1,13 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   ArrowDown,
@@ -59,13 +52,19 @@ const TEXT_CLASS: Record<LiveTextSize, string> = {
 
 // Within this distance of the bottom the list keeps following new text.
 const FOLLOW_SLACK_PX = 48;
+// Stiffness of the critically damped follow: settles in about 0.7 s, close
+// to how long a burst of new words takes to fade in.
+const FOLLOW_OMEGA = 7;
+// Only the newest rows glide when turns are inserted or split; each animated
+// row is measured on every update.
+const LAYOUT_TAIL = 6;
 const METER_BARS = 5;
 const COMPACT_EASE_MS = 260;
 // Matches COMPACT_HEIGHT in live_window.rs.
 const HEADER_HEIGHT = 52;
 // A source that stays silent this long into a recording gets a warning.
 const SILENCE_WARNING_MS = 20_000;
-const HEARD_LEVEL = 0.03;
+const HEARD_LEVEL = 0.4;
 
 const formatClock = (elapsedMs: number) => {
   const total = Math.floor(elapsedMs / 1000);
@@ -96,16 +95,24 @@ const groupTurns = (segments: LiveSegment[]): Turn[] => {
 };
 
 // New words fade in the way the pill reveals live dictation; words already
-// shown stay put while a preview is rewritten around them.
-const RevealText = ({ text }: { text: string }) => {
-  const previousKeys = useRef<Set<number>>(new Set());
+// shown stay put while a preview is rewritten around them. `seen` outlives
+// the component, so a segment regrouped under another turn doesn't replay.
+const RevealText = ({
+  id,
+  text,
+  seen,
+}: {
+  id: string;
+  text: string;
+  seen: Map<string, Set<number>>;
+}) => {
   const words = useMemo(
-    () => getExpandedTextSegments(text, previousKeys.current),
-    [text],
+    () => getExpandedTextSegments(text, seen.get(id) ?? new Set()),
+    [id, text, seen],
   );
   useEffect(() => {
-    previousKeys.current = new Set(words.map((word) => word.key));
-  }, [words]);
+    seen.set(id, new Set(words.map((word) => word.key)));
+  }, [id, words, seen]);
   return words.map(({ key, text: word, isWhitespace, delay }) =>
     isWhitespace ? (
       <span key={key} className="whitespace-pre-wrap">
@@ -304,6 +311,12 @@ const LiveView = () => {
   const [heard, setHeard] = useState({ microphone: false, system: false });
   const menuRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const followFrame = useRef<number | null>(null);
+  const followTop = useRef(0);
+  const shownSpeakers = useRef(new Map<string, string>());
+  const seenWords = useRef(new Map<string, Set<number>>());
+  const reduceMotion = useReducedMotion();
   const sawActive = useRef(false);
   useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
 
@@ -376,10 +389,27 @@ const LiveView = () => {
     [speakers],
   );
 
-  const turns = useMemo(
-    () => groupTurns(transcript.segments),
-    [transcript.segments],
-  );
+  // Unsettled text keeps the speaker it first appeared under until the
+  // diarizer settles it, so a provisional guess moves at most once.
+  const segments = useMemo(() => {
+    const listed = new Set(transcript.speakers.map((speaker) => speaker.id));
+    const previous = shownSpeakers.current;
+    const next = new Map<string, string>();
+    const held = transcript.segments.map((segment) => {
+      if (segment.settled) return segment;
+      const shown = previous.get(segment.id);
+      const speakerId = shown && listed.has(shown) ? shown : segment.speaker_id;
+      next.set(segment.id, speakerId);
+      return speakerId === segment.speaker_id
+        ? segment
+        : { ...segment, speaker_id: speakerId };
+    });
+    shownSpeakers.current = next;
+    if (held.length === 0) seenWords.current.clear();
+    return held;
+  }, [transcript.segments, transcript.speakers]);
+
+  const turns = useMemo(() => groupTurns(segments), [segments]);
   const rows = useMemo<Row[]>(() => {
     const turnRows: Row[] = turns.map((turn) => ({
       kind: "turn",
@@ -394,25 +424,75 @@ const LiveView = () => {
     return [...turnRows, ...bookmarks].sort((a, b) => a.at - b.at);
   }, [turns, state.bookmarks]);
 
-  useLayoutEffect(() => {
+  const stopFollowing = () => {
+    if (followFrame.current !== null) cancelAnimationFrame(followFrame.current);
+    followFrame.current = null;
+  };
+
+  // Springs toward the bottom whenever the list grows, starting from rest and
+  // keeping its speed when more text lands mid-glide. Opening and jumping to
+  // live snap instead.
+  const hasSegments = segments.length > 0;
+  useEffect(() => {
     const scroller = scrollerRef.current;
-    if (following && scroller) scroller.scrollTop = scroller.scrollHeight;
-  }, [rows, following, prefs.textSize, prefs.timestamps]);
+    if (!following || !scroller) return;
+    scroller.scrollTop = scroller.scrollHeight;
+    followTop.current = scroller.scrollTop;
+    let velocity = 0;
+    const follow = () => {
+      if (followFrame.current !== null) return;
+      if (reduceMotion) {
+        scroller.scrollTop = scroller.scrollHeight;
+        return;
+      }
+      followTop.current = scroller.scrollTop;
+      velocity = 0;
+      let last = performance.now();
+      const step = (now: number) => {
+        const dt = Math.min((now - last) / 1000, 1 / 30);
+        last = now;
+        const gap =
+          scroller.scrollHeight - scroller.clientHeight - followTop.current;
+        velocity +=
+          (FOLLOW_OMEGA ** 2 * gap - 2 * FOLLOW_OMEGA * velocity) * dt;
+        followTop.current += velocity * dt;
+        scroller.scrollTop = followTop.current;
+        if (Math.abs(gap) < 0.5 && Math.abs(velocity) < 5) {
+          velocity = 0;
+          followFrame.current = null;
+          return;
+        }
+        followFrame.current = requestAnimationFrame(step);
+      };
+      followFrame.current = requestAnimationFrame(step);
+    };
+    const observer = new ResizeObserver(follow);
+    observer.observe(scroller);
+    if (listRef.current) observer.observe(listRef.current);
+    return () => {
+      observer.disconnect();
+      stopFollowing();
+    };
+  }, [following, hasSegments, reduceMotion]);
 
   const handleScroll = () => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
+    // Scroll events from the easing itself only ever move down.
+    if (
+      followFrame.current !== null &&
+      scroller.scrollTop >= followTop.current - 1
+    ) {
+      return;
+    }
     const distance =
       scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-    setFollowing(distance < FOLLOW_SLACK_PX);
+    const next = distance < FOLLOW_SLACK_PX;
+    if (!next) stopFollowing();
+    setFollowing(next);
   };
 
-  const jumpToLive = () => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-    setFollowing(true);
-  };
+  const jumpToLive = () => setFollowing(true);
 
   const handleTogglePause = () => {
     (paused
@@ -511,7 +591,7 @@ const LiveView = () => {
   const textClass = TEXT_CLASS[prefs.textSize];
   const lastTurnKey = turns[turns.length - 1]?.key;
 
-  const renderTurn = (turn: Turn) => {
+  const renderTurn = (turn: Turn, recent: boolean) => {
     const speaker = speakerById.get(turn.speakerId) ?? {
       id: turn.speakerId,
       name: turn.speakerId,
@@ -524,14 +604,15 @@ const LiveView = () => {
     return (
       <motion.li
         key={turn.key}
+        layout={recent ? "position" : false}
         className="py-2.5"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
       >
         <div className="flex h-5 items-center gap-2">
           <span
-            className={`h-2 w-2 shrink-0 rounded-full ${speaking ? "recording-pulse" : ""}`}
+            className={`h-2 w-2 shrink-0 rounded-full transition-[background-color] duration-300 ${speaking ? "recording-pulse" : ""}`}
             style={{ backgroundColor: speaker.color ?? undefined }}
             aria-hidden="true"
           />
@@ -558,7 +639,11 @@ const LiveView = () => {
               }`}
             >
               {index > 0 ? " " : ""}
-              <RevealText text={segment.text} />
+              <RevealText
+                id={segment.id}
+                text={segment.text}
+                seen={seenWords.current}
+              />
             </span>
           ))}
         </p>
@@ -751,25 +836,29 @@ const LiveView = () => {
         >
           <div className="relative min-h-0 flex-1">
             <div className="h-full list-fade-y">
-              <div
+              <motion.div
                 ref={scrollerRef}
+                layoutScroll
                 onScroll={handleScroll}
                 className="h-full overflow-y-auto px-4 py-4 custom-scrollbar"
               >
-                {transcript.segments.length === 0 ? (
+                {!hasSegments ? (
                   <div className="flex h-full items-center justify-center px-6 text-center ui-text-body-sm text-content-muted text-pretty">
                     {emptyMessage}
                   </div>
                 ) : (
-                  <ul>
-                    {rows.map((row) =>
+                  <ul ref={listRef}>
+                    {rows.map((row, index) =>
                       row.kind === "turn"
-                        ? renderTurn(row.turn)
+                        ? renderTurn(
+                            row.turn,
+                            index >= rows.length - LAYOUT_TAIL,
+                          )
                         : renderBookmark(row.bookmark),
                     )}
                   </ul>
                 )}
-              </div>
+              </motion.div>
             </div>
             <AnimatePresence>
               {silenceWarning && (
