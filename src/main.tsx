@@ -162,7 +162,8 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 const applyInitialTextScale = () => {
-  if (getCurrentWindow().label !== "settings") return;
+  const label = getCurrentWindow().label;
+  if (label !== "settings" && label !== "live") return;
 
   const mode = parseTextSizeMode(
     localStorage.getItem(TEXT_SIZE_MODE_STORAGE_KEY),

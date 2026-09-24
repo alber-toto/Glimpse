@@ -613,6 +613,15 @@ pub fn run() {
             recording::remove_recording_bookmark,
             recording::discard_recording_session,
             recording::open_system_audio_settings,
+            recording::live_window::open_live_view,
+            recording::live_window::hide_live_view,
+            recording::live_window::finish_from_live_view,
+            recording::live_window::set_live_view_compact,
+            recording::get_live_transcript,
+            recording::set_live_transcription,
+            recording::rename_live_speaker,
+            recording::set_live_speaker_color,
+            recording::merge_live_speaker,
             model_manager::list_models,
             model_manager::check_model_status,
             model_manager::download_model,
@@ -1192,6 +1201,10 @@ impl AppState {
         let next = queue.pop_front()?;
         *active = Some(next.id.clone());
         Some(next)
+    }
+
+    pub(crate) fn library_job_active(&self) -> bool {
+        self.library_active.lock().is_some()
     }
 
     pub fn clear_active_library_job(&self, id: &str) {

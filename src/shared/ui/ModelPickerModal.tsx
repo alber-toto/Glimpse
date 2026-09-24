@@ -315,7 +315,7 @@ export function ModelPickerPanel({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 model-list-fade">
+      <div className="min-h-0 flex-1 list-fade-y">
         <div className="h-full overflow-y-auto py-3 pl-2 pr-3">
           {filteredGroups.length === 0 ? (
             <p className="py-10 text-center ui-text-body-sm text-content-muted">

@@ -86,6 +86,11 @@ pub(crate) fn installed_diarizer_path(app: &AppHandle<AppRuntime>) -> Option<Pat
     })
 }
 
+/// The Nemotron-3 diarizer, once fully downloaded. Sortformer v2.1 has no live mode.
+pub(crate) fn live_diarizer_path(app: &AppHandle<AppRuntime>) -> Option<PathBuf> {
+    current_diarizer_path(&install::model_cache_dir(app).ok()?)
+}
+
 fn current_diarizer_path(models_dir: &std::path::Path) -> Option<PathBuf> {
     let manager = glimpse_speech::models::ModelInstallManager::new(models_dir);
     let spec = catalog::install_spec(catalog::DIARIZER_MODEL, false)?;

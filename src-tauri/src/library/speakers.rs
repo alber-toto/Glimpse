@@ -1,21 +1,22 @@
 //! Local speaker diarization for Library items. Each audio track is diarized
 //! as a whole, then segments and words take the speaker they overlap most.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
 use glimpse_speech::diarization::{self, SpeakerTurn};
 
 use super::processing::read_wav_resampled;
 use super::types::{
-    LibraryItem, LibraryTranscriptionResult, Speaker, TARGET_SAMPLE_RATE, TranscriptSegment,
+    LibraryItem, LibraryTranscriptionResult, LiveSpeakerHints, Speaker, TARGET_SAMPLE_RATE,
+    TranscriptSegment,
 };
 
 const MICROPHONE_SPEAKER: &str = "you";
 const SYSTEM_SPEAKER: &str = "others";
 
 /// The speakers a two-track recording starts with: microphone, then system audio.
-pub(super) fn recording_speakers() -> [Speaker; 2] {
+pub(crate) fn recording_speakers() -> [Speaker; 2] {
     [
         Speaker {
             id: MICROPHONE_SPEAKER.to_string(),
@@ -304,6 +305,169 @@ fn assign_voices(
     result.segments = (!split.is_empty()).then_some(split);
     result.words = (!words.is_empty()).then_some(words);
     (segment_voices, word_voices)
+}
+
+/// Segments split where their words change voice, each with its dominant voice.
+pub(crate) fn voiced_segments(
+    segments: Vec<TranscriptSegment>,
+    words: Vec<TranscriptSegment>,
+    turns: &[SpeakerTurn],
+) -> Vec<(TranscriptSegment, Option<u32>)> {
+    let mut result = LibraryTranscriptionResult {
+        segments: Some(segments),
+        words: Some(words),
+        ..Default::default()
+    };
+    let (voices, _) = assign_voices(&mut result, turns, false);
+    result
+        .segments
+        .unwrap_or_default()
+        .into_iter()
+        .zip(voices)
+        .collect()
+}
+
+fn live_hints_path(item_id: &str, audio_path: &Path) -> Option<PathBuf> {
+    Some(
+        audio_path
+            .parent()?
+            .join(format!("{item_id}-live-speakers.json")),
+    )
+}
+
+/// Stored next to a recording's audio until its transcription runs.
+pub(super) fn save_live_hints(item_id: &str, audio_path: &Path, hints: &LiveSpeakerHints) {
+    if hints.turns.is_empty() || (hints.speakers.is_empty() && hints.merged_into.is_empty()) {
+        return;
+    }
+    let Some(path) = live_hints_path(item_id, audio_path) else {
+        return;
+    };
+    let written = serde_json::to_vec(hints)
+        .map_err(anyhow::Error::from)
+        .and_then(|bytes| Ok(std::fs::write(&path, bytes)?));
+    if let Err(err) = written {
+        tracing::warn!("[library] could not store live speaker names: {err}");
+    }
+}
+
+fn load_live_hints(item: &LibraryItem) -> Option<LiveSpeakerHints> {
+    let path = live_hints_path(&item.id, Path::new(&item.audio_path))?;
+    serde_json::from_slice(&std::fs::read(path).ok()?).ok()
+}
+
+/// Carries live speaker edits onto the final system-track speakers. Final
+/// speakers heard mostly as the same live speaker that others were merged
+/// into become one, and each named or recolored live speaker passes its name
+/// and color to the final speaker overlapping it most. `system` is the system
+/// track's labeled result.
+pub(super) fn carry_live_speakers(
+    item: &LibraryItem,
+    system: &mut LibraryTranscriptionResult,
+    speakers: &mut Vec<Speaker>,
+) {
+    let Some(hints) = load_live_hints(item) else {
+        return;
+    };
+    // A recording without a microphone keeps system audio as its only track.
+    let two_tracks = item.secondary_audio_path.is_some();
+    let is_system = |id: &str| !two_tracks || from_system_track(Some(id)) == Some(true);
+
+    // (final speaker, live speaker, milliseconds heard as both)
+    let mut overlaps: Vec<(String, &str, u64)> = Vec::new();
+    for entry in timed_entries(system) {
+        let Some(id) = entry.speaker_id.as_deref().filter(|id| is_system(id)) else {
+            continue;
+        };
+        for turn in &hints.turns {
+            let overlap = turn
+                .end_ms
+                .min(entry.end_ms)
+                .saturating_sub(turn.start_ms.max(entry.start_ms));
+            if overlap == 0 {
+                continue;
+            }
+            match overlaps
+                .iter_mut()
+                .find(|(final_id, live, _)| final_id == id && *live == turn.speaker_id)
+            {
+                Some((_, _, total)) => *total += overlap,
+                None => overlaps.push((id.to_string(), &turn.speaker_id, overlap)),
+            }
+        }
+    }
+    overlaps.sort_by_key(|(_, _, overlap)| std::cmp::Reverse(*overlap));
+
+    let mut relabel: Vec<(String, String)> = Vec::new();
+    for live in &hints.merged_into {
+        let mut group: Vec<&str> = Vec::new();
+        for (final_id, _, _) in &overlaps {
+            let best = overlaps.iter().find(|(id, _, _)| id == final_id);
+            if best.is_some_and(|(_, best, _)| best == live) && !group.contains(&final_id.as_str())
+            {
+                group.push(final_id);
+            }
+        }
+        // Merged into You: system speech joins the microphone's speaker when it has one.
+        let target = if live == MICROPHONE_SPEAKER
+            && speakers
+                .iter()
+                .any(|speaker| speaker.id == MICROPHONE_SPEAKER)
+        {
+            Some(MICROPHONE_SPEAKER)
+        } else {
+            group.first().copied()
+        };
+        let Some(target) = target else {
+            continue;
+        };
+        for final_id in group.into_iter().filter(|id| *id != target) {
+            relabel.push((final_id.to_string(), target.to_string()));
+        }
+    }
+    if !relabel.is_empty() {
+        for entry in entries(system) {
+            if let Some((_, to)) = relabel
+                .iter()
+                .find(|(from, _)| entry.speaker_id.as_ref() == Some(from))
+            {
+                entry.speaker_id = Some(to.clone());
+            }
+        }
+        speakers.retain(|speaker| !relabel.iter().any(|(from, _)| *from == speaker.id));
+        for (final_id, _, _) in &mut overlaps {
+            if let Some((_, to)) = relabel.iter().find(|(from, _)| from == final_id) {
+                final_id.clone_from(to);
+            }
+        }
+    }
+
+    let mut named: Vec<&str> = Vec::new();
+    let mut used: Vec<&str> = Vec::new();
+    for (final_id, live, _) in &overlaps {
+        let Some(edit) = hints.speakers.iter().find(|speaker| speaker.id == *live) else {
+            continue;
+        };
+        if named.contains(&final_id.as_str()) || used.contains(live) {
+            continue;
+        }
+        named.push(final_id);
+        used.push(live);
+        if let Some(speaker) = speakers.iter_mut().find(|speaker| speaker.id == *final_id) {
+            speaker.name.clone_from(&edit.name);
+            speaker.color.clone_from(&edit.color);
+        }
+    }
+}
+
+/// Words when the track has them, otherwise segments.
+fn timed_entries(result: &LibraryTranscriptionResult) -> &[TranscriptSegment] {
+    result
+        .words
+        .as_deref()
+        .filter(|words| !words.is_empty())
+        .or(result.segments.as_deref())
+        .unwrap_or_default()
 }
 
 /// The voice with the most overlap, or the closest turn when nothing overlaps.

@@ -20,12 +20,14 @@ import {
   Microphone,
   Pause,
   Play,
+  SidebarSimple,
   SpeakerHigh,
   Stop,
   X,
 } from "@phosphor-icons/react";
 import * as recordingApi from "../api";
 import { useRecordingSession } from "../useRecordingSession";
+import { readLivePrefs } from "../livePrefs";
 import { useInputDevices, useSettings } from "../../settings/queries";
 import { libraryKeys } from "../../library/queries";
 import { formatTimestamp } from "../../library/components/library-utils";
@@ -580,10 +582,19 @@ const RecordingView = ({ isActive, onOpenLibraryItem }: RecordingViewProps) => {
     setSaved(null);
     try {
       applyState(await recordingApi.startRecordingSession(sources));
+      if (readLivePrefs().openOnStart) void handleOpenLive();
     } catch (err) {
       setStartError(describeError(err));
     } finally {
       setStarting(false);
+    }
+  };
+
+  const handleOpenLive = async () => {
+    try {
+      await recordingApi.openLiveView();
+    } catch (err) {
+      console.error("Failed to open the live view:", err);
     }
   };
 
@@ -968,6 +979,17 @@ const RecordingView = ({ isActive, onOpenLibraryItem }: RecordingViewProps) => {
               {paused
                 ? t({ id: "record.active.paused", message: "Paused" })
                 : t({ id: "record.active.recording", message: "Recording" })}
+              <span className="text-content-disabled" aria-hidden="true">
+                ·
+              </span>
+              <button
+                type="button"
+                onClick={handleOpenLive}
+                className="-mx-1.5 flex h-6 items-center gap-1.5 rounded-md px-1.5 text-content-secondary transition-colors hover:bg-surface-interactive hover:text-content-primary"
+              >
+                <SidebarSimple size={13} weight="bold" />
+                {t({ id: "record.active.live", message: "Live view" })}
+              </button>
             </>
           )}
         </div>

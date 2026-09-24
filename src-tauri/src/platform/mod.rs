@@ -54,6 +54,7 @@ macro_rules! native_panel {
     };
 }
 
+native_panel!(live, "live view");
 native_panel!(overlay, "overlay");
 native_panel!(toast, "toast");
 

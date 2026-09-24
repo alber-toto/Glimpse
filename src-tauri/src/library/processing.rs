@@ -137,9 +137,20 @@ pub(crate) fn create_recording_item(
 
     let remote_selection = crate::remote_speech::is_remote_model(model_key);
     let show_timestamps = remote_selection || model_supports_timestamps(model_key);
-    let speakers = secondary_audio_path
-        .as_ref()
-        .map(|_| super::speakers::recording_speakers().to_vec());
+    // Names and colors given to You and Others during the recording carry over.
+    let speakers = secondary_audio_path.as_ref().map(|_| {
+        super::speakers::recording_speakers()
+            .map(|speaker| {
+                output
+                    .live
+                    .speakers
+                    .iter()
+                    .find(|edited| edited.id == speaker.id)
+                    .cloned()
+                    .unwrap_or(speaker)
+            })
+            .to_vec()
+    });
 
     let item = LibraryItem {
         id,
@@ -188,6 +199,7 @@ pub(crate) fn create_recording_item(
         let _ = fs::remove_dir_all(&item_dir);
         return Err(err);
     }
+    super::speakers::save_live_hints(&item.id, &audio_path, &output.live);
     Ok(item)
 }
 

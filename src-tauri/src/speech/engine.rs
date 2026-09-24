@@ -195,6 +195,20 @@ impl LocalTranscriber {
         })
     }
 
+    /// Like `transcribe_with_segments`, but returns `None` instead of waiting
+    /// when the transcriber is busy, so the caller never queues ahead of dictation.
+    pub fn try_transcribe_with_segments(
+        &self,
+        model: &ReadyModel,
+        samples: &[i16],
+        sample_rate: u32,
+        dictionary: &[String],
+        language: Option<&str>,
+    ) -> Option<Result<glimpse_speech::Transcription>> {
+        let _exclusive = self.exclusive.try_lock()?;
+        Some(self.transcribe_locked(model, samples, sample_rate, dictionary, language, true))
+    }
+
     fn transcribe_internal(
         &self,
         model: &ReadyModel,
@@ -205,6 +219,26 @@ impl LocalTranscriber {
         with_segments: bool,
     ) -> Result<glimpse_speech::Transcription> {
         let _exclusive = self.exclusive.lock();
+        self.transcribe_locked(
+            model,
+            samples,
+            sample_rate,
+            dictionary,
+            language,
+            with_segments,
+        )
+    }
+
+    // Caller must hold `exclusive`.
+    fn transcribe_locked(
+        &self,
+        model: &ReadyModel,
+        samples: &[i16],
+        sample_rate: u32,
+        dictionary: &[String],
+        language: Option<&str>,
+        with_segments: bool,
+    ) -> Result<glimpse_speech::Transcription> {
         let was_loaded = self.service.is_loaded();
         let started = Instant::now();
         let response = self.service.transcribe(TranscribeRequest {

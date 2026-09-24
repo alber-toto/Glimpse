@@ -1636,7 +1636,7 @@ body {
   background: var(--color-scrollbar-thumb-subtle-hover);
 }
 
-.model-list-fade {
+.list-fade-y {
   mask-image: linear-gradient(
     to bottom,
     transparent,

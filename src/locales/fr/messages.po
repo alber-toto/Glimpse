@@ -660,6 +660,7 @@ msgid "personalization.modal.add"
 msgstr "Ajouter"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
 #: src/features/recording/components/RecordingView.tsx
 msgid "record.bookmark.note"
 msgstr "Ajouter une note"
@@ -841,6 +842,7 @@ msgstr "Attribuer"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
 msgid "library.detail.assign_new_speaker"
 msgstr "Attribuer un nouvel intervenant"
 
@@ -957,6 +959,7 @@ msgid "settings.stats.best_streak"
 msgstr "Meilleure série"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
 #: src/features/recording/components/RecordingView.tsx
 msgid "record.active.bookmark"
 msgstr "Signet"
@@ -1103,6 +1106,11 @@ msgid "onboarding.license_step.tile_modes_casual"
 msgstr "Décontracté"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.status.catching_up"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.filter.category"
 msgstr "Catégorie"
@@ -1114,7 +1122,7 @@ msgid "onboarding.first_dictation.edit_shortcut_aria"
 msgstr "Modifier le raccourci"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
 msgid "library.detail.speaker_menu.change_line"
 msgstr "Changer l'intervenant pour cette ligne"
 
@@ -1299,6 +1307,11 @@ msgid "faq.close_aria"
 msgstr "Fermer la FAQ"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.close"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
 msgid "personalization.modal.close"
 msgstr "Fermer la fenêtre modale"
@@ -1344,7 +1357,7 @@ msgid "home.sidebar.collapse"
 msgstr "Réduire la barre latérale"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
 msgid "library.detail.speaker_menu.color"
 msgstr "Couleur"
 
@@ -1524,6 +1537,11 @@ msgstr "Copier le message"
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.copy_selection"
 msgstr "Copier la sélection"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.copy"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionItem.tsx
@@ -2584,6 +2602,11 @@ msgid "library.detail.speaker_menu.hide"
 msgstr "Masquer l'intervenant"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.compact"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.shortcuts.hold"
 msgstr "Maintenir"
@@ -2802,6 +2825,11 @@ msgid "member_card.draft_stamp_issuing"
 msgstr "Émission en cours"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.jump"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.store_original.description"
 msgstr "Conserver une copie dans le dossier de la bibliothèque"
@@ -2810,6 +2838,11 @@ msgstr "Conserver une copie dans le dossier de la bibliothèque"
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.waiting.hold"
 msgstr "Continuez à maintenir, puis relâchez lorsque vous avez terminé."
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.on_top"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -2947,6 +2980,11 @@ msgid "settings.local_api.listen_on_lan_aria"
 msgstr "Écouter sur le réseau local"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.empty.listening"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/pill/PillOverlay.tsx
 msgid "pill.status.listening"
 msgstr "Écoute en cours…"
@@ -2965,6 +3003,21 @@ msgstr "Texte en direct"
 #: src/features/onboarding/steps/ModelStep.tsx
 msgid "onboarding.model.supports.live"
 msgstr "Texte en direct pendant que vous parlez"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.empty.unavailable"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.active.live"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx
@@ -3068,7 +3121,7 @@ msgid "member_card.label_member_since"
 msgstr "Membre depuis"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
 msgid "library.detail.speaker_menu.merge"
 msgstr "Fusionner dans"
 
@@ -3452,6 +3505,17 @@ msgid "transcriptions.list.no_results_filters"
 msgstr "Aucun résultat pour les filtres sélectionnés"
 
 #. js-lingui-explicit-id
+#. placeholder {0}: systemApps[0]
+#: src/features/recording/components/LiveView.tsx
+msgid "live.silent.app"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.silent.microphone"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.no_speakers"
 msgstr "Aucun intervenant pour l'instant"
@@ -3460,6 +3524,11 @@ msgstr "Aucun intervenant pour l'instant"
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.toast.no_speech"
 msgstr "Aucune parole détectée. Enregistrement supprimé."
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.silent.system"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryCard.tsx
@@ -3677,6 +3746,11 @@ msgid "settings.about.command_line.open_wiki_aria"
 msgstr "Ouvrir la documentation de ligne de commande"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.open_on_start"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/AneCompileOverlay.tsx
 msgid "ane_compile.title"
 msgstr "Optimisation pour le Neural Engine"
@@ -3722,6 +3796,7 @@ msgid "settings.app.auto_pause_media.pause"
 msgstr "Pause"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
 #: src/features/recording/components/RecordingView.tsx
 msgid "record.active.pause"
 msgstr "Pause"
@@ -3735,6 +3810,16 @@ msgstr "Mettre l'audio en pause"
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.recording_pause"
 msgstr "Mettre l'enregistrement en pause"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.empty.paused"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.status.paused"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/recording/components/RecordingView.tsx
@@ -4095,7 +4180,7 @@ msgid "settings.general.shortcuts.remove_shortcut"
 msgstr "Supprimer le raccourci"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
 msgid "library.detail.speaker_menu.remove"
 msgstr "Supprimer l'intervenant"
 
@@ -4105,11 +4190,6 @@ msgid "settings.about.data.delete_all_description"
 msgstr "Supprime les enregistrements, transcriptions, modèles et paramètres, puis quitte"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.speaker_menu.rename"
-msgstr "Renommer"
-
-#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalizationView.tsx
 msgid "personalization.mode.rename"
 msgstr "Renommer"
@@ -4117,6 +4197,12 @@ msgstr "Renommer"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryCard.tsx
 msgid "library.card.rename"
+msgstr "Renommer"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
+msgid "library.detail.speaker_menu.rename"
 msgstr "Renommer"
 
 #: src/features/settings/components/AccountView.tsx
@@ -4219,6 +4305,7 @@ msgid "transcriptions.item.restore_original"
 msgstr "Restaurer la transcription d'origine"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
 #: src/features/recording/components/RecordingView.tsx
 msgid "record.active.resume"
 msgstr "Reprendre"
@@ -4611,6 +4698,7 @@ msgstr "Tout afficher"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
 msgid "library.detail.speaker_menu.show_all"
 msgstr "Afficher tous les intervenants"
 
@@ -4630,7 +4718,7 @@ msgid "transcriptions.item.show_more"
 msgstr "Afficher plus"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
 msgid "library.detail.speaker_menu.show_only"
 msgstr "Afficher uniquement cet intervenant"
 
@@ -4648,6 +4736,11 @@ msgstr "Afficher les raccourcis"
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker_menu.show"
 msgstr "Afficher l'intervenant"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.timestamps"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -4673,6 +4766,11 @@ msgstr "Afficher les horodatages"
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.show_timestamps.aria"
 msgstr "Afficher les horodatages"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.expand"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
@@ -4865,6 +4963,11 @@ msgid "settings.local_api.stop"
 msgstr "Arrêter l'API"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.stop"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.stop_retry"
 msgstr "Arrêter la transcription"
@@ -5019,6 +5122,11 @@ msgstr "Le texte apparaît dans la pastille au fur et à mesure que vous parlez.
 #: src/features/import/components/ImportStep.tsx
 msgid "import.cat.replacements"
 msgstr "Remplacements de texte"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx

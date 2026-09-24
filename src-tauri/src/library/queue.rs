@@ -533,11 +533,15 @@ fn transcribe_library_item(
             return Err(cancelled_error());
         }
         if turns.is_some() {
-            result.speakers = speakers::label_tracks([Track {
+            let mut labeled = speakers::label_tracks([Track {
                 result: &mut result,
                 turns,
                 identity: None,
             }]);
+            if let Some(labeled) = labeled.as_mut() {
+                speakers::carry_live_speakers(item, &mut result, labeled);
+            }
+            result.speakers = labeled;
         }
         return Ok(result);
     };
@@ -570,7 +574,7 @@ fn transcribe_library_item(
     if token.is_cancelled() {
         return Err(cancelled_error());
     }
-    let speakers = speakers::label_tracks([
+    let mut speakers = speakers::label_tracks([
         Track {
             result: &mut microphone,
             turns: microphone_turns,
@@ -582,6 +586,9 @@ fn transcribe_library_item(
             identity: Some(speakers::track_speaker(item, others)),
         },
     ]);
+    if let Some(speakers) = speakers.as_mut() {
+        speakers::carry_live_speakers(item, &mut system, speakers);
+    }
     let mut merged = merge_track_results(microphone, system);
     merged.speakers = speakers;
     Ok(merged)

@@ -1,6 +1,8 @@
 //! Long-form recording: microphone and/or system audio captured as separate
 //! tracks, written to disk continuously, then saved as a Library item.
 
+mod live;
+pub mod live_window;
 mod microphone;
 mod track;
 
@@ -29,8 +31,11 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::analytics::{self, Activity, ErrorDetail, RecordingSessionSummary, error_detail};
-use crate::library::{AudioSources, Bookmark, JobSource, LibraryItem, RecordingOutput};
+use crate::library::{
+    AudioSources, Bookmark, JobSource, LibraryItem, LiveSpeakerHints, RecordingOutput,
+};
 use crate::{AppRuntime, AppState, LibraryJob, LibraryJobKind};
+use live::{LiveTranscript, LiveWorker};
 use track::{TrackInput, TrackWriter};
 
 pub const EVENT_STATE: &str = "recording-session:state";
@@ -144,6 +149,8 @@ struct SessionManifest {
     started_at: DateTime<Local>,
     sources: AudioSources,
     bookmarks: Vec<Bookmark>,
+    #[serde(default)]
+    live: LiveSpeakerHints,
 }
 
 /// Wall clock for one session, minus time spent paused. Lock-free so capture
@@ -214,6 +221,7 @@ struct Shared {
     started_at: Mutex<Option<DateTime<Local>>>,
     finish_requested: AtomicBool,
     emitter_running: AtomicBool,
+    live: live::LiveState,
 }
 
 impl Shared {
@@ -276,6 +284,7 @@ impl Shared {
             started_at,
             sources: self.sources.lock().clone(),
             bookmarks: self.bookmarks.lock().clone(),
+            live: self.live.hints(),
         };
         if let Err(err) = write_manifest_file(&dir, &manifest) {
             tracing::warn!("Failed to write recording manifest: {err}");
@@ -295,6 +304,7 @@ impl Shared {
         *self.session_dir.lock() = None;
         *self.started_at.lock() = None;
         self.finish_requested.store(false, Ordering::Relaxed);
+        self.live.end();
     }
 }
 
@@ -313,6 +323,7 @@ struct SessionOutput {
     duration_seconds: f32,
     microphone_path: Option<PathBuf>,
     system_path: Option<PathBuf>,
+    live: LiveSpeakerHints,
 }
 
 enum WorkerCommand {
@@ -356,6 +367,7 @@ impl Default for RecordingManager {
             started_at: Mutex::new(None),
             finish_requested: AtomicBool::new(false),
             emitter_running: AtomicBool::new(false),
+            live: live::LiveState::default(),
         });
         let (tx, rx) = unbounded();
         let worker_shared = Arc::clone(&shared);
@@ -562,6 +574,7 @@ struct ActiveSession {
     clock: Arc<SessionClock>,
     microphone: Option<MicrophoneTrack>,
     system: Option<(system_audio::SystemAudioCapture, TrackWriter)>,
+    live: Option<LiveWorker>,
 }
 
 /// The track outlives its capture: a lost microphone leaves the writer padding
@@ -617,6 +630,7 @@ impl Worker {
             clock: Arc::clone(&clock),
             microphone: None,
             system: None,
+            live: None,
         };
 
         let mut stage = "start_system";
@@ -741,6 +755,7 @@ impl Worker {
             started_at,
             sources: summary.clone(),
             bookmarks: Vec::new(),
+            live: LiveSpeakerHints::default(),
         };
         if let Err(err) = write_manifest_file(&dir, &manifest) {
             tracing::warn!("Failed to write recording manifest: {err}");
@@ -753,14 +768,24 @@ impl Worker {
         *self.shared.clock.lock() = Some(clock);
         self.shared.finish_requested.store(false, Ordering::Relaxed);
         *self.shared.status.lock() = Status::Recording;
+        session.live = LiveWorker::spawn(
+            session.app.clone(),
+            Arc::clone(&self.shared),
+            session.microphone.as_ref().map(|mic| mic.writer.tap()),
+            session.system.as_ref().map(|(_, writer)| writer.tap()),
+        );
         self.active = Some(session);
         Ok(())
     }
 
     fn finish(&mut self) -> Result<SessionOutput> {
-        let session = self.active.take().ok_or_else(|| anyhow!("not_recording"))?;
+        let mut session = self.active.take().ok_or_else(|| anyhow!("not_recording"))?;
         *self.shared.status.lock() = Status::Saving;
         let final_ms = session.clock.elapsed_ms();
+        if let Some(live) = session.live.take() {
+            live.stop();
+        }
+        let live = self.shared.live.hints();
 
         let mut microphone_path = None;
         let mut system_path = None;
@@ -785,6 +810,7 @@ impl Worker {
             duration_seconds: final_ms as f32 / 1000.0,
             microphone_path,
             system_path,
+            live,
         })
     }
 }
@@ -933,6 +959,9 @@ fn lost_signal(tx: &Sender<WorkerCommand>, generation: u64) -> Box<dyn FnMut() +
 }
 
 fn discard_session(session: ActiveSession) {
+    if let Some(live) = session.live {
+        live.stop();
+    }
     if let Some(mic) = session.microphone {
         drop(mic.capture);
         mic.writer.discard();
@@ -1084,6 +1113,7 @@ fn save_session(
             system_path: output.system_path,
             sources,
             bookmarks,
+            live: output.live,
         },
     )?;
     let _ = fs::remove_dir_all(&output.dir);
@@ -1162,6 +1192,7 @@ pub(crate) fn recover_interrupted_sessions(app: &AppHandle<AppRuntime>) {
             duration_seconds,
             microphone_path: microphone.map(|(path, _)| path),
             system_path: system.map(|(path, _)| path),
+            live: manifest.live,
         };
         let name = default_session_name(app, &manifest.started_at);
         match save_session(
@@ -1414,6 +1445,7 @@ pub async fn discard_recording_session(app: AppHandle<AppRuntime>) -> RecordingS
     let state = app.state::<AppState>();
     let manager = state.recording();
     manager.shared.reset();
+    manager.shared.live.publish(&app, false);
     if let Some(summary) = summary {
         analytics::set_activity(Activity::Idle);
         analytics::track_recording_session_ended(&app, "discarded", &summary, None);
@@ -1460,6 +1492,7 @@ pub async fn finish_recording_session(
     .map_err(|err| err.to_string())?;
 
     manager.shared.reset();
+    manager.shared.live.publish(&app, false);
     analytics::set_activity(Activity::Idle);
     match &result {
         Ok(_) => analytics::track_recording_session_ended(&app, "saved", &summary, None),
@@ -1474,6 +1507,70 @@ pub async fn finish_recording_session(
     sync_tray(&app, &manager.shared.state());
     emit_state(&app, &manager.shared);
     result.map_err(|(_, err)| err.to_string())
+}
+
+/// The live transcript as last published, for a window opening mid-recording.
+#[tauri::command]
+pub fn get_live_transcript(app: AppHandle<AppRuntime>) -> LiveTranscript {
+    app.state::<AppState>().recording().shared.live.last()
+}
+
+/// Live transcription runs during recordings while enabled, from when it was
+/// turned on. Turning it off stops the work and frees the speaker model; the
+/// transcript so far stays until the recording ends.
+#[tauri::command]
+pub fn set_live_transcription(app: AppHandle<AppRuntime>, enabled: bool) -> LiveTranscript {
+    let state = app.state::<AppState>();
+    let live = &state.recording().shared.live;
+    live.set_requested(enabled);
+    live.last()
+}
+
+/// Applies a live speaker edit, stores it with the session and publishes the result.
+fn edit_live_speakers(
+    app: &AppHandle<AppRuntime>,
+    edit: impl FnOnce(&live::LiveState) -> bool,
+) -> Result<LiveTranscript, String> {
+    let state = app.state::<AppState>();
+    let shared = &state.recording().shared;
+    if !shared.is_active() {
+        return Err("not_recording".into());
+    }
+    if !edit(&shared.live) {
+        return Err("speaker_not_found".into());
+    }
+    shared.write_manifest();
+    shared.live.publish(app, true);
+    Ok(shared.live.last())
+}
+
+/// An empty name restores the default.
+#[tauri::command]
+pub fn rename_live_speaker(
+    app: AppHandle<AppRuntime>,
+    id: String,
+    name: String,
+) -> Result<LiveTranscript, String> {
+    edit_live_speakers(&app, |live| live.rename(&id, &name))
+}
+
+#[tauri::command]
+pub fn set_live_speaker_color(
+    app: AppHandle<AppRuntime>,
+    id: String,
+    color: Option<String>,
+) -> Result<LiveTranscript, String> {
+    edit_live_speakers(&app, |live| live.set_color(&id, color))
+}
+
+/// Relabels system speaker `from` as `into` for the rest of the recording.
+#[tauri::command]
+pub fn merge_live_speaker(
+    app: AppHandle<AppRuntime>,
+    from: String,
+    into: String,
+) -> Result<LiveTranscript, String> {
+    edit_live_speakers(&app, |live| live.merge(&from, &into))
 }
 
 #[tauri::command]
