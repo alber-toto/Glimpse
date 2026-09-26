@@ -185,6 +185,125 @@ pub(crate) fn remove_whisper_cpp_files(app: &AppHandle<AppRuntime>) {
     });
 }
 
+const NEMOTRON_ONNX_FILES: &[&str] = &[
+    "encoder.onnx",
+    "encoder.onnx.data",
+    "decoder_joint.onnx",
+    "tokenizer.model",
+];
+
+/// Models earlier versions ran from ONNX files, the transcribe.cpp model that
+/// replaces each, and the files they downloaded.
+const ONNX_MODELS: &[(&str, &str, &[&str])] = &[
+    (
+        "parakeet_tdt_int8",
+        "parakeet_tdt_v3_gguf",
+        &[
+            "encoder-model.int8.onnx",
+            "decoder_joint-model.int8.onnx",
+            "vocab.txt",
+        ],
+    ),
+    (
+        "parakeet_unified_en_int8",
+        "parakeet_unified_en_int8",
+        &[
+            "encoder.int8.onnx",
+            "encoder.int8.onnx.data",
+            "decoder_joint.int8.onnx",
+            "tokenizer.model",
+        ],
+    ),
+    (
+        "nemotron_streaming_en",
+        "nemotron_streaming_en",
+        NEMOTRON_ONNX_FILES,
+    ),
+    (
+        "nemotron_35_streaming_multilingual",
+        "nemotron_35_streaming_multilingual",
+        NEMOTRON_ONNX_FILES,
+    ),
+];
+
+fn onnx_installed(models_dir: &Path, id: &str, files: &[&str]) -> bool {
+    files
+        .iter()
+        .any(|file| models_dir.join(id).join(file).is_file())
+}
+
+/// The ONNX files and their interrupted `.part` downloads. Empty for a
+/// symlinked model directory, so deleting never reaches outside the models dir.
+fn onnx_leftovers(models_dir: &Path, id: &str, files: &[&str]) -> Vec<PathBuf> {
+    let dir = models_dir.join(id);
+    if !dir.symlink_metadata().is_ok_and(|meta| meta.is_dir()) {
+        return Vec::new();
+    }
+    files
+        .iter()
+        .flat_map(|file| [dir.join(file), dir.join(format!("{file}.part"))])
+        .filter(|path| path.symlink_metadata().is_ok_and(|meta| !meta.is_dir()))
+        .collect()
+}
+
+/// Whether an earlier version's ONNX install of the model that `model`
+/// replaces is still on disk, so its download stays allowed.
+pub(crate) fn replaces_onnx_install(models_dir: &Path, model: &str) -> bool {
+    ONNX_MODELS.iter().any(|(id, replacement, files)| {
+        *replacement == model && onnx_installed(models_dir, id, files)
+    })
+}
+
+/// ONNX models no longer load. The selected model's replacement downloads in
+/// the background and its ONNX files go once it is installed and verified;
+/// other ONNX installs are removed and can be downloaded again from the picker.
+/// A failed download is retried at the next launch.
+pub(crate) fn replace_onnx_models(app: &AppHandle<AppRuntime>) {
+    let Ok(models_dir) = install::model_cache_dir(app) else {
+        return;
+    };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let selected = app.state::<AppState>().current_settings().local_model;
+        for (id, replacement, files) in ONNX_MODELS {
+            let leftovers = onnx_leftovers(&models_dir, id, files);
+            if leftovers.is_empty() {
+                continue;
+            }
+            if *replacement == selected
+                && onnx_installed(&models_dir, id, files)
+                && !install::check_model_installed_at(&models_dir, replacement)
+            {
+                if let Err(err) =
+                    install::download_model_now(app.clone(), replacement.to_string(), None).await
+                {
+                    tracing::warn!("[speech] {replacement} download failed, keeping ONNX: {err}");
+                    continue;
+                }
+                let dir = models_dir.clone();
+                let verified = tauri::async_runtime::spawn_blocking(move || {
+                    install::verify_model_installed_at(&dir, replacement)
+                })
+                .await
+                .unwrap_or(false);
+                // A cancelled download also returns Ok.
+                if !verified {
+                    tracing::warn!("[speech] {replacement} is not installed, keeping ONNX");
+                    continue;
+                }
+            }
+            for path in leftovers {
+                if let Err(err) = std::fs::remove_file(&path) {
+                    tracing::warn!("[speech] could not remove {}: {err}", path.display());
+                }
+            }
+            // Only removes a directory left empty.
+            let _ = std::fs::remove_dir(models_dir.join(id));
+            tracing::info!("[speech] removed ONNX model {id}");
+        }
+    });
+}
+
 pub fn warm(app: &AppHandle<AppRuntime>, settings: &UserSettings) {
     if remote::is_configured(settings) {
         return;

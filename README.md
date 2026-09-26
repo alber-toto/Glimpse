@@ -111,15 +111,16 @@ Questions, bugs, or feedback: [hello@tryglimpse.cc](mailto:hello@tryglimpse.cc) 
 - [Tauri](https://v2.tauri.app/), app framework
 - [Glimpse-Speech](https://github.com/glimpse-hq/Glimpse-Speech) (MIT), local transcription engine
 - [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (MIT), on-device inference for Whisper and other speech models
-- [parakeet-rs](https://github.com/altunenes/parakeet-rs) (MIT OR Apache-2.0), ONNX Runtime bindings for Parakeet
+- [Silero VAD](https://github.com/snakers4/silero-vad) (MIT), voice activity detection model
 
 Speech models are downloaded in-app from Hugging Face. The live list lives in **Settings → Models**. By family:
 
 - **Whisper GGUF** (MIT), via [`handy-computer`](https://huggingface.co/handy-computer)
 - **Distil-Whisper GGUF** (MIT, English-only), via [Glimpse's conversions](https://huggingface.co/Glimpse-Dictation) of [`distil-whisper`](https://huggingface.co/distil-whisper)
-- **Parakeet TDT ONNX** (CC-BY-4.0), via [`istupakov`](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx)
-- **Parakeet Unified ONNX** (CC-BY-4.0, English-only), via [`bobNight`](https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx)
-- **Nemotron Streaming ONNX** (NVIDIA Open Model License), via [`altunenes/parakeet-rs`](https://huggingface.co/altunenes/parakeet-rs)
+- **Parakeet TDT V3 GGUF** (CC-BY-4.0), via [`handy-computer`](https://huggingface.co/handy-computer/parakeet-tdt-0.6b-v3-gguf), with a Neural Engine build from [`Glimpse-Dictation`](https://huggingface.co/Glimpse-Dictation/Parakeet-TDT-0.6B-V3-coreml)
+- **Parakeet Unified GGUF** (CC-BY-4.0, English-only), via [`handy-computer`](https://huggingface.co/handy-computer/parakeet-unified-en-0.6b-gguf)
+- **Nemotron Streaming GGUF** (NVIDIA Open Model License), English and 3.5 multilingual, via [`handy-computer`](https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf)
+- **Qwen3-ASR GGUF** (Apache-2.0), via [`handy-computer`](https://huggingface.co/handy-computer/Qwen3-ASR-0.6B-gguf)
 
 ## License
 

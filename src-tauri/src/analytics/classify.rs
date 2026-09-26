@@ -140,7 +140,6 @@ pub fn classify_failure_reason(message: &str) -> &'static str {
                 "evaluate model",
                 "spectrogram",
                 "null pointer",
-                "onnx runtime",
             ],
         ),
         ("not_found", &["not found", "no such file"]),

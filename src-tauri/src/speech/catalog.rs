@@ -1,14 +1,12 @@
-use glimpse_speech::models::{InstallSpec, ModelLayout, ModelStorage, RemoteFile};
+use glimpse_speech::models::{InstallSpec, ModelStorage, RemoteFile};
 use serde::Serialize;
 use tauri::AppHandle;
 
 use crate::AppRuntime;
 use crate::model_language_table::{
-    SupportedLanguageInfo, english_supported_languages, parakeet_v3_supported_languages,
-    qwen3_asr_supported_languages, whisper_supported_languages,
+    SupportedLanguageInfo, english_supported_languages, nemotron_35_supported_languages,
+    parakeet_v3_supported_languages, qwen3_asr_supported_languages, whisper_supported_languages,
 };
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-use crate::model_language_table::{nemotron_35_supported_languages, nemotron_supported_languages};
 use crate::settings::UserSettings;
 use crate::speech::{install, remote};
 
@@ -91,111 +89,26 @@ pub struct LocalModelManifest {
     pub capabilities: &'static [&'static str],
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-const PARAKEET_TDT_INT8_FILES: &[CatalogFile] = &[
-    CatalogFile {
-        url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main/encoder-model.int8.onnx",
-        path: "encoder-model.int8.onnx",
-        size_bytes: Some(652_183_999),
-        sha256: Some("6139d2fa7e1b086097b277c7149725edbab89cc7c7ae64b23c741be4055aff09"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main/decoder_joint-model.int8.onnx",
-        path: "decoder_joint-model.int8.onnx",
-        size_bytes: Some(18_202_004),
-        sha256: Some("eea7483ee3d1a30375daedc8ed83e3960c91b098812127a0d99d1c8977667a70"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main/vocab.txt",
-        path: "vocab.txt",
-        size_bytes: Some(93_939),
-        sha256: Some("d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"),
-    },
-];
+const PARAKEET_UNIFIED_GGUF_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/handy-computer/parakeet-unified-en-0.6b-gguf/resolve/main/parakeet-unified-en-0.6b-Q8_0.gguf",
+    path: "parakeet-unified-en-0.6b-Q8_0.gguf",
+    size_bytes: Some(731_357_568),
+    sha256: Some("4b50b6dd862bf6e346929aaf4f5eaacec003bfa3f56462d6c874b41ef2f38795"),
+}];
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-const PARAKEET_UNIFIED_INT8_FILES: &[CatalogFile] = &[
-    CatalogFile {
-        url: "https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx/resolve/main/encoder.int8.onnx",
-        path: "encoder.int8.onnx",
-        size_bytes: Some(42_606_669),
-        sha256: Some("c81adfab77634e00c1668a221a14f244c5fb3409e7c14eeebaf6ac963425910f"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx/resolve/main/encoder.int8.onnx.data",
-        path: "encoder.int8.onnx.data",
-        size_bytes: Some(611_491_584),
-        sha256: Some("3d54dd04646c15677bd2844a84df3770b12cc1ce183481f7b6e0def31c92114a"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx/resolve/main/decoder_joint.int8.onnx",
-        path: "decoder_joint.int8.onnx",
-        size_bytes: Some(8_995_064),
-        sha256: Some("7f76ad5f35035f25630075699c6c942a2c0c05ff42cb398f966f3c256d148e1e"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx/resolve/main/tokenizer.model",
-        path: "tokenizer.model",
-        size_bytes: Some(251_056),
-        sha256: Some("07d4e5a63840a53ab2d4d106d2874768143fb3fbdd47938b3910d2da05bfb0a9"),
-    },
-];
+const NEMOTRON_35_STREAMING_GGUF_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/main/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+    path: "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+    size_bytes: Some(751_094_240),
+    sha256: Some("b94545b313b3223fda7b2857a52681da813935c2127643d1e9ff0c23d988089c"),
+}];
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-const NEMOTRON_STREAMING_FILES: &[CatalogFile] = &[
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-speech-streaming-en-0.6b/encoder.onnx",
-        path: "encoder.onnx",
-        size_bytes: Some(42_159_995),
-        sha256: Some("5c5110ca2e961c3ff5edc2b0ff49f29888b5213287624f7865c60f7384ac02f0"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-speech-streaming-en-0.6b/encoder.onnx.data",
-        path: "encoder.onnx.data",
-        size_bytes: Some(2_436_567_040),
-        sha256: Some("44f65771e1570546f61106b3d0c604a60b398d061476fda8042bb05432601bd4"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-speech-streaming-en-0.6b/decoder_joint.onnx",
-        path: "decoder_joint.onnx",
-        size_bytes: Some(35_779_240),
-        sha256: Some("8bcfde85fa9039a70caeb90204273f837923d63a706c186bd33e2ada25a91700"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-speech-streaming-en-0.6b/tokenizer.model",
-        path: "tokenizer.model",
-        size_bytes: Some(251_056),
-        sha256: Some("07d4e5a63840a53ab2d4d106d2874768143fb3fbdd47938b3910d2da05bfb0a9"),
-    },
-];
-
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-const NEMOTRON_35_STREAMING_FILES: &[CatalogFile] = &[
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-3.5-asr-streaming-0.6b-onnx/encoder.onnx",
-        path: "encoder.onnx",
-        size_bytes: Some(42_164_972),
-        sha256: Some("d569fbe78b48fbb04e169d324f5d25463838ceed7b5fc3bfe209872441979bd9"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-3.5-asr-streaming-0.6b-onnx/encoder.onnx.data",
-        path: "encoder.onnx.data",
-        size_bytes: Some(2_454_405_120),
-        sha256: Some("7584f85df76bc9ae6fbdfa53aa8d97b07a842525d1c501d536d77fd9e4f57ac7"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-3.5-asr-streaming-0.6b-onnx/decoder_joint.onnx",
-        path: "decoder_joint.onnx",
-        size_bytes: Some(97_590_054),
-        sha256: Some("634dfadf24cb4f73c2fae170b36611d68db48186426882cbc8f7e02ed9f2bb29"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-3.5-asr-streaming-0.6b-onnx/tokenizer.model",
-        path: "tokenizer.model",
-        size_bytes: Some(406_554),
-        sha256: Some("ce3895e40806f02a26c3a225161b96ef682d6c0054bae32a245dec4258d7d291"),
-    },
-];
+const NEMOTRON_STREAMING_EN_GGUF_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/handy-computer/nemotron-speech-streaming-en-0.6b-gguf/resolve/main/nemotron-speech-streaming-en-0.6b-Q8_0.gguf",
+    path: "nemotron-speech-streaming-en-0.6b-Q8_0.gguf",
+    size_bytes: Some(729_650_176),
+    sha256: Some("90d8c89714cd31efc88be62a40c6b2bea57e0cc2063af1ffe2c28f1a228ca110"),
+}];
 
 const PARAKEET_GGUF_FILES: &[CatalogFile] = &[CatalogFile {
     url: "https://huggingface.co/handy-computer/parakeet-tdt-0.6b-v3-gguf/resolve/main/parakeet-tdt-0.6b-v3-Q8_0.gguf",
@@ -517,19 +430,6 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    LocalModelManifest {
-        id: "parakeet_tdt_int8",
-        family: "parakeet-tdt",
-        label: "Parakeet TDT V3 (ONNX)",
-        description: "Fast, multilingual and accurate. Based on ONNX for everyday local transcription.",
-        tags: &["Multilingual", "Fast"],
-        category: "legacy",
-        engine: LocalModelEngine::Parakeet,
-        variant: "Int8",
-        files: PARAKEET_TDT_INT8_FILES,
-        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS],
-    },
     LocalModelManifest {
         id: "qwen3_asr_0_6b_q8",
         family: "qwen3-asr-0.6b",
@@ -542,7 +442,6 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         files: QWEN3_ASR_0_6B_FILES,
         capabilities: &[MODEL_CAPABILITY_DICTIONARY],
     },
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
     LocalModelManifest {
         id: "parakeet_unified_en_int8",
         family: "parakeet-unified",
@@ -550,25 +449,11 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         description: "Fast English local transcription with streaming support.",
         tags: &["English", "Fast", "Streaming"],
         category: "experimental",
-        engine: LocalModelEngine::Parakeet,
-        variant: "Int8",
-        files: PARAKEET_UNIFIED_INT8_FILES,
+        engine: LocalModelEngine::Transcribe,
+        variant: "Q8_0",
+        files: PARAKEET_UNIFIED_GGUF_FILES,
         capabilities: &[MODEL_CAPABILITY_TIMESTAMPS, MODEL_CAPABILITY_STREAMING],
     },
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    LocalModelManifest {
-        id: "nemotron_streaming_en",
-        family: "nemotron-streaming",
-        label: "Nemotron Streaming",
-        description: "Real-time streaming transcription. Text appears as you speak.",
-        tags: &["English", "Streaming"],
-        category: "legacy",
-        engine: LocalModelEngine::Nemotron,
-        variant: "Full",
-        files: NEMOTRON_STREAMING_FILES,
-        capabilities: &[MODEL_CAPABILITY_STREAMING],
-    },
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
     LocalModelManifest {
         id: "nemotron_35_streaming_multilingual",
         family: "nemotron-35-streaming",
@@ -576,10 +461,22 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         description: "Multilingual streaming transcription with punctuation and capitalization.",
         tags: &["Multilingual", "Streaming"],
         category: "experimental",
-        engine: LocalModelEngine::Nemotron,
-        variant: "Full",
-        files: NEMOTRON_35_STREAMING_FILES,
-        capabilities: &[MODEL_CAPABILITY_STREAMING],
+        engine: LocalModelEngine::Transcribe,
+        variant: "Q8_0",
+        files: NEMOTRON_35_STREAMING_GGUF_FILES,
+        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS, MODEL_CAPABILITY_STREAMING],
+    },
+    LocalModelManifest {
+        id: "nemotron_streaming_en",
+        family: "nemotron-streaming",
+        label: "Nemotron Streaming",
+        description: "Real-time streaming transcription. Text appears as you speak.",
+        tags: &["English", "Streaming"],
+        category: "legacy",
+        engine: LocalModelEngine::Transcribe,
+        variant: "Q8_0",
+        files: NEMOTRON_STREAMING_EN_GGUF_FILES,
+        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS, MODEL_CAPABILITY_STREAMING],
     },
     LocalModelManifest {
         id: "whisper_small_q5",
@@ -999,7 +896,6 @@ fn spec_from_files(
     InstallSpec {
         id: manifest.id.to_string(),
         engine: manifest.engine,
-        layout: Some(model_layout(manifest)),
         storage,
         files,
         variant: Some(manifest.family.to_string()),
@@ -1048,35 +944,12 @@ fn supported_languages(manifest: &LocalModelManifest) -> Vec<SupportedLanguageIn
 
     match manifest.engine {
         LocalModelEngine::Whisper => whisper_supported_languages(),
-        LocalModelEngine::Nemotron => {
-            #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-            {
-                if manifest.id == "nemotron_35_streaming_multilingual" {
-                    nemotron_35_supported_languages()
-                } else {
-                    nemotron_supported_languages()
-                }
-            }
-
-            #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-            {
-                Vec::new()
-            }
-        }
-        LocalModelEngine::Parakeet => {
-            #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-            {
-                parakeet_v3_supported_languages()
-            }
-
-            #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-            {
-                Vec::new()
-            }
-        }
         LocalModelEngine::Apple => apple_supported_languages(),
         LocalModelEngine::Transcribe if manifest.id == "parakeet_tdt_v3_gguf" => {
             parakeet_v3_supported_languages()
+        }
+        LocalModelEngine::Transcribe if manifest.id == "nemotron_35_streaming_multilingual" => {
+            nemotron_35_supported_languages()
         }
         LocalModelEngine::Transcribe => qwen3_asr_supported_languages(),
     }
@@ -1117,24 +990,20 @@ pub(crate) fn apple_engine_available() -> bool {
     }
 }
 
-fn engine_id(engine: &LocalModelEngine) -> &'static str {
-    match engine {
-        LocalModelEngine::Nemotron | LocalModelEngine::Parakeet => "nvidia",
-        LocalModelEngine::Whisper => "whisper",
-        LocalModelEngine::Apple => "apple",
-        LocalModelEngine::Transcribe => "transcribe",
+/// Engine name for analytics. Models that ran on the NVIDIA ONNX runtimes
+/// before 1.3.0 keep theirs so dashboards stay continuous.
+pub fn engine_name(manifest: &LocalModelManifest) -> &'static str {
+    match manifest.family {
+        "parakeet-unified" => "parakeet",
+        "nemotron-streaming" | "nemotron-35-streaming" => "nemotron",
+        _ => manifest.engine.as_str(),
     }
 }
 
-fn model_layout(manifest: &LocalModelManifest) -> ModelLayout {
-    match manifest.engine {
-        LocalModelEngine::Whisper | LocalModelEngine::Apple => ModelLayout::Whisper,
-        LocalModelEngine::Nemotron => ModelLayout::Nemotron,
-        LocalModelEngine::Parakeet if manifest.family == "parakeet-unified" => {
-            ModelLayout::ParakeetUnified
-        }
-        LocalModelEngine::Parakeet => ModelLayout::ParakeetTdt,
-        LocalModelEngine::Transcribe => ModelLayout::Transcribe,
+fn engine_id(manifest: &LocalModelManifest) -> &'static str {
+    match engine_name(manifest) {
+        "nemotron" | "parakeet" => "nvidia",
+        name => name,
     }
 }
 
@@ -1154,7 +1023,7 @@ fn manifest_to_model_info(manifest: &LocalModelManifest) -> ModelInfo {
             .map(|file| file.size_bytes.unwrap_or(0))
             .sum::<u64>() as f32
             / 1_000_000.0,
-        engine_id: engine_id(&manifest.engine).to_string(),
+        engine_id: engine_id(manifest).to_string(),
         family: manifest.family.to_string(),
         variant: manifest.variant.to_string(),
         category: manifest.category.to_string(),

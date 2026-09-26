@@ -424,6 +424,7 @@ pub fn run() {
             app.manage(AppState::new(Arc::clone(&settings_store), settings, handle));
             speech::upgrade_retired_diarizer(handle);
             speech::remove_whisper_cpp_files(handle);
+            speech::replace_onnx_models(handle);
             {
                 let h = handle.clone();
                 async_runtime::spawn(async move {

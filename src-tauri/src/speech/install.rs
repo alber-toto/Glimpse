@@ -151,6 +151,14 @@ pub(crate) fn check_model_installed_at(models_dir: &std::path::Path, model: &str
         .unwrap_or(false)
 }
 
+/// Installed with every file matching its checksum.
+pub(crate) fn verify_model_installed_at(models_dir: &Path, model: &str) -> bool {
+    let manager = speech_models::ModelInstallManager::new(models_dir.to_path_buf());
+    installed_spec(model, &manager)
+        .and_then(|spec| manager.verify(&spec))
+        .is_ok_and(|status| status.installed)
+}
+
 pub fn installed_api_model_infos(models_dir: &Path) -> Vec<glimpse_speech::api::ApiModelInfo> {
     api_model_infos()
         .into_iter()
@@ -229,7 +237,9 @@ fn ensure_model_downloadable(
     ane: bool,
     manager: &speech_models::ModelInstallManager,
 ) -> Result<(), String> {
-    if super::catalog::model_is_downloadable(model) {
+    if super::catalog::model_is_downloadable(model)
+        || super::replaces_onnx_install(manager.cache_dir(), model)
+    {
         return Ok(());
     }
     if !ane {

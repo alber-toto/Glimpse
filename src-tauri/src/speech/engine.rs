@@ -283,7 +283,6 @@ impl LocalTranscriber {
     // Take exclusive use of the transcriber for a live dictation session. Batch
     // transcriptions block until the returned guard drops, so the shared
     // streaming transcript buffer can't be overwritten mid-session.
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
     pub fn begin_streaming_session(&self) -> StreamingGuard<'_> {
         StreamingGuard {
             _exclusive: self.exclusive.lock(),
@@ -315,13 +314,11 @@ impl LocalTranscriber {
 /// Exclusive hold on the transcriber for one live dictation session. All
 /// streaming calls go through this guard so they share the single held lock;
 /// batch transcriptions wait until it drops.
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
 pub struct StreamingGuard<'a> {
     transcriber: &'a LocalTranscriber,
     _exclusive: parking_lot::MutexGuard<'a, ()>,
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
 impl StreamingGuard<'_> {
     pub fn warm(&self, model: &ReadyModel) -> Result<()> {
         self.transcriber.warm_locked(model)
