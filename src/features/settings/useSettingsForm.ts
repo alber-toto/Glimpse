@@ -1031,7 +1031,7 @@ export function useSettingsForm({
 
   const refreshPermissionState = useCallback(async () => {
     const [nativeMic, acc, inputMonitoring] = await Promise.allSettled([
-      platformCapabilities.requiresNativeMicrophonePermission
+      platformCapabilities.showsMicrophonePermission
         ? invoke<boolean>("check_microphone_permission")
         : Promise.resolve<boolean | null>(null),
       platformCapabilities.requiresAccessibilityPermission

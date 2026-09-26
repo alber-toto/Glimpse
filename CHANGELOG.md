@@ -18,6 +18,7 @@
 - Parakeet Unified and the Nemotron models now work on Intel Macs.
 - On Apple Silicon, new Neural Engine downloads of Qwen3-ASR are smaller (about 980 MB instead of 1.2 GB) and use about 220 MB less memory.
 - Detecting speakers again on a Library item keeps the names you gave them.
+- On Windows, Settings now shows whether Glimpse can use your microphone, with a button to fix it when it's blocked.
 
 ### Fixes
 
@@ -25,6 +26,7 @@
 - Whisper no longer crashes on very short recordings.
 - Parakeet TDT V3 no longer skips sentences after long pauses in longer recordings.
 - On Intel Macs, Glimpse now skips silence the same way it does on Apple Silicon, so Whisper types phantom text like "Thank you." much less often.
+- On Windows, when the microphone is blocked in Windows' privacy settings, Glimpse now says so and opens the right settings page.
 
 1.2.7
 

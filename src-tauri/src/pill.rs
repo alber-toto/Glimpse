@@ -728,7 +728,7 @@ impl PillController {
                 // Drop out of Listening so transition_to_error isn't suppressed.
                 self.transition_to(app, PillStatus::Idle);
 
-                if handle_revoked_mic_permission(app) {
+                if handle_revoked_mic_permission(app, &err) {
                     return false;
                 }
 
@@ -1202,7 +1202,6 @@ fn discard_pending_recording(recording: &crate::recorder::CompletedRecording) {
     }
 }
 
-#[cfg(target_os = "macos")]
 fn show_microphone_permission_toast(app: &AppHandle<AppRuntime>) {
     toast::show_with_action(
         app,
@@ -1215,7 +1214,7 @@ fn show_microphone_permission_toast(app: &AppHandle<AppRuntime>) {
 }
 
 #[cfg(target_os = "macos")]
-fn handle_revoked_mic_permission(app: &AppHandle<AppRuntime>) -> bool {
+fn handle_revoked_mic_permission(app: &AppHandle<AppRuntime>, _err: &anyhow::Error) -> bool {
     if permissions::refresh_microphone_permission() {
         return false;
     }
@@ -1224,9 +1223,14 @@ fn handle_revoked_mic_permission(app: &AppHandle<AppRuntime>) -> bool {
     true
 }
 
+/// Windows privacy settings can block desktop apps from the mic (E_ACCESSDENIED).
 #[cfg(not(target_os = "macos"))]
-fn handle_revoked_mic_permission(_app: &AppHandle<AppRuntime>) -> bool {
-    false
+fn handle_revoked_mic_permission(app: &AppHandle<AppRuntime>, err: &anyhow::Error) -> bool {
+    if analytics::error_detail(err).reason != "permission" {
+        return false;
+    }
+    show_microphone_permission_toast(app);
+    true
 }
 
 fn start_model_download(app: &AppHandle<AppRuntime>, model: &str) -> bool {
