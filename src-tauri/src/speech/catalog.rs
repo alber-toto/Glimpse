@@ -282,7 +282,9 @@ const WHISPER_BIN_FILES: &[(&str, CatalogFile)] = &[
 pub(super) const ANE_SUPPORTED: bool = cfg!(all(target_os = "macos", target_arch = "aarch64"));
 
 struct AneEncoder {
-    family: &'static str,
+    // Catalog families it serves. Distil-Whisper keeps its teacher's encoder.
+    families: &'static [&'static str],
+    dir_name: &'static str,
     url: &'static str,
     size_bytes: u64,
     sha256: &'static str,
@@ -297,8 +299,59 @@ struct AneCompanion {
     sha256: &'static str,
 }
 
-// Empty until the transcribe.cpp encoders are published.
-const WHISPER_ANE_ENCODERS: &[AneEncoder] = &[];
+// None for Distil-Whisper Medium.en: with it, a test recording fell into a
+// repetition loop.
+const WHISPER_ANE_ENCODERS: &[AneEncoder] = &[
+    AneEncoder {
+        families: &["whisper-tiny"],
+        dir_name: "whisper-tiny-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Tiny-coreml/resolve/main/whisper-tiny-encoder.mlmodelc.zip",
+        size_bytes: 14_955_833,
+        sha256: "35041e7f9f9c3e016bf1ff23819109c9dbd60cb387f97526fd44ba26c916bf52",
+    },
+    AneEncoder {
+        families: &["whisper-base"],
+        dir_name: "whisper-base-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Base-coreml/resolve/main/whisper-base-encoder.mlmodelc.zip",
+        size_bytes: 37_850_456,
+        sha256: "f38ea79465a06476d59a7e60bba129df6fa0823264f22242c093b604f4c3e533",
+    },
+    AneEncoder {
+        families: &["whisper-small"],
+        dir_name: "whisper-small-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Small-coreml/resolve/main/whisper-small-encoder.mlmodelc.zip",
+        size_bytes: 163_115_581,
+        sha256: "8a7eff95acc7a237731d778d2269ea7aa7338cd1190fd6ab4266be506886a625",
+    },
+    AneEncoder {
+        families: &["distil-small"],
+        dir_name: "whisper-small.en-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Small.en-coreml/resolve/main/whisper-small.en-encoder.mlmodelc.zip",
+        size_bytes: 162_989_269,
+        sha256: "70d001bfa2cde210330796e602a95bee5e5a564f8cef28337210781f63f4b28a",
+    },
+    AneEncoder {
+        families: &["whisper-medium"],
+        dir_name: "whisper-medium-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Medium-coreml/resolve/main/whisper-medium-encoder.mlmodelc.zip",
+        size_bytes: 568_607_692,
+        sha256: "59782b3aa871f498673266ae64990ee0d0a61adc59321656b9a266f5a3f7650b",
+    },
+    AneEncoder {
+        families: &["whisper-large-v3", "distil-large"],
+        dir_name: "whisper-large-v3-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Large-V3-coreml/resolve/main/whisper-large-v3-encoder.mlmodelc.zip",
+        size_bytes: 1_175_779_792,
+        sha256: "504d9b03b34c689e91d61fb97d4c97eca979fc4d21e65d9c2963b7481cbc66dc",
+    },
+    AneEncoder {
+        families: &["whisper-large-v3-turbo"],
+        dir_name: "whisper-large-v3-turbo-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Large-V3-Turbo-coreml/resolve/main/whisper-large-v3-turbo-encoder.mlmodelc.zip",
+        size_bytes: 1_174_156_358,
+        sha256: "9a313371eb6927d446b8aa0081816979d46e08470b5262d72e1c22b81d104706",
+    },
+];
 
 // whisper.cpp encoder names drop the `-qX_Y` quantization.
 fn strip_quant_suffix(stem: &str) -> &str {
@@ -309,13 +362,6 @@ fn strip_quant_suffix(stem: &str) -> &str {
         }
     }
     stem
-}
-
-fn whisper_family(manifest: &LocalModelManifest) -> Option<&'static str> {
-    if manifest.engine != LocalModelEngine::Whisper {
-        return None;
-    }
-    manifest.family.strip_prefix("whisper-")
 }
 
 fn whisper_bin_file(model: &str) -> Option<&'static CatalogFile> {
@@ -348,20 +394,15 @@ fn ane_companion(manifest: &LocalModelManifest) -> Option<AneCompanion> {
         return None;
     }
     match manifest.engine {
-        LocalModelEngine::Whisper => {
-            let family = whisper_family(manifest)?;
-            let encoder = WHISPER_ANE_ENCODERS
-                .iter()
-                .find(|encoder| encoder.family == family)?;
-            // The name Glimpse-Speech looks for next to any quantization of the family.
-            let dir_name = format!("whisper-{family}-encoder.mlmodelc");
-            Some(AneCompanion {
+        LocalModelEngine::Whisper => WHISPER_ANE_ENCODERS
+            .iter()
+            .find(|encoder| encoder.families.contains(&manifest.family))
+            .map(|encoder| AneCompanion {
+                dir_name: encoder.dir_name.to_string(),
                 url: encoder.url.to_string(),
-                dir_name,
                 size_bytes: encoder.size_bytes,
                 sha256: encoder.sha256,
-            })
-        }
+            }),
         LocalModelEngine::Transcribe => TRANSCRIBE_ANE_ENCODERS
             .iter()
             .find(|encoder| encoder.model == manifest.id)
@@ -519,8 +560,8 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         files: distil_whisper_files!(
             "Glimpse-Dictation/Distil-Whisper-Large-V3.5-gguf",
             "distil-large-v3.5-Q8_0.gguf",
-            830_499_328,
-            Some("0d5cbe5a52311887c3a824203ef26259534c15310cacef3e23edb60b3a08a7c8")
+            830_499_360,
+            Some("a6f012fa357e28fdc4c4a5108341571add35e77d576c87c3eda7b41033d8cfe2")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -537,7 +578,7 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
             "Glimpse-Dictation/Distil-Whisper-Medium.en-gguf",
             "distil-medium.en-Q8_0.gguf",
             437_727_104,
-            Some("1f037dcb7b625ba682cf70f3a442ffc68b638fd23bdb12e9fb69df79f581a6b3")
+            Some("bf726a0d84dd911d4fe3a36413bf7d10b8b065d70ff86eef3f81b15326297fce")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -553,8 +594,8 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         files: distil_whisper_files!(
             "Glimpse-Dictation/Distil-Whisper-Small.en-gguf",
             "distil-small.en-Q8_0.gguf",
-            189_027_872,
-            Some("941320444efd9e92b7e0a67cfd85f49408d91f87567310d2c2971c7a215dc9e5")
+            189_027_904,
+            Some("552869c2c9ac97f03da6497e5ffabdb81b2dee50a81b7bcfb67344c41cadeaa6")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },

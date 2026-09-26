@@ -372,13 +372,14 @@ pub async fn download_model_now(
         }
     };
 
-    // Release the loaded engine before replacing package files or adding an
-    // encoder, so warm-up reloads the selected package and companion.
-    let status = if super::catalog::ane_replaces_model_files(&model) || ane {
+    let replaces_files = super::catalog::ane_replaces_model_files(&model);
+    let status = if replaces_files || ane {
         let handle = app.clone();
         let spec = spec.clone();
         tauri::async_runtime::spawn_blocking(move || {
-            if let Some(state) = handle.try_state::<crate::AppState>() {
+            // Release the loaded engine before replacing package files, so
+            // warm-up reloads the selected package.
+            if replaces_files && let Some(state) = handle.try_state::<crate::AppState>() {
                 let transcriber = state.local_transcriber();
                 if transcriber.loaded_model_id().as_deref() == Some(spec.id.as_str()) {
                     transcriber.unload();
@@ -402,7 +403,9 @@ pub async fn download_model_now(
 
     crate::analytics::track_model_downloaded(&app, &status.id);
 
-    if definition(&model).is_some() {
+    if ane && !replaces_files && super::catalog::ane_encoder_dir(&model).is_some() {
+        super::compile_ane_encoder(&app, status.id.clone());
+    } else if definition(&model).is_some() {
         super::warm_model(&app, status.id.clone());
     }
 

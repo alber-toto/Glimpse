@@ -7,6 +7,7 @@ pub mod remote;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
+use glimpse_speech::service::{SpeechConfig, SpeechService};
 use reqwest::Client;
 use tauri::{AppHandle, Manager};
 
@@ -143,12 +144,15 @@ pub(crate) fn upgrade_retired_diarizer(app: &AppHandle<AppRuntime>) {
 
 /// Whisper now runs on transcribe.cpp, which rejects the whisper.cpp Core ML
 /// encoders earlier versions downloaded, so free their disk space along with
-/// `.bin` downloads that will never resume.
+/// `.bin` downloads that will never resume. The selected model gets its new
+/// encoder first; a failed download is retried at the next launch.
 pub(crate) fn remove_whisper_cpp_files(app: &AppHandle<AppRuntime>) {
     let Ok(models_dir) = install::model_cache_dir(app) else {
         return;
     };
+    let app = app.clone();
     std::thread::spawn(move || {
+        let selected = app.state::<AppState>().current_settings().local_model;
         for manifest in catalog::local_manifests() {
             let model_dir = models_dir.join(manifest.id);
             if let Some(partial) = catalog::whisper_bin_partial(manifest) {
@@ -161,28 +165,104 @@ pub(crate) fn remove_whisper_cpp_files(app: &AppHandle<AppRuntime>) {
                 continue;
             };
             let _ = std::fs::remove_file(model_dir.join(format!("{dir_name}.zip")));
-            let encoder = model_dir.join(&dir_name);
-            let Ok(metadata) = encoder.symlink_metadata() else {
+            if model_dir.join(&dir_name).symlink_metadata().is_err() {
                 continue;
-            };
-            // Unlink a symlinked encoder instead of emptying its target.
-            let removed = if metadata.file_type().is_symlink() {
-                std::fs::remove_file(&encoder)
-            } else {
-                crate::platform::remove_dir_all_compat(&encoder)
-            };
-            match removed {
-                Ok(()) => {
-                    let _ =
-                        std::fs::remove_file(model_dir.join(format!(".{dir_name}.manifest.json")));
-                    tracing::info!("[speech] removed whisper.cpp encoder {}", encoder.display());
-                }
-                Err(err) => {
-                    tracing::warn!("[speech] could not remove {}: {err}", encoder.display())
-                }
             }
+            if manifest.id != selected || catalog::ane_encoder_dir(manifest.id).is_none() {
+                remove_encoder(&model_dir, &dir_name);
+                continue;
+            }
+            let app = app.clone();
+            let model = manifest.id.to_string();
+            tauri::async_runtime::spawn(async move {
+                match install::download_model_now(app, model.clone(), Some(true)).await {
+                    // A cancelled download also returns Ok.
+                    Ok(status) if status.ane_installed => remove_encoder(&model_dir, &dir_name),
+                    Ok(_) => tracing::warn!("[speech] {model} encoder download did not finish"),
+                    Err(err) => tracing::warn!("[speech] {model} encoder download failed: {err}"),
+                }
+            });
         }
     });
+}
+
+fn remove_encoder(model_dir: &Path, dir_name: &str) {
+    let encoder = model_dir.join(dir_name);
+    let Ok(metadata) = encoder.symlink_metadata() else {
+        return;
+    };
+    // Unlink a symlinked encoder instead of emptying its target.
+    let removed = if metadata.file_type().is_symlink() {
+        std::fs::remove_file(&encoder)
+    } else {
+        crate::platform::remove_dir_all_compat(&encoder)
+    };
+    match removed {
+        Ok(()) => {
+            let _ = std::fs::remove_file(model_dir.join(format!(".{dir_name}.manifest.json")));
+            tracing::info!("[speech] removed whisper.cpp encoder {}", encoder.display());
+        }
+        Err(err) => tracing::warn!("[speech] could not remove {}: {err}", encoder.display()),
+    }
+}
+
+fn ane_compile_marker(models_dir: &Path, model: &str) -> Option<PathBuf> {
+    let dir_name = catalog::ane_encoder_dir(model)?;
+    Some(
+        models_dir
+            .join(model)
+            .join(format!(".{dir_name}.compiling")),
+    )
+}
+
+/// A new Core ML encoder compiles for the Neural Engine on its first load,
+/// which takes seconds to minutes and is cached afterwards. That load runs on
+/// its own service, and other loads skip the encoder until it finishes, so
+/// dictation never waits on it.
+pub(crate) fn compile_ane_encoder(app: &AppHandle<AppRuntime>, model: String) {
+    let Ok(models_dir) = install::model_cache_dir(app) else {
+        return;
+    };
+    let Some(marker) = ane_compile_marker(&models_dir, &model) else {
+        return;
+    };
+    // Retries the compile at the next launch if the app quits first.
+    let _ = std::fs::write(&marker, b"");
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let service = SpeechService::new(SpeechConfig {
+            resolver: install::local_resolver(models_dir.clone()),
+            model_cache_dir: models_dir,
+        })
+        .loading_compiling_encoders();
+        let started = std::time::Instant::now();
+        if let Err(err) = service.preload_and_warm(&model) {
+            tracing::warn!("[speech] {model} encoder compile failed: {err:#}");
+            return;
+        }
+        drop(service);
+        let _ = std::fs::remove_file(&marker);
+        tracing::info!(
+            "[speech] {model} encoder compiled in {:.1}s",
+            started.elapsed().as_secs_f32()
+        );
+        let transcriber = app.state::<AppState>().local_transcriber();
+        if transcriber.loaded_model_id().as_deref() == Some(model.as_str()) {
+            transcriber.unload();
+            warm_model(&app, model);
+        }
+    });
+}
+
+pub(crate) fn compile_pending_ane_encoders(app: &AppHandle<AppRuntime>) {
+    let Ok(models_dir) = install::model_cache_dir(app) else {
+        return;
+    };
+    for manifest in catalog::local_manifests() {
+        if ane_compile_marker(&models_dir, manifest.id).is_some_and(|marker| marker.is_file()) {
+            compile_ane_encoder(app, manifest.id.to_string());
+        }
+    }
 }
 
 const NEMOTRON_ONNX_FILES: &[&str] = &[
