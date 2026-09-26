@@ -13,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crossbeam_channel::{Receiver, Sender, bounded};
 use glimpse_speech::diarization::{LiveDiarizer, SpeakerTurn};
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -574,7 +575,7 @@ fn default_speaker(id: &str) -> Option<Speaker> {
 
 /// Runs live transcription for one recording session on its own thread.
 pub(super) struct LiveWorker {
-    stop: Arc<AtomicBool>,
+    stop: Sender<()>,
     handle: JoinHandle<()>,
 }
 
@@ -586,8 +587,7 @@ impl LiveWorker {
         system: Option<Arc<LiveTap>>,
     ) -> Option<Self> {
         shared.live.begin(microphone.is_some(), system.is_some());
-        let stop = Arc::new(AtomicBool::new(false));
-        let thread_stop = Arc::clone(&stop);
+        let (stop, stopped) = bounded::<()>(0);
         let handle = std::thread::Builder::new()
             .name("glimpse-recording-live".into())
             .spawn(move || {
@@ -598,7 +598,7 @@ impl LiveWorker {
                 Runner {
                     app,
                     shared,
-                    stop: thread_stop,
+                    stop: stopped,
                     tracks: tracks.into_iter().flatten().collect(),
                     running: false,
                     model: None,
@@ -617,7 +617,7 @@ impl LiveWorker {
 
     /// Waits for a transcription in flight, then frees the models.
     pub(super) fn stop(self) {
-        self.stop.store(true, Ordering::Relaxed);
+        drop(self.stop);
         let _ = self.handle.join();
     }
 }
@@ -845,7 +845,7 @@ impl SystemDiarizer {
 struct Runner {
     app: AppHandle<AppRuntime>,
     shared: Arc<Shared>,
-    stop: Arc<AtomicBool>,
+    stop: Receiver<()>,
     tracks: Vec<TrackRun>,
     running: bool,
     // The local model live text uses, keyed by the setting that chose it.
@@ -860,7 +860,7 @@ struct Runner {
 impl Runner {
     fn run(mut self) {
         let mut last_emit = Instant::now();
-        while !self.stop.load(Ordering::Relaxed) {
+        loop {
             let requested = self.shared.live.requested.load(Ordering::Relaxed);
             if requested && !self.running {
                 self.enable();
@@ -877,8 +877,9 @@ impl Runner {
                 self.shared.live.publish(&self.app, false);
             }
             self.persist_turns();
-            if !worked {
-                std::thread::sleep(TICK);
+            let wait = if worked { Duration::ZERO } else { TICK };
+            if crate::recorder::stop_requested(&self.stop, wait) {
+                break;
             }
         }
         if self.running {

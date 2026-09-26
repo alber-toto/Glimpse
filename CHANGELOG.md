@@ -9,6 +9,7 @@
 - Glimpse opens in your theme without flashing light and dark first, and the home screen appears all at once instead of filling in piece by piece.
 - Dictating while you record no longer ends up in the recording.
 - The microphone meter while recording now moves with your voice at a normal speaking volume.
+- Dictation finishes a little sooner, up to a quarter of a second, after you let go of the shortcut.
 
 ### Fixes
 
