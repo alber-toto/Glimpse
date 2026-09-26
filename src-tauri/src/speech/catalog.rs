@@ -398,7 +398,7 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Transcribe,
         variant: "Q8_0",
         files: PARAKEET_GGUF_FILES,
-        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS],
+        capabilities: &[MODEL_CAPABILITY_DICTIONARY, MODEL_CAPABILITY_TIMESTAMPS],
     },
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     LocalModelManifest {
@@ -452,7 +452,11 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Transcribe,
         variant: "Q8_0",
         files: PARAKEET_UNIFIED_GGUF_FILES,
-        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS, MODEL_CAPABILITY_STREAMING],
+        capabilities: &[
+            MODEL_CAPABILITY_DICTIONARY,
+            MODEL_CAPABILITY_TIMESTAMPS,
+            MODEL_CAPABILITY_STREAMING,
+        ],
     },
     LocalModelManifest {
         id: "nemotron_35_streaming_multilingual",
@@ -464,7 +468,11 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Transcribe,
         variant: "Q8_0",
         files: NEMOTRON_35_STREAMING_GGUF_FILES,
-        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS, MODEL_CAPABILITY_STREAMING],
+        capabilities: &[
+            MODEL_CAPABILITY_DICTIONARY,
+            MODEL_CAPABILITY_TIMESTAMPS,
+            MODEL_CAPABILITY_STREAMING,
+        ],
     },
     LocalModelManifest {
         id: "nemotron_streaming_en",
@@ -476,7 +484,11 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Transcribe,
         variant: "Q8_0",
         files: NEMOTRON_STREAMING_EN_GGUF_FILES,
-        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS, MODEL_CAPABILITY_STREAMING],
+        capabilities: &[
+            MODEL_CAPABILITY_DICTIONARY,
+            MODEL_CAPABILITY_TIMESTAMPS,
+            MODEL_CAPABILITY_STREAMING,
+        ],
     },
     LocalModelManifest {
         id: "whisper_small_q5",
@@ -1214,7 +1226,10 @@ mod tests {
         assert_eq!(full.engine, LocalModelEngine::Transcribe);
         let info = manifest_to_model_info(definition("parakeet_tdt_v3_gguf").unwrap());
         assert_eq!(info.supported_languages.len(), 25);
-        assert_eq!(info.capabilities, [MODEL_CAPABILITY_TIMESTAMPS]);
+        assert_eq!(
+            info.capabilities,
+            [MODEL_CAPABILITY_DICTIONARY, MODEL_CAPABILITY_TIMESTAMPS]
+        );
         assert!(info.size_mb < 740.0);
         if ANE_SUPPORTED {
             assert_eq!(ane.files.len(), 2);

@@ -3,6 +3,7 @@
 ### New Features
 
 - Live transcripts for recordings. While you record, open a small window that shows what's being said as it happens, labeled by speaker. You can rename speakers, add bookmarks, pause or stop from it, and shrink it down to just the controls.
+- Your dictionary now works with Parakeet and Nemotron. Names and product words you add come out right more often.
 - Much more accurate word timings with Whisper: most words now line up within a tenth of a second of when they're spoken, instead of landing about a quarter second late.
 
 ### Improvements
