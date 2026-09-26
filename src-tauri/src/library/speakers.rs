@@ -531,11 +531,13 @@ pub(super) fn rediarize(item: &LibraryItem, model_path: &Path) -> Result<Rediari
             turns: Some(turns),
             identity: None,
         }]);
-        return Ok(Rediarized {
+        let mut labeled = Rediarized {
             segments: result.segments.unwrap_or_default(),
             words: result.words,
             speakers,
-        });
+        };
+        keep_speaker_names(item, &mut labeled);
+        return Ok(labeled);
     };
 
     let (system_words, microphone_words): (Vec<_>, Vec<_>) = words
@@ -595,11 +597,115 @@ pub(super) fn rediarize(item: &LibraryItem, model_path: &Path) -> Result<Rediari
     let mut words = microphone.words.unwrap_or_default();
     words.extend(system.words.unwrap_or_default());
     words.sort_by_key(|word| (word.start_ms, word.end_ms));
-    Ok(Rediarized {
+    let mut labeled = Rediarized {
         segments,
         words: (!words.is_empty()).then_some(words),
         speakers,
-    })
+    };
+    keep_speaker_names(item, &mut labeled);
+    Ok(labeled)
+}
+
+/// Gives each re-detected speaker the name and color of the renamed speaker it
+/// overlaps most, one to one, when that covers at least half its speech.
+fn keep_speaker_names(item: &LibraryItem, labeled: &mut Rediarized) {
+    let Some(speakers) = labeled.speakers.as_mut() else {
+        return;
+    };
+    let defaults = recording_speakers();
+    let renamed: Vec<&Speaker> = item
+        .speakers
+        .iter()
+        .flatten()
+        .filter(|speaker| {
+            let default = match defaults.iter().find(|default| default.id == speaker.id) {
+                Some(default) => default.name.clone(),
+                None => format!(
+                    "Speaker {}",
+                    speaker.id.rsplit('_').next().unwrap_or_default()
+                ),
+            };
+            speaker.name != default
+        })
+        .collect();
+    if renamed.is_empty() {
+        return;
+    }
+
+    // (start, end, speaker) from words when there are any, otherwise segments.
+    let timeline = |words: Option<&[TranscriptSegment]>, segments: &[TranscriptSegment]| {
+        let entries = words.filter(|words| !words.is_empty()).unwrap_or(segments);
+        let mut timeline: Vec<(u64, u64, String)> = entries
+            .iter()
+            .filter_map(|entry| {
+                let id = entry.speaker_id.clone()?;
+                Some((entry.start_ms, entry.end_ms, id))
+            })
+            .collect();
+        timeline.sort_unstable();
+        timeline
+    };
+    let old = timeline(
+        item.words.as_deref(),
+        item.segments.as_deref().unwrap_or_default(),
+    );
+    let new = timeline(labeled.words.as_deref(), &labeled.segments);
+    let longest = old
+        .iter()
+        .map(|(start, end, _)| end.saturating_sub(*start))
+        .max()
+        .unwrap_or_default();
+
+    let mut spoken: Vec<(&str, u64)> = Vec::new();
+    // (new speaker, renamed speaker, milliseconds heard as both)
+    let mut overlaps: Vec<(&str, &Speaker, u64)> = Vec::new();
+    for (start, end, id) in &new {
+        match spoken.iter_mut().find(|(known, _)| known == id) {
+            Some((_, total)) => *total += end.saturating_sub(*start),
+            None => spoken.push((id, end.saturating_sub(*start))),
+        }
+        // Old entries are sorted by start, so only those starting within the
+        // longest entry's length before this one can reach it.
+        let first = old.partition_point(|(old_start, _, _)| old_start + longest <= *start);
+        for (old_start, old_end, old_id) in &old[first..] {
+            if old_start >= end {
+                break;
+            }
+            let overlap = old_end.min(end).saturating_sub(*old_start.max(start));
+            if overlap == 0 {
+                continue;
+            }
+            let Some(speaker) = renamed.iter().find(|speaker| speaker.id == *old_id) else {
+                continue;
+            };
+            match overlaps
+                .iter_mut()
+                .find(|(new_id, old, _)| new_id == id && old.id == speaker.id)
+            {
+                Some((_, _, total)) => *total += overlap,
+                None => overlaps.push((id, speaker, overlap)),
+            }
+        }
+    }
+    overlaps.sort_by_key(|(_, _, overlap)| std::cmp::Reverse(*overlap));
+
+    let mut named: Vec<&str> = Vec::new();
+    let mut used: Vec<&str> = Vec::new();
+    for (new_id, old, overlap) in overlaps {
+        let total = spoken
+            .iter()
+            .find(|(id, _)| *id == new_id)
+            .map_or(0, |(_, total)| *total);
+        if named.contains(&new_id) || used.contains(&old.id.as_str()) || overlap * 2 < total {
+            continue;
+        }
+        named.push(new_id);
+        used.push(&old.id);
+        if let Some(speaker) = speakers.iter_mut().find(|speaker| speaker.id == new_id) {
+            speaker.name.clone_from(&old.name);
+            speaker.color.clone_from(&old.color);
+        }
+    }
 }
 
 /// Which recording track a speaker id belongs to, when the id says so.
