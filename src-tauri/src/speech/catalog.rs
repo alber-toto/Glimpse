@@ -138,6 +138,13 @@ const QWEN3_ASR_0_6B_FILES: &[CatalogFile] = &[CatalogFile {
     sha256: Some("f081b2d5e23bd669d92cc331d722a8a0681943b8e6f34b48996fd5c319b5acd8"),
 }];
 
+const QWEN3_ASR_0_6B_DECODER_FILE: CatalogFile = CatalogFile {
+    url: "https://huggingface.co/Glimpse-Dictation/Qwen3-ASR-0.6B-coreml/resolve/main/Qwen3-ASR-0.6B-Q8_0-decoder.gguf",
+    path: "Qwen3-ASR-0.6B-Q8_0-decoder.gguf",
+    size_bytes: Some(639_554_336),
+    sha256: Some("8a1bf11a571607b88ae53ae44c0e38b616c441fd64c53bce37fea9d403a9c489"),
+};
+
 /// Core ML encoder companions for transcribe.cpp models, unpacked next to the
 /// GGUF as `<gguf stem>-encoder.mlmodelc` (the name the engine looks for).
 struct TranscribeAneEncoder {
@@ -168,7 +175,7 @@ const TRANSCRIBE_ANE_ENCODERS: &[TranscribeAneEncoder] = &[
     },
     TranscribeAneEncoder {
         model: "qwen3_asr_0_6b_q8",
-        replacement_files: None,
+        replacement_files: Some(&[QWEN3_ASR_0_6B_DECODER_FILE]),
         dir_name: "Qwen3-ASR-0.6B-Q8_0-encoder.mlmodelc",
         url: "https://huggingface.co/Glimpse-Dictation/Qwen3-ASR-0.6B-coreml/resolve/main/Qwen3-ASR-0.6B-Q8_0-encoder.mlmodelc.zip",
         size_bytes: ANE_QWEN3_ASR_0_6B_ZIP_BYTES,

@@ -16,6 +16,7 @@
 - Glimpse is smaller: the app itself went from 49 MB to 31 MB.
 - Nemotron Streaming and Nemotron 3.5 Streaming are more accurate, use about half the memory, and are much smaller downloads (about 750 MB instead of 2.5 GB). If you use one of the older Parakeet or Nemotron models, Glimpse downloads its new version once in the background.
 - Parakeet Unified and the Nemotron models now work on Intel Macs.
+- On Apple Silicon, new Neural Engine downloads of Qwen3-ASR are smaller (about 980 MB instead of 1.2 GB) and use about 220 MB less memory.
 
 ### Fixes
 
