@@ -56,12 +56,6 @@ export type DownloadProgressPayload = {
   file_count: number;
 };
 
-export type AneCompileEvent = {
-  model: string;
-  label: string;
-  status: "start" | "done" | "error";
-};
-
 export type DownloadEvent =
   | { status: "idle"; percent: number; file?: string }
   | {

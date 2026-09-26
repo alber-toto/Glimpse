@@ -1814,6 +1814,7 @@ fn transcribe_local_chunked(
                     sample_rate,
                     dictionary,
                     language,
+                    glimpse_speech::TimestampGranularity::Segment,
                 )?;
                 if model_label.is_none() {
                     model_label = result.speech_model.clone();

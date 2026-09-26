@@ -19,9 +19,6 @@ import type { StoredSettings } from "../types";
 
 const loadHome = () => import("../Home");
 const Home = lazy(loadHome);
-const AneCompileOverlay = lazy(
-  () => import("../features/settings/components/AneCompileOverlay"),
-);
 const OnboardingScreen = lazy(
   () => import("../features/onboarding/OnboardingScreen"),
 );
@@ -172,9 +169,6 @@ function SettingsContent() {
             </motion.div>
           )}
         </AnimatePresence>
-        <Suspense fallback={null}>
-          <AneCompileOverlay />
-        </Suspense>
       </div>
     </MotionConfig>
   );

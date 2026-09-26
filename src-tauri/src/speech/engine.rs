@@ -164,7 +164,7 @@ impl LocalTranscriber {
         language: Option<&str>,
     ) -> Result<TranscriptionSuccess> {
         let result =
-            self.transcribe_internal(model, samples, sample_rate, dictionary, language, false)?;
+            self.transcribe_internal(model, samples, sample_rate, dictionary, language, None)?;
 
         Ok(TranscriptionSuccess {
             transcript: normalize_transcript(&result.text),
@@ -175,6 +175,8 @@ impl LocalTranscriber {
         })
     }
 
+    /// Whisper computes word timings in an extra pass, so ask for
+    /// `Segment` unless the words are used.
     pub fn transcribe_with_segments(
         &self,
         model: &ReadyModel,
@@ -182,9 +184,16 @@ impl LocalTranscriber {
         sample_rate: u32,
         dictionary: &[String],
         language: Option<&str>,
+        granularity: TimestampGranularity,
     ) -> Result<TranscriptionSuccess> {
-        let result =
-            self.transcribe_internal(model, samples, sample_rate, dictionary, language, true)?;
+        let result = self.transcribe_internal(
+            model,
+            samples,
+            sample_rate,
+            dictionary,
+            language,
+            Some(granularity),
+        )?;
 
         Ok(TranscriptionSuccess {
             transcript: normalize_transcript(&result.text),
@@ -204,9 +213,17 @@ impl LocalTranscriber {
         sample_rate: u32,
         dictionary: &[String],
         language: Option<&str>,
+        granularity: TimestampGranularity,
     ) -> Option<Result<glimpse_speech::Transcription>> {
         let _exclusive = self.exclusive.try_lock()?;
-        Some(self.transcribe_locked(model, samples, sample_rate, dictionary, language, true))
+        Some(self.transcribe_locked(
+            model,
+            samples,
+            sample_rate,
+            dictionary,
+            language,
+            Some(granularity),
+        ))
     }
 
     fn transcribe_internal(
@@ -216,7 +233,7 @@ impl LocalTranscriber {
         sample_rate: u32,
         dictionary: &[String],
         language: Option<&str>,
-        with_segments: bool,
+        granularity: Option<TimestampGranularity>,
     ) -> Result<glimpse_speech::Transcription> {
         let _exclusive = self.exclusive.lock();
         self.transcribe_locked(
@@ -225,7 +242,7 @@ impl LocalTranscriber {
             sample_rate,
             dictionary,
             language,
-            with_segments,
+            granularity,
         )
     }
 
@@ -237,7 +254,7 @@ impl LocalTranscriber {
         sample_rate: u32,
         dictionary: &[String],
         language: Option<&str>,
-        with_segments: bool,
+        granularity: Option<TimestampGranularity>,
     ) -> Result<glimpse_speech::Transcription> {
         let was_loaded = self.service.is_loaded();
         let started = Instant::now();
@@ -250,8 +267,8 @@ impl LocalTranscriber {
             language: language.map(str::to_string),
             prompt: None,
             dictionary: dictionary.to_vec(),
-            timestamps: with_segments,
-            timestamp_granularity: with_segments.then_some(TimestampGranularity::Word),
+            timestamps: granularity.is_some(),
+            timestamp_granularity: granularity,
         })?;
         tracing::info!(
             "[LocalTranscriber] transcribe took {:.2}s (audio {:.2}s, was_loaded={})",
@@ -378,8 +395,14 @@ mod parakeet_ane_tests {
                 .iter()
                 .map(|s| (s.clamp(-1.0, 1.0) * 32767.0) as i16)
                 .collect();
-            let result =
-                transcriber.transcribe_with_segments(&model, &pcm, 16_000, &[], Some("en"))?;
+            let result = transcriber.transcribe_with_segments(
+                &model,
+                &pcm,
+                16_000,
+                &[],
+                Some("en"),
+                TimestampGranularity::Word,
+            )?;
             assert!(!result.transcript.trim().is_empty());
             assert_eq!(result.speech_model.as_deref(), Some("Parakeet TDT V3"));
             let words = result.words.as_ref().expect("word timestamps");

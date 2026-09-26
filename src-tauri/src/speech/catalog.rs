@@ -264,15 +264,20 @@ const TRANSCRIBE_ANE_ENCODERS: &[TranscribeAneEncoder] = &[
 ];
 
 macro_rules! whisper_files {
-    ($path:literal, $size_bytes:literal, $sha256:expr_2021) => {
+    ($family:literal, $quant:literal, $size_bytes:literal, $sha256:literal) => {
         &[CatalogFile {
             url: concat!(
-                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/",
-                $path
+                "https://huggingface.co/handy-computer/whisper-",
+                $family,
+                "-gguf/resolve/main/whisper-",
+                $family,
+                "-",
+                $quant,
+                ".gguf"
             ),
-            path: $path,
+            path: concat!("whisper-", $family, "-", $quant, ".gguf"),
             size_bytes: Some($size_bytes),
-            sha256: $sha256,
+            sha256: Some($sha256),
         }]
     };
 }
@@ -288,10 +293,84 @@ macro_rules! distil_whisper_files {
     };
 }
 
+macro_rules! whisper_bin {
+    ($model:literal, $path:literal, $size_bytes:literal) => {
+        whisper_bin!($model, "ggerganov/whisper.cpp", $path, $size_bytes)
+    };
+    ($model:literal, $repo:literal, $path:literal, $size_bytes:literal) => {
+        (
+            $model,
+            CatalogFile {
+                url: concat!("https://huggingface.co/", $repo, "/resolve/main/", $path),
+                path: $path,
+                size_bytes: Some($size_bytes),
+                sha256: None,
+            },
+        )
+    };
+}
+
+// whisper.cpp files earlier versions downloaded and verified. transcribe.cpp
+// loads them, so they still count as installed.
+const WHISPER_BIN_FILES: &[(&str, CatalogFile)] = &[
+    whisper_bin!(
+        "whisper_large_v3_turbo_q8",
+        "ggml-large-v3-turbo-q8_0.bin",
+        874_188_075
+    ),
+    whisper_bin!("whisper_small_q5", "ggml-small-q5_1.bin", 190_085_487),
+    whisper_bin!(
+        "distil_whisper_large_v35",
+        "Pomni/distil-large-v3.5-ggml-allquants",
+        "ggml-distil-large-v3.5-q8_0.bin",
+        818_305_955
+    ),
+    whisper_bin!(
+        "distil_whisper_medium_en",
+        "Pomni/distil-medium.en-ggml-allquants",
+        "ggml-distil-medium.en-q8_0.bin",
+        429_655_940
+    ),
+    whisper_bin!(
+        "distil_whisper_small_en",
+        "Pomni/distil-small.en-ggml-allquants",
+        "ggml-distil-small.en-q8_0.bin",
+        183_833_897
+    ),
+    whisper_bin!("whisper_tiny_q5", "ggml-tiny-q5_1.bin", 32_152_673),
+    whisper_bin!("whisper_tiny_q8", "ggml-tiny-q8_0.bin", 43_537_433),
+    whisper_bin!("whisper_tiny", "ggml-tiny.bin", 77_691_713),
+    whisper_bin!("whisper_base_q5", "ggml-base-q5_1.bin", 59_707_625),
+    whisper_bin!("whisper_base_q8", "ggml-base-q8_0.bin", 81_768_585),
+    whisper_bin!("whisper_base", "ggml-base.bin", 147_951_465),
+    whisper_bin!("whisper_small_q8", "ggml-small-q8_0.bin", 264_464_607),
+    whisper_bin!("whisper_small", "ggml-small.bin", 487_601_967),
+    whisper_bin!("whisper_medium_q5", "ggml-medium-q5_0.bin", 539_212_467),
+    whisper_bin!("whisper_medium_q8", "ggml-medium-q8_0.bin", 823_369_779),
+    whisper_bin!("whisper_medium", "ggml-medium.bin", 1_533_763_059),
+    whisper_bin!(
+        "whisper_large_v3_q5",
+        "ggml-large-v3-q5_0.bin",
+        1_081_140_203
+    ),
+    whisper_bin!("whisper_large_v3", "ggml-large-v3.bin", 3_095_033_483),
+    whisper_bin!(
+        "whisper_large_v3_turbo_q5",
+        "ggml-large-v3-turbo-q5_0.bin",
+        574_041_195
+    ),
+    whisper_bin!(
+        "whisper_large_v3_turbo",
+        "ggml-large-v3-turbo.bin",
+        1_624_555_275
+    ),
+];
+
 pub(super) const ANE_SUPPORTED: bool = cfg!(all(target_os = "macos", target_arch = "aarch64"));
 
 struct AneEncoder {
     family: &'static str,
+    url: &'static str,
     size_bytes: u64,
     sha256: &'static str,
 }
@@ -305,40 +384,10 @@ struct AneCompanion {
     sha256: &'static str,
 }
 
-const ANE_ENCODERS: &[AneEncoder] = &[
-    AneEncoder {
-        family: "tiny",
-        size_bytes: 15_037_446,
-        sha256: "c88cbd2648e1f5415092bcf5256add463a0f19943e6938f46e8d4ffdebd47739",
-    },
-    AneEncoder {
-        family: "base",
-        size_bytes: 37_922_638,
-        sha256: "7e6ab77041942572f239b5b602f8aaa1c3ed29d73e3d8f20abea03a773541089",
-    },
-    AneEncoder {
-        family: "small",
-        size_bytes: 163_083_239,
-        sha256: "de43fb9fed471e95c19e60ae67575c2bf09e8fb607016da171b06ddad313988b",
-    },
-    AneEncoder {
-        family: "medium",
-        size_bytes: 567_829_413,
-        sha256: "79b0b8d436d47d3f24dd3afc91f19447dd686a4f37521b2f6d9c30a642133fbd",
-    },
-    AneEncoder {
-        family: "large-v3",
-        size_bytes: 1_175_711_232,
-        sha256: "47837be7594a29429ec08620043390c4d6d467f8bd362df09e9390ace76a55a4",
-    },
-    AneEncoder {
-        family: "large-v3-turbo",
-        size_bytes: 1_173_393_014,
-        sha256: "84bedfe895bd7b5de6e8e89a0803dfc5addf8c0c5bc4c937451716bf7cf7988a",
-    },
-];
+// Empty until the transcribe.cpp encoders are published.
+const WHISPER_ANE_ENCODERS: &[AneEncoder] = &[];
 
-// whisper.cpp strips "-qX_X" too, so one fp16 encoder serves every quant.
+// whisper.cpp encoder names drop the `-qX_Y` quantization.
 fn strip_quant_suffix(stem: &str) -> &str {
     if let Some(pos) = stem.rfind('-') {
         let suffix = &stem.as_bytes()[pos..];
@@ -349,24 +398,52 @@ fn strip_quant_suffix(stem: &str) -> &str {
     stem
 }
 
+fn whisper_family(manifest: &LocalModelManifest) -> Option<&'static str> {
+    if manifest.engine != LocalModelEngine::Whisper {
+        return None;
+    }
+    manifest.family.strip_prefix("whisper-")
+}
+
+fn whisper_bin_file(model: &str) -> Option<&'static CatalogFile> {
+    WHISPER_BIN_FILES
+        .iter()
+        .find(|(id, _)| *id == model)
+        .map(|(_, file)| file)
+}
+
+/// The whisper.cpp Core ML encoder earlier versions unpacked for this model.
+/// transcribe.cpp can't load it.
+pub(super) fn whisper_cpp_encoder_dir(manifest: &LocalModelManifest) -> Option<String> {
+    let stem = whisper_bin_file(manifest.id)?
+        .path
+        .strip_prefix("ggml-")?
+        .strip_suffix(".bin")?;
+    let family = strip_quant_suffix(stem);
+    Some(format!("ggml-{family}-encoder.mlmodelc"))
+}
+
+/// The partial file an interrupted download of the earlier `.bin` left, unless
+/// this version still downloads that `.bin`.
+pub(super) fn whisper_bin_partial(manifest: &LocalModelManifest) -> Option<String> {
+    let bin = whisper_bin_file(manifest.id)?;
+    (!manifest.files.iter().any(|file| file.path == bin.path)).then(|| format!("{}.part", bin.path))
+}
+
 fn ane_companion(manifest: &LocalModelManifest) -> Option<AneCompanion> {
     if !ANE_SUPPORTED {
         return None;
     }
     match manifest.engine {
         LocalModelEngine::Whisper => {
-            let [file] = manifest.files else {
-                return None;
-            };
-            let family = strip_quant_suffix(file.path.strip_prefix("ggml-")?.strip_suffix(".bin")?);
-            let encoder = ANE_ENCODERS
+            let family = whisper_family(manifest)?;
+            let encoder = WHISPER_ANE_ENCODERS
                 .iter()
                 .find(|encoder| encoder.family == family)?;
-            let dir_name = format!("ggml-{family}-encoder.mlmodelc");
+            // The name Glimpse-Speech looks for next to any quantization of the family.
+            let dir_name = format!("whisper-{family}-encoder.mlmodelc");
             Some(AneCompanion {
-                url: format!(
-                    "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{dir_name}.zip"
-                ),
+                url: encoder.url.to_string(),
                 dir_name,
                 size_bytes: encoder.size_bytes,
                 sha256: encoder.sha256,
@@ -389,12 +466,6 @@ pub fn ane_encoder_dir(model: &str) -> Option<String> {
     definition(model)
         .and_then(ane_companion)
         .map(|companion| companion.dir_name)
-}
-
-/// True when the model's Core ML encoder is only staged by whisper.cpp at
-/// first load (a separate compile step the app reports on).
-pub fn ane_needs_compile_step(model: &str) -> bool {
-    definition(model).is_some_and(|manifest| manifest.engine == LocalModelEngine::Whisper)
 }
 
 const WHISPER_DESCRIPTION: &str =
@@ -439,9 +510,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-large-v3-turbo-q8_0.bin",
-            874_188_075,
-            Some("317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1")
+            "large-v3-turbo",
+            "Q8_0",
+            886_381_760,
+            "b2e30cc286bc9f3aba4db9099fc7403543497c05ce7100d0d83091ddfd25a183"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -519,9 +591,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q5_1",
         files: whisper_files!(
-            "ggml-small-q5_1.bin",
-            190_085_487,
-            Some("ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb")
+            "small",
+            "Q5_K_M",
+            193_749_056,
+            "326cd00c3e7217c751667c7c1600eaf7e0de174e186ca2c16b4bf590251c3c3b"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -535,10 +608,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: distil_whisper_files!(
-            "Pomni/distil-large-v3.5-ggml-allquants",
-            "ggml-distil-large-v3.5-q8_0.bin",
-            818_305_955,
-            Some("7e570abdf13b681354a2ecc93802e25bf204dd6f8c0dd9f6ecb9478b71b231d7")
+            "Glimpse-Dictation/Distil-Whisper-Large-V3.5-gguf",
+            "distil-large-v3.5-Q8_0.gguf",
+            830_499_328,
+            Some("0d5cbe5a52311887c3a824203ef26259534c15310cacef3e23edb60b3a08a7c8")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -552,10 +625,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: distil_whisper_files!(
-            "Pomni/distil-medium.en-ggml-allquants",
-            "ggml-distil-medium.en-q8_0.bin",
-            429_655_940,
-            Some("8dff90cdf0124169e906aa05a208ba2bfc94e60d09b983ba87a60b9ea3aca42a")
+            "Glimpse-Dictation/Distil-Whisper-Medium.en-gguf",
+            "distil-medium.en-Q8_0.gguf",
+            437_727_104,
+            Some("1f037dcb7b625ba682cf70f3a442ffc68b638fd23bdb12e9fb69df79f581a6b3")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -569,10 +642,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: distil_whisper_files!(
-            "Pomni/distil-small.en-ggml-allquants",
-            "ggml-distil-small.en-q8_0.bin",
-            183_833_897,
-            Some("8564c3a318d354992fc4654044f48908514783209b4f09ff043ecb8a0c1ebe8e")
+            "Glimpse-Dictation/Distil-Whisper-Small.en-gguf",
+            "distil-small.en-Q8_0.gguf",
+            189_027_872,
+            Some("941320444efd9e92b7e0a67cfd85f49408d91f87567310d2c2971c7a215dc9e5")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -586,9 +659,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q5_1",
         files: whisper_files!(
-            "ggml-tiny-q5_1.bin",
-            32_152_673,
-            Some("818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7")
+            "tiny",
+            "Q8_0",
+            45_981_088,
+            "325b9c7997cd1eff81ef709d55766565e71be696130cc3a3d444713798706834"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -602,9 +676,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-tiny-q8_0.bin",
-            43_537_433,
-            Some("c2085835d3f50733e2ff6e4b41ae8a2b8d8110461e18821b09a15c40c42d1cca")
+            "tiny",
+            "Q8_0",
+            45_981_088,
+            "325b9c7997cd1eff81ef709d55766565e71be696130cc3a3d444713798706834"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -618,9 +693,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-tiny.bin",
-            77_691_713,
-            Some("be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21")
+            "tiny",
+            "F16",
+            80_135_360,
+            "5b44043278b47d3b6e56fb16c6bc5bb0aa16f2e69086f4d67175ed0a30d6a987"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -634,9 +710,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q5_1",
         files: whisper_files!(
-            "ggml-base-q5_1.bin",
-            59_707_625,
-            Some("422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898")
+            "base",
+            "Q5_K_M",
+            63_786_048,
+            "8e0feb7bc35780353cf31821018e601bb7b7cff6c9a0e17ada5a5db23f4db867"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -650,9 +727,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-base-q8_0.bin",
-            81_768_585,
-            Some("c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9")
+            "base",
+            "Q8_0",
+            84_962_880,
+            "81c069428bc8a24551a8169cf31cf09bcfd9d4cf50389ae281323c9aa9648c81"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -666,9 +744,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-base.bin",
-            147_951_465,
-            Some("60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe")
+            "base",
+            "F16",
+            151_145_760,
+            "38ab6b0ed742e9eded4d5a2ba7fc34d44fc28cdb71d6360f6321d4b306ef8039"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -682,9 +761,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-small-q8_0.bin",
-            264_464_607,
-            Some("49c8fb02b65e6049d5fa6c04f81f53b867b5ec9540406812c643f177317f779f")
+            "small",
+            "Q8_0",
+            269_751_136,
+            "9b9c8811bbcc82a7766f0fb0925614bdacb0923b2cc630daeac17108b655b860"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -698,9 +778,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-small.bin",
-            487_601_967,
-            Some("1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b")
+            "small",
+            "F16",
+            492_888_480,
+            "bef65e1ac9d012269453243243aac0d0f67792693ba6c99b584a124e0ee326fc"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -714,9 +795,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q5_0",
         files: whisper_files!(
-            "ggml-medium-q5_0.bin",
-            539_212_467,
-            Some("19fea4b380c3a618ec4723c3eef2eb785ffba0d0538cf43f8f235e7b3b34220f")
+            "medium",
+            "Q5_K_M",
+            582_746_048,
+            "4e2a8904a866b3aa7ef70d7640ec6abc5f0a05524cd950ea4b66ace12122bf53"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -730,9 +812,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-medium-q8_0.bin",
-            823_369_779,
-            Some("42a1ffcbe4167d224232443396968db4d02d4e8e87e213d3ee2e03095dea6502")
+            "medium",
+            "Q8_0",
+            831_538_144,
+            "09e6a65e7de377aa5b10bae24608bc6f8ca2ed04b3993ef10d4a02bcd9a82adf"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -746,9 +829,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-medium.bin",
-            1_533_763_059,
-            Some("6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208")
+            "medium",
+            "F16",
+            1_541_931_424,
+            "62338e5194cb9ccc6734adf6f42694805a98a158028b2022e39ec060559bd517"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -761,11 +845,13 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         category: "standard",
         engine: LocalModelEngine::Whisper,
         variant: "Q5_0",
-        files: whisper_files!(
-            "ggml-large-v3-q5_0.bin",
-            1_081_140_203,
-            Some("d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1")
-        ),
+        // Measured more accurate and smaller than the Q5_K_M GGUF.
+        files: &[CatalogFile {
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-q5_0.bin",
+            path: "ggml-large-v3-q5_0.bin",
+            size_bytes: Some(1_081_140_203),
+            sha256: Some("d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1"),
+        }],
         capabilities: WHISPER_CAPABILITIES,
     },
     LocalModelManifest {
@@ -778,9 +864,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-large-v3.bin",
-            3_095_033_483,
-            Some("64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2")
+            "large-v3",
+            "F16",
+            3_107_236_640,
+            "e633ab1d74b0e98f4f57daedaee34291297dbbf01389bda3d890766600c1c584"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -794,9 +881,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q5_0",
         files: whisper_files!(
-            "ggml-large-v3-turbo-q5_0.bin",
-            574_041_195,
-            Some("394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2")
+            "large-v3-turbo",
+            "Q5_K_M",
+            619_628_128,
+            "977b5db4e004349dffd1ab9caa10ba5aaba3fc3edd3ba72cadb84328a3203e36"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -810,9 +898,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-large-v3-turbo.bin",
-            1_624_555_275,
-            Some("1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69")
+            "large-v3-turbo",
+            "F16",
+            1_625_935_520,
+            "e1d0144e9afc9f479d9e51fc92c7dea9dc36059655eeb3819f16ad2de779046a"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -867,6 +956,21 @@ pub fn install_spec(model: &str, ane: bool) -> Option<InstallSpec> {
     } else {
         manifest.files
     };
+    Some(spec_from_files(manifest, model_files, ane))
+}
+
+/// The spec for the whisper.cpp `.bin` an earlier version installed.
+pub fn whisper_bin_install_spec(model: &str, ane: bool) -> Option<InstallSpec> {
+    let manifest = definition(model)?;
+    let file = whisper_bin_file(model)?;
+    Some(spec_from_files(manifest, std::slice::from_ref(file), ane))
+}
+
+fn spec_from_files(
+    manifest: &LocalModelManifest,
+    model_files: &[CatalogFile],
+    ane: bool,
+) -> InstallSpec {
     let storage = match model_files {
         [single] => ModelStorage::File {
             artifact: single.path.to_string(),
@@ -892,14 +996,14 @@ pub fn install_spec(model: &str, ane: bool) -> Option<InstallSpec> {
             extract: true,
         });
     }
-    Some(InstallSpec {
+    InstallSpec {
         id: manifest.id.to_string(),
         engine: manifest.engine,
         layout: Some(model_layout(manifest)),
         storage,
         files,
         variant: Some(manifest.family.to_string()),
-    })
+    }
 }
 
 pub fn model_label(key: &str) -> String {
@@ -1267,9 +1371,10 @@ mod tests {
             family: "whisper-tiny",
             variant: "Full",
             files: whisper_files!(
-                "ggml-tiny.bin",
-                77_691_713,
-                Some("be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21")
+                "tiny",
+                "F16",
+                80_135_360,
+                "5b44043278b47d3b6e56fb16c6bc5bb0aa16f2e69086f4d67175ed0a30d6a987"
             ),
             capabilities: WHISPER_CAPABILITIES,
         };

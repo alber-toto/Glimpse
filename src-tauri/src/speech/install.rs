@@ -56,98 +56,6 @@ struct DownloadCancelledPayload {
     model: String,
 }
 
-#[derive(Serialize, Clone)]
-struct AneCompilePayload {
-    model: String,
-    label: String,
-    status: &'static str,
-}
-
-fn spawn_ane_compile(app: AppHandle<AppRuntime>, model: String) {
-    std::thread::spawn(move || {
-        let label = super::catalog::model_label(&model);
-        let emit = |status: &'static str| {
-            let _ = app.emit(
-                "ane:compile",
-                AneCompilePayload {
-                    model: model.clone(),
-                    label: label.clone(),
-                    status,
-                },
-            );
-        };
-
-        let result = ensure_model_ready(&app, &model).and_then(|ready| {
-            emit("start");
-            let transcriber = app.state::<crate::AppState>().local_transcriber();
-            let _ = glimpse_speech::take_coreml_log();
-            if transcriber.loaded_model_id().as_deref() == Some(model.as_str()) {
-                transcriber.preload_and_warm(&ready)
-            } else {
-                use glimpse_speech::TranscriptionEngine;
-                let mut engine = glimpse_speech::engines::whisper::WhisperEngine::new();
-                engine
-                    .load_model(&ready.path)
-                    .map_err(|err| anyhow!("{err}"))
-            }
-        });
-
-        // whisper.cpp falls back to GPU when the Core ML load fails, so a
-        // successful model load alone doesn't prove the encoder engaged.
-        let coreml_failed = || {
-            glimpse_speech::take_coreml_log()
-                .iter()
-                .any(|line| line.contains("failed to load Core ML model"))
-        };
-
-        let compiled = result.is_ok();
-
-        match result {
-            Ok(()) if coreml_failed() => {
-                tracing::error!(
-                    "[speech] Core ML encoder for {model} failed to load; whisper fell back to the GPU"
-                );
-                crate::toast::show(
-                    &app,
-                    "error",
-                    None,
-                    &format!(
-                        "{label} couldn't use the Neural Engine and will run on the GPU instead."
-                    ),
-                );
-                crate::analytics::track_model_download_failed(
-                    &app,
-                    &model,
-                    "ane_compile",
-                    "model_error",
-                );
-                emit("error");
-            }
-            Ok(()) => emit("done"),
-            Err(err) => {
-                tracing::error!("[speech] ANE compile warm-up failed: {err}");
-                crate::analytics::track_model_download_failed(
-                    &app,
-                    &model,
-                    "ane_compile",
-                    crate::analytics::error_detail(&err),
-                );
-                crate::toast::show(
-                    &app,
-                    "error",
-                    None,
-                    &format!("Couldn't optimize {label} for the Neural Engine."),
-                );
-                emit("error");
-            }
-        }
-
-        if compiled {
-            super::warm_model(&app, model.clone());
-        }
-    });
-}
-
 const MODELS_ROOT: &str = "models";
 
 pub fn local_resolver(models_dir: PathBuf) -> glimpse_speech::service::ModelResolver {
@@ -169,7 +77,29 @@ fn installed_spec(
             return Ok(ane);
         }
     }
+    if let Some(bin) = super::catalog::whisper_bin_install_spec(model, false)
+        && !manager.status(&base)?.installed
+        && manager.status(&bin)?.installed
+    {
+        return Ok(bin);
+    }
     Ok(base)
+}
+
+/// Adding the Neural Engine encoder to a Whisper `.bin` install keeps the
+/// `.bin` instead of downloading the GGUF.
+fn download_spec(
+    model: &str,
+    ane: bool,
+    manager: &speech_models::ModelInstallManager,
+) -> Result<speech_models::InstallSpec> {
+    if ane
+        && let Some(bin) = super::catalog::whisper_bin_install_spec(model, true)
+        && installed_spec(model, manager)?.files == bin.files[..1]
+    {
+        return Ok(bin);
+    }
+    spec_for(model, ane)
 }
 
 fn finish_model_install(
@@ -305,7 +235,7 @@ fn ensure_model_downloadable(
     if !ane {
         return Err(MODEL_UNAVAILABLE.to_string());
     }
-    let base_spec = spec_for(model, false).map_err(|err| err.to_string())?;
+    let base_spec = installed_spec(model, manager).map_err(|err| err.to_string())?;
     let installed = manager
         .status(&base_spec)
         .map(|status| status.installed)
@@ -337,13 +267,9 @@ pub async fn download_model_now(
     let ane = ane.unwrap_or_else(|| super::catalog::ane_encoder_dir(&model).is_some());
     ensure_model_downloadable(&model, ane, &manager)
         .map_err(|err| track_download_error(&app, &model, "resolve", anyhow!(err)))?;
-    let spec =
-        spec_for(&model, ane).map_err(|err| track_download_error(&app, &model, "resolve", err))?;
+    let spec = download_spec(&model, ane, &manager)
+        .map_err(|err| track_download_error(&app, &model, "resolve", err))?;
     ensure_models_root(&app).map_err(|err| track_download_error(&app, &model, "install", err))?;
-    let ane_pending = ane
-        && super::catalog::ane_needs_compile_step(&model)
-        && super::catalog::ane_encoder_dir(&model).is_some()
-        && !ane_installed_for(&model, &manager);
     let cancel_token = state.create_download_token(&model)?;
     struct DownloadGuard<'a>(&'a AppHandle<AppRuntime>, String);
     impl Drop for DownloadGuard<'_> {
@@ -466,10 +392,7 @@ pub async fn download_model_now(
 
     crate::analytics::track_model_downloaded(&app, &status.id);
 
-    if ane_pending {
-        // The compile loads the model itself and warms once it lands.
-        spawn_ane_compile(app.clone(), model.clone());
-    } else if definition(&model).is_some() {
+    if definition(&model).is_some() {
         super::warm_model(&app, status.id.clone());
     }
 

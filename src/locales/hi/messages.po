@@ -259,6 +259,16 @@ msgstr ""
 #~ msgstr "वक्ता के अनुसार फ़िल्टर करें"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/AneCompileOverlay.tsx
+#~ msgid "ane_compile.body"
+#~ msgstr "macOS Apple Neural Engine के लिए {label} कम्पाइल कर रहा है। यह प्रक्रिया केवल एक बार होती है और इसमें कुछ मिनट लग सकते हैं।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AneCompileOverlay.tsx
+#~ msgid "ane_compile.title"
+#~ msgstr "Neural Engine के लिए अनुकूलन हो रहा है"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.prompt"
 msgstr "\"Glimpse मेरी आवाज़ को टेक्स्ट में बदल देता है।\""
@@ -3096,11 +3106,6 @@ msgid "onboarding.license_step.tile_devices_body"
 msgstr "Mac और Windows"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/AneCompileOverlay.tsx
-msgid "ane_compile.body"
-msgstr "macOS Apple Neural Engine के लिए {label} कम्पाइल कर रहा है। यह प्रक्रिया केवल एक बार होती है और इसमें कुछ मिनट लग सकते हैं।"
-
-#. js-lingui-explicit-id
 #: src/features/updates/components/WhatsNewModal.tsx
 msgid "updates.whats_new.major_release"
 msgstr "मुख्य रिलीज़"
@@ -3749,11 +3754,6 @@ msgstr "कमांड लाइन दस्तावेज़ खोलें
 #: src/features/recording/components/LiveView.tsx
 msgid "live.prefs.open_on_start"
 msgstr ""
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/AneCompileOverlay.tsx
-msgid "ane_compile.title"
-msgstr "Neural Engine के लिए अनुकूलन हो रहा है"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx

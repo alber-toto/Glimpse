@@ -423,6 +423,7 @@ pub fn run() {
             analytics::set_crash_phase("app_state");
             app.manage(AppState::new(Arc::clone(&settings_store), settings, handle));
             speech::upgrade_retired_diarizer(handle);
+            speech::remove_whisper_cpp_files(handle);
             {
                 let h = handle.clone();
                 async_runtime::spawn(async move {

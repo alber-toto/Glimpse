@@ -259,6 +259,16 @@ msgstr ""
 #~ msgstr "Фильтр по диктору"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/AneCompileOverlay.tsx
+#~ msgid "ane_compile.body"
+#~ msgstr "macOS компилирует {label} для Apple Neural Engine. Это происходит один раз и может занять несколько минут."
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AneCompileOverlay.tsx
+#~ msgid "ane_compile.title"
+#~ msgstr "Оптимизация для Neural Engine"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.prompt"
 msgstr "«Glimpse превращает мой голос в текст.»"
@@ -3096,11 +3106,6 @@ msgid "onboarding.license_step.tile_devices_body"
 msgstr "Mac и Windows"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/AneCompileOverlay.tsx
-msgid "ane_compile.body"
-msgstr "macOS компилирует {label} для Apple Neural Engine. Это происходит один раз и может занять несколько минут."
-
-#. js-lingui-explicit-id
 #: src/features/updates/components/WhatsNewModal.tsx
 msgid "updates.whats_new.major_release"
 msgstr "Крупный выпуск"
@@ -3749,11 +3754,6 @@ msgstr "Открыть документацию по командной стро
 #: src/features/recording/components/LiveView.tsx
 msgid "live.prefs.open_on_start"
 msgstr ""
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/AneCompileOverlay.tsx
-msgid "ane_compile.title"
-msgstr "Оптимизация для Neural Engine"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx

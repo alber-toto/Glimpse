@@ -1120,9 +1120,14 @@ impl Runner {
         let dictionary = crate::dictionary::dictionary_entries_for_model(model, &settings);
         let language = (!settings.language.trim().is_empty()).then_some(settings.language.as_str());
         let transcriber = self.state().local_transcriber();
-        let Some(result) =
-            transcriber.try_transcribe_with_segments(model, &pcm, LIVE_RATE, &dictionary, language)
-        else {
+        let Some(result) = transcriber.try_transcribe_with_segments(
+            model,
+            &pcm,
+            LIVE_RATE,
+            &dictionary,
+            language,
+            glimpse_speech::TimestampGranularity::Word,
+        ) else {
             return false;
         };
         self.warmed = true;

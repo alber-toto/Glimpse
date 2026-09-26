@@ -141,6 +141,50 @@ pub(crate) fn upgrade_retired_diarizer(app: &AppHandle<AppRuntime>) {
     });
 }
 
+/// Whisper now runs on transcribe.cpp, which rejects the whisper.cpp Core ML
+/// encoders earlier versions downloaded, so free their disk space along with
+/// `.bin` downloads that will never resume.
+pub(crate) fn remove_whisper_cpp_files(app: &AppHandle<AppRuntime>) {
+    let Ok(models_dir) = install::model_cache_dir(app) else {
+        return;
+    };
+    std::thread::spawn(move || {
+        for manifest in catalog::local_manifests() {
+            let model_dir = models_dir.join(manifest.id);
+            if let Some(partial) = catalog::whisper_bin_partial(manifest) {
+                let _ = std::fs::remove_file(model_dir.join(partial));
+            }
+            if !catalog::ANE_SUPPORTED {
+                continue;
+            }
+            let Some(dir_name) = catalog::whisper_cpp_encoder_dir(manifest) else {
+                continue;
+            };
+            let _ = std::fs::remove_file(model_dir.join(format!("{dir_name}.zip")));
+            let encoder = model_dir.join(&dir_name);
+            let Ok(metadata) = encoder.symlink_metadata() else {
+                continue;
+            };
+            // Unlink a symlinked encoder instead of emptying its target.
+            let removed = if metadata.file_type().is_symlink() {
+                std::fs::remove_file(&encoder)
+            } else {
+                crate::platform::remove_dir_all_compat(&encoder)
+            };
+            match removed {
+                Ok(()) => {
+                    let _ =
+                        std::fs::remove_file(model_dir.join(format!(".{dir_name}.manifest.json")));
+                    tracing::info!("[speech] removed whisper.cpp encoder {}", encoder.display());
+                }
+                Err(err) => {
+                    tracing::warn!("[speech] could not remove {}: {err}", encoder.display())
+                }
+            }
+        }
+    });
+}
+
 pub fn warm(app: &AppHandle<AppRuntime>, settings: &UserSettings) {
     if remote::is_configured(settings) {
         return;

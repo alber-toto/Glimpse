@@ -110,13 +110,13 @@ Questions, bugs, or feedback: [hello@tryglimpse.cc](mailto:hello@tryglimpse.cc) 
 - <a href="https://lokalise.com/"><img src="./assets/readme/lokalise.png" width="16" alt="Lokalise" align="center" /></a> [Lokalise](https://lokalise.com/), localization platform and OSS supporter
 - [Tauri](https://v2.tauri.app/), app framework
 - [Glimpse-Speech](https://github.com/glimpse-hq/Glimpse-Speech) (MIT), local transcription engine
-- [whisper-rs](https://codeberg.org/tazz4843/whisper-rs) (Unlicense), Rust bindings for Whisper
+- [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (MIT), on-device inference for Whisper and other speech models
 - [parakeet-rs](https://github.com/altunenes/parakeet-rs) (MIT OR Apache-2.0), ONNX Runtime bindings for Parakeet
 
 Speech models are downloaded in-app from Hugging Face. The live list lives in **Settings → Models**. By family:
 
-- **Whisper GGML** (MIT), via [`ggerganov/whisper.cpp`](https://huggingface.co/ggerganov/whisper.cpp)
-- **Distil-Whisper GGML** (MIT, English-only), via [Pomni's conversions](https://huggingface.co/Pomni) of [`distil-whisper`](https://huggingface.co/distil-whisper)
+- **Whisper GGUF** (MIT), via [`handy-computer`](https://huggingface.co/handy-computer)
+- **Distil-Whisper GGUF** (MIT, English-only), via [Glimpse's conversions](https://huggingface.co/Glimpse-Dictation) of [`distil-whisper`](https://huggingface.co/distil-whisper)
 - **Parakeet TDT ONNX** (CC-BY-4.0), via [`istupakov`](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx)
 - **Parakeet Unified ONNX** (CC-BY-4.0, English-only), via [`bobNight`](https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx)
 - **Nemotron Streaming ONNX** (NVIDIA Open Model License), via [`altunenes/parakeet-rs`](https://huggingface.co/altunenes/parakeet-rs)

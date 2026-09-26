@@ -3,6 +3,7 @@
 ### New Features
 
 - Live transcripts for recordings. While you record, open a small window that shows what's being said as it happens, labeled by speaker. You can rename speakers, add bookmarks, pause or stop from it, and shrink it down to just the controls.
+- Much more accurate word timings with Whisper: most words now line up within a tenth of a second of when they're spoken, instead of landing about a quarter second late.
 
 ### Improvements
 
@@ -14,6 +15,7 @@
 ### Fixes
 
 - On Mac, quitting Glimpse while it's transcribing no longer crashes.
+- Whisper no longer crashes on very short recordings.
 
 1.2.7
 
