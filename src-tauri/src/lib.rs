@@ -715,6 +715,8 @@ pub fn run() {
                     (now - state.session_started_at).as_secs_f64(),
                     counters.transcription_count,
                 );
+                #[cfg(target_os = "macos")]
+                platform::macos::skip_static_destructors();
                 #[cfg(target_os = "windows")]
                 platform::windows::crash::exit_if_session_ending();
             }

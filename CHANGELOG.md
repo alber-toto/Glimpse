@@ -10,6 +10,10 @@
 - Dictating while you record no longer ends up in the recording.
 - The microphone meter while recording now moves with your voice at a normal speaking volume.
 
+### Fixes
+
+- On Mac, quitting Glimpse while it's transcribing no longer crashes.
+
 1.2.7
 
 ### Speaker Detection
