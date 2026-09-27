@@ -3531,12 +3531,12 @@ msgstr "No results for selected filters"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: systemApps[0]
-#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/useSilenceWarning.ts
 msgid "live.silent.app"
 msgstr "No sound from {0} yet."
 
 #. js-lingui-explicit-id
-#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/useSilenceWarning.ts
 msgid "live.silent.microphone"
 msgstr "No sound from the microphone yet."
 
@@ -3551,7 +3551,7 @@ msgid "native.toast.no_speech"
 msgstr "No speech detected. Recording deleted."
 
 #. js-lingui-explicit-id
-#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/useSilenceWarning.ts
 msgid "live.silent.system"
 msgstr "No system audio yet."
 
@@ -5423,6 +5423,11 @@ msgstr "Transcription cancelled"
 #. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.error.default"
+msgstr "Transcription failed"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.modal.transcription_failed"
 msgstr "Transcription failed"
 
 #. js-lingui-explicit-id

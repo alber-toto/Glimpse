@@ -26,6 +26,8 @@
 - When a model download fails, Glimpse says why in plain words and offers to retry.
 - Glimpse won't start a model download that would leave less than 5 GB free on your disk.
 - Glimpse warns you when you start a recording with less than 1 GB free on your disk.
+- Warmer, brighter colors in light mode that match the Glimpse logo, and error messages in the Library are easier to read.
+- The Record screen now tells you when your microphone or the app you're recording hasn't made a sound yet.
 
 ### Fixes
 

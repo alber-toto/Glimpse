@@ -23,10 +23,12 @@ import {
   SidebarSimple,
   SpeakerHigh,
   Stop,
+  Warning,
   X,
 } from "@phosphor-icons/react";
 import * as recordingApi from "../api";
 import { useRecordingSession } from "../useRecordingSession";
+import { useSilenceWarning } from "../useSilenceWarning";
 import { readLivePrefs } from "../livePrefs";
 import { useInputDevices, useSettings } from "../../settings/queries";
 import { libraryKeys } from "../../library/queries";
@@ -398,6 +400,7 @@ const RecordingView = ({ isActive, onOpenLibraryItem }: RecordingViewProps) => {
   };
   const queryClient = useQueryClient();
   const { state, applyState } = useRecordingSession();
+  const silenceWarning = useSilenceWarning(state);
   const { data: devices = [] } = useInputDevices(isActive);
   const { data: defaultDeviceId = null } = useSettings(
     (settings) => settings.microphone_device ?? null,
@@ -995,8 +998,30 @@ const RecordingView = ({ isActive, onOpenLibraryItem }: RecordingViewProps) => {
         </div>
       </div>
 
+      <div className="mt-3 mb-1 flex h-7 items-center justify-center">
+        <AnimatePresence>
+          {silenceWarning && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.15 }}
+              role="status"
+              className="flex h-7 max-w-full items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--color-interactive)_40%,var(--border-strong))] bg-[var(--color-interactive-10)] px-3 ui-text-label font-medium text-content-primary"
+            >
+              <Warning
+                size={13}
+                weight="fill"
+                className="shrink-0 text-[var(--color-interactive)]"
+              />
+              <span className="truncate">{silenceWarning}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       <div
-        className={`mt-10 divide-y divide-border-primary border-y border-border-primary ${
+        className={`divide-y divide-border-primary border-y border-border-primary ${
           microphoneMenuOpen || systemMenuOpen ? "relative z-dropdown-open" : ""
         }`}
       >

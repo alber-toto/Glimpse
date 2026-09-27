@@ -363,7 +363,7 @@ function ModelDetails({
             key={item}
             className="flex items-center gap-2 ui-text-body-sm text-content-primary"
           >
-            <Check size={12} weight="bold" className="text-cloud" />
+            <Check size={12} weight="bold" className="ui-color-cloud" />
             {item}
           </li>
         ))}

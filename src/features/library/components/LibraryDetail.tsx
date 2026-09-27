@@ -222,7 +222,7 @@ const BookmarkRow = ({
       <button
         type="button"
         onClick={onSeek}
-        className="flex items-center gap-1.5 font-mono ui-text-label tabular-nums text-[var(--color-cloud)] transition-opacity hover:opacity-75"
+        className="flex items-center gap-1.5 font-mono ui-text-label tabular-nums ui-color-cloud transition-opacity hover:opacity-75"
       >
         <span className={`${timeWidth} shrink-0 text-right`}>
           {formatTimestamp(bookmark.at_ms)}
@@ -2639,10 +2639,15 @@ const LibraryDetail = ({
                   <div className="flex items-center justify-center gap-2 ui-color-error-tint">
                     <AlertTriangle size={14} />
                     <span className="ui-text-label font-medium">
-                      {t({
-                        id: "library.modal.import_failed",
-                        message: "Import failed",
-                      })}
+                      {item.kind === "import"
+                        ? t({
+                            id: "library.modal.import_failed",
+                            message: "Import failed",
+                          })
+                        : t({
+                            id: "library.modal.transcription_failed",
+                            message: "Transcription failed",
+                          })}
                     </span>
                   </div>
                   <p className="mt-2 ui-text-meta leading-[14px] ui-color-error-tint select-text cursor-text">

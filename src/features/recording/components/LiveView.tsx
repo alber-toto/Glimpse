@@ -21,6 +21,7 @@ import {
 } from "@phosphor-icons/react";
 import * as recordingApi from "../api";
 import { useRecordingSession } from "../useRecordingSession";
+import { useSilenceWarning } from "../useSilenceWarning";
 import { useLiveTranscript } from "../useLiveTranscript";
 import { useLivePrefs, type LivePrefs, type LiveTextSize } from "../livePrefs";
 import { withSpeakerColors } from "../../library/speakerColors";
@@ -62,9 +63,6 @@ const METER_BARS = 5;
 const COMPACT_EASE_MS = 260;
 // Matches COMPACT_HEIGHT in live_window.rs.
 const HEADER_HEIGHT = 52;
-// A source that stays silent this long into a recording gets a warning.
-const SILENCE_WARNING_MS = 20_000;
-const HEARD_LEVEL = 0.4;
 
 const formatClock = (elapsedMs: number) => {
   const total = Math.floor(elapsedMs / 1000);
@@ -308,7 +306,6 @@ const LiveView = () => {
     x: number;
     y: number;
   } | null>(null);
-  const [heard, setHeard] = useState({ microphone: false, system: false });
   const menuRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -331,23 +328,7 @@ const LiveView = () => {
 
   const microphoneOn = Boolean(state.sources.microphone);
   const systemOn = Boolean(state.sources.system_audio);
-  const recording = state.status === "recording";
-
-  useEffect(() => {
-    if (!recording) return;
-    setHeard((prev) => {
-      const microphone =
-        prev.microphone || state.levels.microphone > HEARD_LEVEL;
-      const system = prev.system || state.levels.system_audio > HEARD_LEVEL;
-      return microphone === prev.microphone && system === prev.system
-        ? prev
-        : { microphone, system };
-    });
-  }, [recording, state.levels.microphone, state.levels.system_audio]);
-
-  useEffect(() => {
-    if (!active) setHeard({ microphone: false, system: false });
-  }, [active]);
+  const silenceWarning = useSilenceWarning(state);
 
   // The panel eases inside the window; the window itself only resizes while
   // the change is invisible (after collapsing, before expanding).
@@ -560,24 +541,6 @@ const LiveView = () => {
     setSpeakerMenu({ id, x: event.clientX, y: event.clientY });
   };
 
-  const systemApps = state.sources.system_audio ?? [];
-  const silenceWarning =
-    !recording || state.elapsed_ms < SILENCE_WARNING_MS
-      ? null
-      : systemOn && !heard.system
-        ? systemApps.length === 1
-          ? t({
-              id: "live.silent.app",
-              message: `No sound from ${systemApps[0]} yet.`,
-            })
-          : t({ id: "live.silent.system", message: "No system audio yet." })
-        : microphoneOn && !heard.microphone
-          ? t({
-              id: "live.silent.microphone",
-              message: "No sound from the microphone yet.",
-            })
-          : null;
-
   const emptyMessage =
     transcript.status === "unavailable"
       ? t({
@@ -764,7 +727,7 @@ const LiveView = () => {
             <Warning
               size={13}
               weight="fill"
-              className="shrink-0 ui-color-warning"
+              className="shrink-0 text-[var(--color-interactive)]"
               aria-label={silenceWarning}
             />
           ) : (
@@ -868,16 +831,15 @@ const LiveView = () => {
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15 }}
                   role="status"
-                  className="ui-surface-menu absolute left-3 right-3 top-1 flex items-center gap-2 rounded-lg px-3 py-2 ui-text-label"
+                  title={silenceWarning}
+                  className="ui-surface-menu absolute left-1/2 top-2 flex h-7 max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-1.5 rounded-full border-[color-mix(in_srgb,var(--color-interactive)_35%,var(--border-strong))]! bg-[color-mix(in_srgb,var(--color-interactive)_10%,var(--surface-floating))]! px-3 ui-text-label font-medium text-content-primary"
                 >
                   <Warning
-                    size={13}
+                    size={12}
                     weight="fill"
-                    className="shrink-0 ui-color-warning"
+                    className="shrink-0 text-[var(--color-interactive)]"
                   />
-                  <span className="min-w-0 text-content-secondary text-pretty">
-                    {silenceWarning}
-                  </span>
+                  <span className="min-w-0 truncate">{silenceWarning}</span>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -3531,12 +3531,12 @@ msgstr "Nessun risultato per i filtri selezionati"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: systemApps[0]
-#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/useSilenceWarning.ts
 msgid "live.silent.app"
 msgstr ""
 
 #. js-lingui-explicit-id
-#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/useSilenceWarning.ts
 msgid "live.silent.microphone"
 msgstr ""
 
@@ -3551,7 +3551,7 @@ msgid "native.toast.no_speech"
 msgstr "Nessun parlato rilevato. Registrazione eliminata."
 
 #. js-lingui-explicit-id
-#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/useSilenceWarning.ts
 msgid "live.silent.system"
 msgstr ""
 
@@ -5424,6 +5424,11 @@ msgstr "Trascrizione annullata"
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.error.default"
 msgstr "Trascrizione non riuscita"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.modal.transcription_failed"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
