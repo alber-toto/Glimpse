@@ -4619,7 +4619,7 @@ msgstr "Segment start and end times"
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelCapabilityIcon.tsx
 msgid "model_capability.timestamps_detail"
-msgstr "Segment timing and subtitle export in Library."
+msgstr "Segment times and subtitle export in Library."
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
