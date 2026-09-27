@@ -170,7 +170,8 @@ const ModelStatCard = ({
             >
               <Trash2 size={13} aria-hidden="true" />
             </button>
-          ) : model.downloadable && !builtIn ? (
+          ) : !builtIn ? (
+            // An uninstalled legacy model only lands here as the selected one.
             <button
               type="button"
               onClick={onDownload}

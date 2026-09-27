@@ -76,7 +76,9 @@ const groupModels = (
     const englishOnly = deriveModelStats(first).englishOnly;
     const isDiarizer = first.key === diarizer?.key;
     // Speaker detection is not a transcription model but lists as experimental.
-    const category = isDiarizer ? "experimental" : first.category;
+    const category = isDiarizer
+      ? "experimental"
+      : (variants.find((v) => v.downloadable) ?? first).category;
     const label = first.label.trim();
     const haystack = [
       label,

@@ -1234,11 +1234,8 @@ fn handle_revoked_mic_permission(app: &AppHandle<AppRuntime>, err: &anyhow::Erro
 }
 
 fn start_model_download(app: &AppHandle<AppRuntime>, model: &str) -> bool {
-    let downloadable = crate::speech::catalog::local_manifests()
-        .iter()
-        .any(|manifest| manifest.id == model && crate::speech::catalog::is_downloadable(manifest))
-        || crate::speech::install::model_cache_dir(app)
-            .is_ok_and(|dir| crate::speech::replaces_onnx_install(&dir, model));
+    let downloadable = crate::speech::install::model_cache_dir(app)
+        .is_ok_and(|dir| crate::speech::install::model_download_allowed(app, &dir, model));
     if !downloadable {
         return false;
     }

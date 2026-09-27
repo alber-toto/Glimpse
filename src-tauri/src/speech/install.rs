@@ -233,14 +233,36 @@ pub fn check_model_status<R: Runtime>(
 
 const MODEL_UNAVAILABLE: &str = "This model is no longer available for download.";
 
+/// Legacy models stay downloadable while selected or partly downloaded.
+pub(crate) fn model_download_allowed(
+    app: &AppHandle<AppRuntime>,
+    models_dir: &Path,
+    model: &str,
+) -> bool {
+    if super::catalog::model_is_downloadable(model)
+        || super::replaces_onnx_install(models_dir, model)
+    {
+        return true;
+    }
+    let Ok(spec) = spec_for(model, false) else {
+        return false;
+    };
+    let settings = app.state::<crate::AppState>().current_settings();
+    let dir = models_dir.join(model);
+    settings.local_model == model
+        || spec
+            .files
+            .iter()
+            .any(|file| dir.join(format!("{}.part", file.path)).is_file())
+}
+
 fn ensure_model_downloadable(
+    app: &AppHandle<AppRuntime>,
     model: &str,
     ane: bool,
     manager: &speech_models::ModelInstallManager,
 ) -> Result<(), String> {
-    if super::catalog::model_is_downloadable(model)
-        || super::replaces_onnx_install(manager.cache_dir(), model)
-    {
+    if model_download_allowed(app, manager.cache_dir(), model) {
         return Ok(());
     }
     if !ane {
@@ -276,7 +298,7 @@ pub async fn download_model_now(
     let manager =
         model_manager(&app).map_err(|err| track_download_error(&app, &model, "resolve", err))?;
     let ane = ane.unwrap_or_else(|| super::catalog::ane_encoder_dir(&model).is_some());
-    ensure_model_downloadable(&model, ane, &manager)
+    ensure_model_downloadable(&app, &model, ane, &manager)
         .map_err(|err| track_download_error(&app, &model, "resolve", anyhow!(err)))?;
     let spec = download_spec(&model, ane, &manager)
         .map_err(|err| track_download_error(&app, &model, "resolve", err))?;
