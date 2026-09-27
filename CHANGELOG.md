@@ -13,6 +13,7 @@
 - Dictating while you record no longer ends up in the recording.
 - The microphone meter while recording now moves with your voice at a normal speaking volume.
 - Dictation finishes a little sooner, up to a quarter of a second, after you let go of the shortcut.
+- Local models transcribe faster. On Windows, from about 1.5 times faster with Nemotron to 6 times with Parakeet. On Mac, Whisper is about a quarter faster and Parakeet Unified about twice as fast.
 - Glimpse is smaller: the app itself went from 49 MB to 31 MB.
 - Nemotron Streaming and Nemotron 3.5 Streaming are more accurate, use about half the memory, and are much smaller downloads (about 750 MB instead of 2.5 GB). If you use one of the older Parakeet or Nemotron models, Glimpse downloads its new version once in the background.
 - Parakeet Unified and the Nemotron models now work on Intel Macs.
@@ -24,9 +25,11 @@
 
 - On Mac, quitting Glimpse while it's transcribing no longer crashes.
 - Whisper no longer crashes on very short recordings.
+- Distil-Whisper Large V3.5 no longer skips a stretch of text in long recordings.
+- Parakeet Unified no longer returns nothing for very short recordings, and no longer drops the last word.
 - Parakeet TDT V3 no longer skips sentences after long pauses in longer recordings.
 - On Intel Macs, Glimpse now skips silence the same way it does on Apple Silicon, so Whisper types phantom text like "Thank you." much less often.
-- On Windows, when the microphone is blocked in Windows' privacy settings, Glimpse now says so and opens the right settings page.
+- On Windows, when the microphone is blocked in Windows' privacy settings, Glimpse now says so, with a button that opens the right settings page.
 
 1.2.7
 
