@@ -188,8 +188,9 @@ fn ensure_models_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf> {
 
 fn ane_encoder_complete(dir: &std::path::Path) -> bool {
     dir.join("coremldata.bin").is_file()
-        && dir.join("model.mil").is_file()
-        && dir.join("weights").join("weight.bin").is_file()
+        && (dir.join("model.mil").is_file() && dir.join("weights").join("weight.bin").is_file()
+            // A pipeline encoder keeps its stages in model0, model1, ...
+            || dir.join("model0").join("model.mil").is_file())
 }
 
 fn ane_installed_for(model: &str, manager: &speech_models::ModelInstallManager) -> bool {

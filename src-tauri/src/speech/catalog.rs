@@ -169,9 +169,9 @@ const TRANSCRIBE_ANE_ENCODERS: &[TranscribeAneEncoder] = &[
         model: "parakeet_tdt_v3_gguf",
         replacement_files: Some(&[PARAKEET_DECODER_FILE]),
         dir_name: "parakeet-tdt-0.6b-v3-Q8_0-encoder.mlmodelc",
-        url: "https://huggingface.co/Glimpse-Dictation/Parakeet-TDT-0.6B-V3-coreml/resolve/main/parakeet-tdt-0.6b-v3-Q8_0-encoder.mlmodelc.zip",
-        size_bytes: 1_093_276_956,
-        sha256: "7d90a75d6c9bad2f082782545adbea0df430703dc84f90404e1fe322552a563d",
+        url: "https://huggingface.co/Glimpse-Dictation/Parakeet-TDT-0.6B-V3-coreml/resolve/main/parakeet-tdt-0.6b-v3-Q8_0-encoder-v2.mlmodelc.zip",
+        size_bytes: 1_091_438_144,
+        sha256: "259685a7cc5f602d63fc7d3f3a4ccfa39b3969d775e116a126d156c6c9245914",
     },
     TranscribeAneEncoder {
         model: "qwen3_asr_0_6b_q8",

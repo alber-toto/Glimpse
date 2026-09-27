@@ -226,8 +226,11 @@ pub(crate) fn compile_ane_encoder(app: &AppHandle<AppRuntime>, model: String) {
     let Some(marker) = ane_compile_marker(&models_dir, &model) else {
         return;
     };
-    // Retries the compile at the next launch if the app quits first.
-    let _ = std::fs::write(&marker, b"");
+    // Retries at the next launch if the app quits first. A decoder-only
+    // model's next load compiles its encoder anyway, so it gets no retry.
+    if !catalog::ane_replaces_model_files(&model) {
+        let _ = std::fs::write(&marker, b"");
+    }
     let app = app.clone();
     std::thread::spawn(move || {
         let service = SpeechService::new(SpeechConfig {
@@ -259,10 +262,81 @@ pub(crate) fn compile_pending_ane_encoders(app: &AppHandle<AppRuntime>) {
         return;
     };
     for manifest in catalog::local_manifests() {
-        if ane_compile_marker(&models_dir, manifest.id).is_some_and(|marker| marker.is_file()) {
+        if !catalog::ane_replaces_model_files(manifest.id)
+            && ane_compile_marker(&models_dir, manifest.id).is_some_and(|marker| marker.is_file())
+        {
             compile_ane_encoder(app, manifest.id.to_string());
         }
     }
+}
+
+/// Earlier versions installed a Parakeet TDT V3 encoder that Core ML ran on
+/// the CPU. It is a single model; the one that runs on the Neural Engine is a
+/// pipeline in model0..model3. The selected model downloads the new encoder
+/// beside the old one and swaps it in once verified; a failed or interrupted
+/// download resumes at the next launch.
+pub(crate) fn upgrade_parakeet_encoder(app: &AppHandle<AppRuntime>) {
+    const MODEL: &str = "parakeet_tdt_v3_gguf";
+    let (Some(dir_name), Some(mut spec), Ok(models_dir)) = (
+        catalog::ane_encoder_dir(MODEL),
+        catalog::install_spec(MODEL, true),
+        install::model_cache_dir(app),
+    ) else {
+        return;
+    };
+    let model_dir = models_dir.join(MODEL);
+    let encoder = model_dir.join(&dir_name);
+    let is_old = |encoder: &Path| encoder.join("model.mil").is_file();
+    if !is_old(&encoder) || app.state::<AppState>().current_settings().local_model != MODEL {
+        return;
+    }
+    spec.files.retain(|file| file.extract);
+    let staging = model_dir.join(".encoder-upgrade");
+    let manager = glimpse_speech::models::ModelInstallManager::new(staging.clone());
+    let staged_dir = manager.model_dir(MODEL);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        match manager.install(&spec, Default::default()).await {
+            Ok(status) if status.installed => {}
+            Ok(_) => return tracing::warn!("[speech] {MODEL} encoder upgrade did not finish"),
+            Err(err) => return tracing::warn!("[speech] {MODEL} encoder upgrade failed: {err:#}"),
+        }
+        let swapped = tauri::async_runtime::spawn_blocking(move || {
+            if is_old(&encoder) {
+                // Dictation keeps the old encoder loaded until the new one has
+                // compiled for the Neural Engine. This preload waits out an
+                // in-flight load, so the rename can't land mid-load.
+                if app.state::<AppState>().current_settings().local_model == MODEL
+                    && let Ok(ready) = install::ensure_model_ready(&app, MODEL)
+                {
+                    let transcriber = app.state::<AppState>().local_transcriber();
+                    let _ = transcriber.preload_and_warm(&ready);
+                }
+                let manifest = format!(".{dir_name}.manifest.json");
+                let backup = model_dir.join(format!("{dir_name}.old"));
+                crate::platform::remove_dir_all_compat(&backup)?;
+                std::fs::rename(&encoder, &backup)?;
+                if let Err(err) = std::fs::rename(staged_dir.join(&dir_name), &encoder) {
+                    std::fs::rename(&backup, &encoder)?;
+                    return Err(err);
+                }
+                if let Err(err) =
+                    std::fs::rename(staged_dir.join(&manifest), model_dir.join(&manifest))
+                {
+                    std::fs::rename(&encoder, staged_dir.join(&dir_name))?;
+                    std::fs::rename(&backup, &encoder)?;
+                    return Err(err);
+                }
+                let _ = crate::platform::remove_dir_all_compat(&backup);
+                compile_ane_encoder(&app, MODEL.to_string());
+            }
+            crate::platform::remove_dir_all_compat(&staging)
+        })
+        .await;
+        if let Ok(Err(err)) = swapped {
+            tracing::warn!("[speech] {MODEL} encoder swap failed: {err}");
+        }
+    });
 }
 
 const NEMOTRON_ONNX_FILES: &[&str] = &[
