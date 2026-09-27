@@ -2061,14 +2061,14 @@ msgid "models.card.download"
 msgstr "Downloaden"
 
 #. js-lingui-explicit-id
-#: src/shared/lib/modelStats.ts
-msgid "models.download_failed.failed"
-msgstr ""
-
-#. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.error.title"
 msgstr "Download mislukt"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.failed"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/ModelStatCard.tsx
@@ -5794,6 +5794,21 @@ msgstr "Je API-server wordt op de achtergrond uitgevoerd."
 #: src/shared/ui/FAQModal.tsx
 msgid "faq.privacy.answer"
 msgstr "Ja. In de lokale modus blijven al je audio en transcripties op je apparaat. We verzamelen of versturen je opnamen nooit. Cloudsync is optioneel."
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_low_disk"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.dictation_disk_full"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_disk_full"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/AccountView.tsx

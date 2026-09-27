@@ -2061,14 +2061,14 @@ msgid "models.card.download"
 msgstr "डाउनलोड"
 
 #. js-lingui-explicit-id
-#: src/shared/lib/modelStats.ts
-msgid "models.download_failed.failed"
-msgstr ""
-
-#. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.error.title"
 msgstr "डाउनलोड विफल"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.failed"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/ModelStatCard.tsx
@@ -5794,6 +5794,21 @@ msgstr "आपका API सर्वर बैकग्राउंड मे�
 #: src/shared/ui/FAQModal.tsx
 msgid "faq.privacy.answer"
 msgstr "हाँ। लोकल मोड में आपका सारा ऑडियो और ट्रांसक्रिप्शन आपके डिवाइस पर ही रहता है। हम आपकी रिकॉर्डिंग न तो इकट्ठा करते हैं न भेजते हैं। क्लाउड सिंक वैकल्पिक है।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_low_disk"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.dictation_disk_full"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_disk_full"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/AccountView.tsx

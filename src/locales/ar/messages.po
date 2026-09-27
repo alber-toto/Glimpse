@@ -2061,14 +2061,14 @@ msgid "models.card.download"
 msgstr "تنزيل"
 
 #. js-lingui-explicit-id
-#: src/shared/lib/modelStats.ts
-msgid "models.download_failed.failed"
-msgstr ""
-
-#. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.error.title"
 msgstr "فشل التنزيل"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.failed"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/ModelStatCard.tsx
@@ -5794,6 +5794,21 @@ msgstr "خادم API الخاص بك يعمل في الخلفية."
 #: src/shared/ui/FAQModal.tsx
 msgid "faq.privacy.answer"
 msgstr "نعم. في الوضع المحلي، تبقى جميع ملفاتك الصوتية ونصوصك المُفرَّغة على جهازك. لا نجمع تسجيلاتك ولا نرسلها. المزامنة السحابية اختيارية."
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_low_disk"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.dictation_disk_full"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_disk_full"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/AccountView.tsx

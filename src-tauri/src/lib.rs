@@ -1985,9 +1985,10 @@ pub(crate) fn persist_recording_async(
                 analytics::error_detail(&err),
                 input,
             );
-            emit_error(
+            persist_failed(
                 &app,
-                format!("Failed to resolve recordings directory: {err}"),
+                format!("Failed to resolve recordings directory: {err:#}"),
+                false,
             );
             return;
         }
@@ -2071,20 +2072,30 @@ pub(crate) fn persist_recording_async(
                     analytics::error_detail(&err),
                     input,
                 );
-                emit_error(&app, format!("Unable to save recording: {err}"));
+                persist_failed(
+                    &app,
+                    format!("Unable to save recording: {err:#}"),
+                    platform::is_disk_full(&err),
+                );
             }
             Err(err) => {
                 analytics::track_recording_failed(&app, "persist", "task_failed", input);
-                emit_error(&app, format!("Recording task failed: {err}"));
+                persist_failed(&app, format!("Recording task failed: {err}"), false);
             }
         }
     });
 }
 
-pub(crate) fn emit_error(app: &AppHandle<AppRuntime>, message: String) {
-    app.state::<AppState>()
-        .pill()
-        .transition_to_error(app, &message);
+// Saving runs while the pill shows Processing, where `transition_to_error` is ignored.
+fn persist_failed(app: &AppHandle<AppRuntime>, message: String, disk_full: bool) {
+    tracing::error!("{message}");
+    let text = if disk_full {
+        toast::native(app, "native.toast.dictation_disk_full")
+    } else {
+        pill::simplify_recording_error(&message)
+    };
+    toast::show(app, "error", None, &text);
+    app.state::<AppState>().pill().finish_processing(app);
 }
 
 pub(crate) fn emit_event<T: Serialize + Clone>(

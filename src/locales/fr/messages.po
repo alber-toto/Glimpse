@@ -2061,14 +2061,14 @@ msgid "models.card.download"
 msgstr "Télécharger"
 
 #. js-lingui-explicit-id
-#: src/shared/lib/modelStats.ts
-msgid "models.download_failed.failed"
-msgstr ""
-
-#. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.error.title"
 msgstr "Échec du téléchargement"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.failed"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/ModelStatCard.tsx
@@ -5794,6 +5794,21 @@ msgstr "Votre serveur API s'exécute en arrière-plan."
 #: src/shared/ui/FAQModal.tsx
 msgid "faq.privacy.answer"
 msgstr "Oui. En mode local, vos fichiers audio et transcriptions restent sur votre appareil. Nous ne collectons ni ne transmettons jamais vos enregistrements. La synchronisation dans le cloud est facultative."
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_low_disk"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.dictation_disk_full"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_disk_full"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/AccountView.tsx

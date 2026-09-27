@@ -2061,13 +2061,13 @@ msgid "models.card.download"
 msgstr "Download"
 
 #. js-lingui-explicit-id
-#: src/shared/lib/modelStats.ts
-msgid "models.download_failed.failed"
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.error.title"
 msgstr "Download failed"
 
 #. js-lingui-explicit-id
-#: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.error.title"
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.failed"
 msgstr "Download failed"
 
 #. js-lingui-explicit-id
@@ -5794,6 +5794,21 @@ msgstr "Your API server is running in the background."
 #: src/shared/ui/FAQModal.tsx
 msgid "faq.privacy.answer"
 msgstr "Your audio and transcripts stay on your Mac. Glimpse does not collect recordings, transcripts, API keys, or prompts. Optional anonymous usage analytics (things like session length and feature usage, never your content) help us improve the app. You can turn this off anytime in Settings → App."
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_low_disk"
+msgstr "Your disk is almost full. Glimpse will stop recording if it runs out of space."
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.dictation_disk_full"
+msgstr "Your disk is full, so Glimpse couldn't save this dictation."
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_disk_full"
+msgstr "Your disk is full, so Glimpse stopped recording. What was recorded so far is saved."
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/AccountView.tsx

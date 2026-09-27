@@ -46,6 +46,8 @@ const LAST_SOURCES_FILE: &str = "last-sources.json";
 const MICROPHONE_FILE: &str = "microphone.wav";
 const SYSTEM_FILE: &str = "system.wav";
 const STATE_TICK: Duration = Duration::from_millis(100);
+// About three hours of microphone and system audio.
+const LOW_DISK_BYTES: u64 = 1024 * 1024 * 1024;
 // How often a recording without a working microphone looks for one.
 const MICROPHONE_RETRY: Duration = Duration::from_secs(2);
 // Loudness window in dBFS mapped onto the 0..1 level meter. Speech into a
@@ -224,6 +226,8 @@ struct Shared {
     session_dir: Mutex<Option<PathBuf>>,
     started_at: Mutex<Option<DateTime<Local>>>,
     finish_requested: AtomicBool,
+    // Set by a track writer that ran out of disk space.
+    disk_full: Arc<AtomicBool>,
     emitter_running: AtomicBool,
     live: live::LiveState,
 }
@@ -308,6 +312,7 @@ impl Shared {
         *self.session_dir.lock() = None;
         *self.started_at.lock() = None;
         self.finish_requested.store(false, Ordering::Relaxed);
+        self.disk_full.store(false, Ordering::Relaxed);
         self.live.end();
     }
 }
@@ -370,6 +375,7 @@ impl Default for RecordingManager {
             session_dir: Mutex::new(None),
             started_at: Mutex::new(None),
             finish_requested: AtomicBool::new(false),
+            disk_full: Arc::new(AtomicBool::new(false)),
             emitter_running: AtomicBool::new(false),
             live: live::LiveState::default(),
         });
@@ -657,8 +663,9 @@ impl Worker {
                     silenced: None,
                 };
                 let (writer_tx, writer_rx) = bounded::<Result<TrackWriter>>(1);
+                let disk_full = Arc::clone(&self.shared.disk_full);
                 let capture = system_audio::SystemAudioCapture::start(&scope, move |rate| {
-                    match TrackWriter::spawn(path, rate, "glimpse-recording-system") {
+                    match TrackWriter::spawn(path, rate, "glimpse-recording-system", disk_full) {
                         Ok(writer) => {
                             let callback = sink.into_callback(writer.input());
                             let _ = writer_tx.send(Ok(writer));
@@ -708,10 +715,12 @@ impl Worker {
                     silenced: Some(listening),
                 };
                 let (writer_tx, writer_rx) = bounded::<Result<TrackWriter>>(1);
+                let disk_full = Arc::clone(&self.shared.disk_full);
                 let make_sink = move |rate| match TrackWriter::spawn(
                     path,
                     rate,
                     "glimpse-recording-microphone",
+                    disk_full,
                 ) {
                     Ok(writer) => {
                         let callback = sink.into_callback(writer.input());
@@ -1073,6 +1082,15 @@ fn start_state_emitter(app: AppHandle<AppRuntime>, shared: Arc<Shared>) {
         .spawn(move || {
             let mut last_tray_key = None;
             loop {
+                if shared.disk_full.swap(false, Ordering::Relaxed) {
+                    request_finish_from_tray(&app);
+                    crate::toast::show(
+                        &app,
+                        "error",
+                        None,
+                        &crate::toast::native(&app, "native.toast.recording_disk_full"),
+                    );
+                }
                 let state = shared.state();
                 let active = state.status != "idle";
                 let tray_key = (state.status, state.elapsed_ms / 1000);
@@ -1323,6 +1341,14 @@ pub(crate) fn start_session(app: &AppHandle<AppRuntime>, sources: RecordingSourc
     if let Ok(json) = serde_json::to_vec(&sources) {
         let _ = fs::create_dir_all(&root);
         let _ = fs::write(root.join(LAST_SOURCES_FILE), json);
+    }
+    if crate::platform::available_space(&root).is_ok_and(|free| free < LOW_DISK_BYTES) {
+        crate::toast::show(
+            app,
+            "warning",
+            None,
+            &crate::toast::native(app, "native.toast.recording_low_disk"),
+        );
     }
     analytics::track_recording_session_started(app, sources.microphone.is_some(), system);
     analytics::set_activity(Activity::RecordingSession);

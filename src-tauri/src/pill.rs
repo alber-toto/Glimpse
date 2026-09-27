@@ -477,7 +477,11 @@ impl PillController {
         self.reset_recording_state();
         self.set_hold_key_down(false);
         self.transition_to(app, PillStatus::Error);
-        let simple_msg = simplify_recording_error(&message);
+        let simple_msg = if crate::platform::is_disk_full(err) {
+            toast::native(app, "native.toast.dictation_disk_full")
+        } else {
+            simplify_recording_error(&message)
+        };
         toast::show(app, "error", None, &simple_msg);
     }
 
@@ -1498,7 +1502,7 @@ fn microphone_input_kind(settings: &UserSettings) -> &'static str {
 }
 
 /// Simplifies recording error messages
-fn simplify_recording_error(message: &str) -> String {
+pub(crate) fn simplify_recording_error(message: &str) -> String {
     let msg_lower = message.to_lowercase();
 
     if msg_lower.contains("permission")

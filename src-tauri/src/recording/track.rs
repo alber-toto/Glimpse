@@ -125,7 +125,14 @@ pub(crate) struct TrackWriter {
 }
 
 impl TrackWriter {
-    pub(crate) fn spawn(path: PathBuf, source_rate: u32, thread_name: &str) -> Result<Self> {
+    /// A failed write stops the track but keeps what reached the file;
+    /// `disk_full` is set when the disk ran out of space.
+    pub(crate) fn spawn(
+        path: PathBuf,
+        source_rate: u32,
+        thread_name: &str,
+        disk_full: Arc<AtomicBool>,
+    ) -> Result<Self> {
         if let Some(dir) = path.parent() {
             fs::create_dir_all(dir)
                 .with_context(|| format!("Failed to create {}", dir.display()))?;
@@ -170,7 +177,7 @@ impl TrackWriter {
                 // from a new source is placed exactly instead of within tolerance.
                 let mut place_exact = true;
 
-                while let Ok(message) = rx.recv() {
+                let mut step = |message: TrackMessage| -> Result<()> {
                     match message {
                         TrackMessage::Audio {
                             samples,
@@ -219,15 +226,32 @@ impl TrackWriter {
                             if output.written < target {
                                 output.write_silence(target - output.written)?;
                             }
-                            break;
                         }
+                    }
+                    Ok(())
+                };
+
+                let mut failed = false;
+                while let Ok(message) = rx.recv() {
+                    let finish = matches!(message, TrackMessage::Finish { .. });
+                    if !failed && let Err(err) = step(message) {
+                        tracing::error!("Recording track stopped writing: {err:#}");
+                        if crate::platform::is_disk_full(&err) {
+                            disk_full.store(true, Ordering::Relaxed);
+                        }
+                        failed = true;
+                    }
+                    if finish {
+                        break;
                     }
                 }
 
-                output
-                    .writer
-                    .finalize()
-                    .map_err(|err| anyhow!("WAV finalize failed: {err}"))?;
+                // Best effort after a failed write: the header refreshed each
+                // second already keeps the file readable.
+                let finalized = output.writer.finalize();
+                if !failed {
+                    finalized.map_err(wav_error)?;
+                }
                 Ok(output.written)
             })
             .map_err(|err| anyhow!("Failed to spawn track writer: {err}"))?;
@@ -275,6 +299,14 @@ impl TrackWriter {
 
 type Writer = hound::WavWriter<BufWriter<fs::File>>;
 
+/// Keeps the io error as the source so a full disk can be recognised.
+fn wav_error(err: hound::Error) -> anyhow::Error {
+    match err {
+        hound::Error::IoError(io) => anyhow::Error::new(io).context("WAV write failed"),
+        other => anyhow!("WAV write failed: {other}"),
+    }
+}
+
 struct TrackOutput {
     writer: Writer,
     written: u64,
@@ -306,9 +338,7 @@ impl SampleSink for TrackOutput {
         );
         for &sample in samples {
             let value = (sample.clamp(-1.0, 1.0) * i16::MAX as f32).round() as i16;
-            self.writer
-                .write_sample(value)
-                .map_err(|err| anyhow!("WAV write failed: {err}"))?;
+            self.writer.write_sample(value).map_err(wav_error)?;
         }
         self.advance(samples.len() as u64)
     }
@@ -318,9 +348,7 @@ impl TrackOutput {
     fn write_silence(&mut self, count: u64) -> Result<()> {
         self.tap.write(None, count, self.written, self.stored_rate);
         for _ in 0..count {
-            self.writer
-                .write_sample(0i16)
-                .map_err(|err| anyhow!("WAV write failed: {err}"))?;
+            self.writer.write_sample(0i16).map_err(wav_error)?;
         }
         self.advance(count)
     }
@@ -330,9 +358,7 @@ impl TrackOutput {
         self.since_refresh += count;
         if self.since_refresh >= self.refresh_every {
             self.since_refresh = 0;
-            self.writer
-                .flush()
-                .map_err(|err| anyhow!("WAV flush failed: {err}"))?;
+            self.writer.flush().map_err(wav_error)?;
         }
         Ok(())
     }

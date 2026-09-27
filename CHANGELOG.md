@@ -24,11 +24,14 @@
 - On Windows, Settings now shows whether Glimpse can use your microphone, with a button to fix it when it's blocked.
 - When a model download fails, Glimpse says why in plain words and offers to retry.
 - Glimpse won't start a model download that would leave less than 5 GB free on your disk.
+- Glimpse warns you when you start a recording with less than 1 GB free on your disk.
 
 ### Fixes
 
 - On Mac, quitting Glimpse while it's transcribing no longer crashes.
 - Whisper no longer crashes on very short recordings.
+- If your disk fills up while you record, Glimpse stops, keeps what it recorded so far, and tells you. Before, the recording kept going without saving anything new.
+- Dictation tells you when your disk is full instead of failing quietly.
 - Distil-Whisper Large V3.5 no longer skips a stretch of text in long recordings.
 - Parakeet Unified no longer returns nothing for very short recordings, and no longer drops the last word.
 - Parakeet TDT V3 no longer skips sentences after long pauses in longer recordings.
