@@ -11,7 +11,7 @@ export const SPEAKER_COLORS = [
   "#73daca",
 ];
 
-/// Recording tracks keep fixed colors; detected speakers take the rest.
+// Recording tracks keep fixed colors; detected speakers take the rest.
 export const withSpeakerColors = (list: Speaker[]) => {
   const taken = new Set(list.map((speaker) => speaker.color));
   const free = SPEAKER_COLORS.filter((color) => !taken.has(color));

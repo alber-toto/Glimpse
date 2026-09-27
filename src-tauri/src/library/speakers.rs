@@ -335,7 +335,7 @@ fn live_hints_path(item_id: &str, audio_path: &Path) -> Option<PathBuf> {
     )
 }
 
-/// Stored next to a recording's audio until its transcription runs.
+/// Stored next to a recording's audio for its transcription.
 pub(super) fn save_live_hints(item_id: &str, audio_path: &Path, hints: &LiveSpeakerHints) {
     if hints.turns.is_empty() || (hints.speakers.is_empty() && hints.merged_into.is_empty()) {
         return;
@@ -356,11 +356,8 @@ fn load_live_hints(item: &LibraryItem) -> Option<LiveSpeakerHints> {
     serde_json::from_slice(&std::fs::read(path).ok()?).ok()
 }
 
-/// Carries live speaker edits onto the final system-track speakers. Final
-/// speakers heard mostly as the same live speaker that others were merged
-/// into become one, and each named or recolored live speaker passes its name
-/// and color to the final speaker overlapping it most. `system` is the system
-/// track's labeled result.
+/// Carries live speaker edits onto the final speakers of the labeled system
+/// track: merges join, and names and colors go to the speaker overlapping most.
 pub(super) fn carry_live_speakers(
     item: &LibraryItem,
     system: &mut LibraryTranscriptionResult,

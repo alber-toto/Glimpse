@@ -1569,9 +1569,7 @@ pub fn get_live_transcript(app: AppHandle<AppRuntime>) -> LiveTranscript {
     app.state::<AppState>().recording().shared.live.last()
 }
 
-/// Live transcription runs during recordings while enabled, from when it was
-/// turned on. Turning it off stops the work and frees the speaker model; the
-/// transcript so far stays until the recording ends.
+/// Turning it off frees the speaker model; the transcript so far stays until the recording ends.
 #[tauri::command]
 pub fn set_live_transcription(app: AppHandle<AppRuntime>, enabled: bool) -> LiveTranscript {
     let state = app.state::<AppState>();

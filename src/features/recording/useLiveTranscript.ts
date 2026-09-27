@@ -12,7 +12,7 @@ const EMPTY: LiveTranscript = {
   status: "starting",
 };
 
-/// Mirrors the backend's live transcript and asks it to keep one running.
+// Mirrors the backend's live transcript and asks it to keep one running.
 export function useLiveTranscript() {
   const [transcript, setTranscript] = useState<LiveTranscript>(EMPTY);
   const current = useRef(EMPTY);

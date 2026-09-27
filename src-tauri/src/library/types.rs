@@ -118,9 +118,7 @@ pub struct LiveTurn {
     pub speaker_id: String,
 }
 
-/// Live speakers the user named, recolored or merged others into during a
-/// recording, and who spoke when on the system track, so the final labels
-/// can keep those edits.
+/// Live speaker edits and system-track turns, so the final labels keep the edits.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LiveSpeakerHints {
     #[serde(default)]

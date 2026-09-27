@@ -142,10 +142,8 @@ pub(crate) fn upgrade_retired_diarizer(app: &AppHandle<AppRuntime>) {
     });
 }
 
-/// Whisper now runs on transcribe.cpp, which rejects the whisper.cpp Core ML
-/// encoders earlier versions downloaded, so free their disk space along with
-/// `.bin` downloads that will never resume. The selected model gets its new
-/// encoder first; a failed download is retried at the next launch.
+/// Frees whisper.cpp Core ML encoders, which transcribe.cpp can't load, and stale
+/// `.bin` partials. The selected model keeps its encoder until the new one is installed.
 pub(crate) fn remove_whisper_cpp_files(app: &AppHandle<AppRuntime>) {
     let Ok(models_dir) = install::model_cache_dir(app) else {
         return;
@@ -215,10 +213,8 @@ fn ane_compile_marker(models_dir: &Path, model: &str) -> Option<PathBuf> {
     )
 }
 
-/// A new Core ML encoder compiles for the Neural Engine on its first load,
-/// which takes seconds to minutes and is cached afterwards. That load runs on
-/// its own service, and other loads skip the encoder until it finishes, so
-/// dictation never waits on it.
+/// The first Neural Engine load compiles the encoder, which can take minutes.
+/// It runs on its own service; other loads skip the encoder until it finishes.
 pub(crate) fn compile_ane_encoder(app: &AppHandle<AppRuntime>, model: String) {
     let Ok(models_dir) = install::model_cache_dir(app) else {
         return;
@@ -270,11 +266,8 @@ pub(crate) fn compile_pending_ane_encoders(app: &AppHandle<AppRuntime>) {
     }
 }
 
-/// Earlier versions installed a Parakeet TDT V3 encoder that Core ML ran on
-/// the CPU. It is a single model; the one that runs on the Neural Engine is a
-/// pipeline in model0..model3. The selected model downloads the new encoder
-/// beside the old one and swaps it in once verified; a failed or interrupted
-/// download resumes at the next launch.
+/// The Parakeet TDT V3 encoder earlier versions installed runs on the CPU; the
+/// Neural Engine one is a pipeline in model0..model3. Only the selected model upgrades.
 pub(crate) fn upgrade_parakeet_encoder(app: &AppHandle<AppRuntime>) {
     const MODEL: &str = "parakeet_tdt_v3_gguf";
     let (Some(dir_name), Some(mut spec), Ok(models_dir)) = (
@@ -306,9 +299,8 @@ pub(crate) fn upgrade_parakeet_encoder(app: &AppHandle<AppRuntime>) {
         }
         let swapped = tauri::async_runtime::spawn_blocking(move || {
             if is_old(&encoder) {
-                // Dictation keeps the old encoder loaded until the new one has
-                // compiled for the Neural Engine. This preload waits out an
-                // in-flight load, so the rename can't land mid-load.
+                // Keeps the old encoder loaded for dictation until the new one compiles,
+                // and waits out an in-flight load so the rename can't land mid-load.
                 if app.state::<AppState>().current_settings().local_model == MODEL
                     && let Ok(ready) = install::ensure_model_ready(&app, MODEL)
                 {
@@ -411,10 +403,8 @@ pub(crate) fn replaces_onnx_install(models_dir: &Path, model: &str) -> bool {
     })
 }
 
-/// ONNX models no longer load. The selected model's replacement downloads in
-/// the background and its ONNX files go once it is installed and verified;
-/// other ONNX installs are removed and can be downloaded again from the picker.
-/// A failed download is retried at the next launch.
+/// ONNX models no longer load. The selected model keeps its ONNX files until
+/// its replacement is installed and verified; other ONNX installs are removed.
 pub(crate) fn replace_onnx_models(app: &AppHandle<AppRuntime>) {
     let Ok(models_dir) = install::model_cache_dir(app) else {
         return;

@@ -6,7 +6,7 @@ import type { RecordingSessionState } from "../../types";
 const SILENCE_WARNING_MS = 20_000;
 const HEARD_LEVEL = 0.4;
 
-/// Names the first source that has stayed silent, or null.
+// Names the first source that has stayed silent, or null.
 export function useSilenceWarning(state: RecordingSessionState) {
   const { t } = useLingui();
   const [heard, setHeard] = useState({ microphone: false, system: false });

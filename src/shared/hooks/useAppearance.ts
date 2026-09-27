@@ -9,7 +9,7 @@ import {
 import { parseThemeMode, resolveThemeAttribute } from "../lib/theme";
 import type { TextSizeMode, ThemeMode } from "../../types";
 
-/// Follows the app's text size setting, including live changes.
+// Follows the app's text size setting, including live changes.
 export function useTextScale() {
   useEffect(() => {
     const root = document.documentElement;
@@ -39,7 +39,7 @@ export function useTextScale() {
   }, []);
 }
 
-/// Follows the app's theme setting, the system appearance and live changes.
+// Follows the app's theme setting, the system appearance and live changes.
 export function useTheme(themeMode: string | null, isLoading: boolean) {
   useEffect(() => {
     // main.tsx already applied the saved mode for the first paint.
