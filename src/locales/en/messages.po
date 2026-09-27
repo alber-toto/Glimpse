@@ -269,6 +269,11 @@ msgstr ""
 #~ msgstr "Optimizing for the Neural Engine"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/OnboardingScreen.tsx
+#~ msgid "onboarding.download.failed"
+#~ msgstr "Download failed"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.prompt"
 msgstr "“Glimpse turns my voice into text.”"
@@ -969,6 +974,11 @@ msgid "settings.stats.best_streak"
 msgstr "Best streak"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.blocked"
+msgstr "Blocked by your network"
+
+#. js-lingui-explicit-id
 #: src/features/recording/components/LiveView.tsx
 #: src/features/recording/components/RecordingView.tsx
 msgid "record.active.bookmark"
@@ -1654,6 +1664,11 @@ msgid "updates.whats_new.couldnt_load"
 msgstr "Couldn't load releases"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.network"
+msgstr "Couldn't reach the server"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.count_error"
 msgstr "Couldn't read your recordings"
@@ -2046,13 +2061,13 @@ msgid "models.card.download"
 msgstr "Download"
 
 #. js-lingui-explicit-id
-#: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.error.title"
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.failed"
 msgstr "Download failed"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/OnboardingScreen.tsx
-msgid "onboarding.download.failed"
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.error.title"
 msgstr "Download failed"
 
 #. js-lingui-explicit-id
@@ -2064,6 +2079,11 @@ msgstr "Download model"
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.ane.download"
 msgstr "Download Neural Engine encoder"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.damaged"
+msgstr "Download was damaged"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ModelStep.tsx
@@ -3591,6 +3611,16 @@ msgid "settings.about.cli.unavailable_subtitle"
 msgstr "Not available in this build"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.unavailable"
+msgstr "Not available right now"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.disk_full"
+msgstr "Not enough disk space"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/library-utils.ts
 msgid "library.error_details.insufficient_disk_space"
 msgstr "Not enough disk space."
@@ -4339,6 +4369,11 @@ msgstr "Retranscribe"
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.loading"
 msgstr "Retranscribing..."
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.retry"
+msgstr "Retry"
 
 #. js-lingui-explicit-id
 #: src/features/updates/components/UpdateChecker.tsx

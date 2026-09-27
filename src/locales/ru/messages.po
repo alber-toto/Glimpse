@@ -269,6 +269,11 @@ msgstr ""
 #~ msgstr "Оптимизация для Neural Engine"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/OnboardingScreen.tsx
+#~ msgid "onboarding.download.failed"
+#~ msgstr "Ошибка загрузки"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.prompt"
 msgstr "«Glimpse превращает мой голос в текст.»"
@@ -969,6 +974,11 @@ msgid "settings.stats.best_streak"
 msgstr "Лучшая серия"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.blocked"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/recording/components/LiveView.tsx
 #: src/features/recording/components/RecordingView.tsx
 msgid "record.active.bookmark"
@@ -1654,6 +1664,11 @@ msgid "updates.whats_new.couldnt_load"
 msgstr "Не удалось загрузить релизы"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.network"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.count_error"
 msgstr "Не удалось прочитать записи"
@@ -2046,13 +2061,13 @@ msgid "models.card.download"
 msgstr "Загрузить"
 
 #. js-lingui-explicit-id
-#: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.error.title"
-msgstr "Ошибка загрузки"
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.failed"
+msgstr ""
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/OnboardingScreen.tsx
-msgid "onboarding.download.failed"
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.error.title"
 msgstr "Ошибка загрузки"
 
 #. js-lingui-explicit-id
@@ -2064,6 +2079,11 @@ msgstr "Загрузить модель"
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.ane.download"
 msgstr "Загрузить энкодер Neural Engine"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.damaged"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ModelStep.tsx
@@ -3591,6 +3611,16 @@ msgid "settings.about.cli.unavailable_subtitle"
 msgstr "Недоступно в этой сборке"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.unavailable"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.disk_full"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/library/components/library-utils.ts
 msgid "library.error_details.insufficient_disk_space"
 msgstr "Недостаточно места на диске."
@@ -4339,6 +4369,11 @@ msgstr "Повторить транскрипцию"
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.loading"
 msgstr "Повторная транскрипция…"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.retry"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/updates/components/UpdateChecker.tsx

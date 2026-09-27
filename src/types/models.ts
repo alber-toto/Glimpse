@@ -56,6 +56,15 @@ export type DownloadProgressPayload = {
   file_count: number;
 };
 
+export type DownloadFailureReason =
+  "unavailable" | "network" | "blocked" | "disk_full" | "damaged" | "failed";
+
+export type DownloadErrorPayload = {
+  model: string;
+  error: string;
+  reason: DownloadFailureReason;
+};
+
 export type DownloadEvent =
   | { status: "idle"; percent: number; file?: string }
   | {
@@ -68,7 +77,12 @@ export type DownloadEvent =
     }
   | { status: "complete"; percent: number }
   | { status: "cancelled"; percent: number }
-  | { status: "error"; percent: number; message: string };
+  | {
+      status: "error";
+      percent: number;
+      message: string;
+      reason?: DownloadFailureReason;
+    };
 
 export type LocalApiLogEntry = {
   id: number;

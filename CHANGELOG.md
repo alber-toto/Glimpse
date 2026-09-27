@@ -22,6 +22,7 @@
 - Detecting speakers again on a Library item keeps the names you gave them.
 - Full-size Whisper Large V3 and Distil-Whisper Large V3.5 are no longer offered for new downloads. If you already have one, it keeps working.
 - On Windows, Settings now shows whether Glimpse can use your microphone, with a button to fix it when it's blocked.
+- When a model download fails, Glimpse says why in plain words and offers to retry.
 
 ### Fixes
 

@@ -12,6 +12,7 @@ import { Check } from "@phosphor-icons/react";
 import ModelPickerModal from "../../../shared/ui/ModelPickerModal";
 import {
   deriveModelStats,
+  downloadFailureLabel,
   formatModelSize,
   isBuiltInModel,
   modelSizeMb,
@@ -334,6 +335,10 @@ function ModelDetails({
               {t({ id: "onboarding.model.status.cancel", message: "Cancel" })}
             </button>
           </>
+        ) : progress?.status === "error" && progress.reason ? (
+          <span className="truncate text-error" title={progress.message}>
+            {downloadFailureLabel(progress.reason)}
+          </span>
         ) : builtIn ? (
           t({
             id: "onboarding.model.status.built_in",

@@ -142,7 +142,10 @@ pub fn classify_failure_reason(message: &str) -> &'static str {
                 "null pointer",
             ],
         ),
-        ("not_found", &["not found", "no such file"]),
+        (
+            "not_found",
+            &["not found", "no such file", "no longer available"],
+        ),
         (
             "no_speech",
             &["no speech", "empty", "no samples", "no audio"],

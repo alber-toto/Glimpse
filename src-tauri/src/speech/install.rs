@@ -49,6 +49,7 @@ struct DownloadCompletePayload {
 struct DownloadErrorPayload {
     model: String,
     error: String,
+    reason: &'static str,
 }
 
 #[derive(Serialize, Clone)]
@@ -296,13 +297,13 @@ pub async fn download_model_now(
 ) -> Result<ModelStatus, String> {
     let state = app.state::<crate::AppState>();
     let manager =
-        model_manager(&app).map_err(|err| track_download_error(&app, &model, "resolve", err))?;
+        model_manager(&app).map_err(|err| download_failed(&app, &model, "resolve", err))?;
     let ane = ane.unwrap_or_else(|| super::catalog::ane_encoder_dir(&model).is_some());
     ensure_model_downloadable(&app, &model, ane, &manager)
-        .map_err(|err| track_download_error(&app, &model, "resolve", anyhow!(err)))?;
+        .map_err(|err| download_failed(&app, &model, "resolve", anyhow!(err)))?;
     let spec = download_spec(&model, ane, &manager)
-        .map_err(|err| track_download_error(&app, &model, "resolve", err))?;
-    ensure_models_root(&app).map_err(|err| track_download_error(&app, &model, "install", err))?;
+        .map_err(|err| download_failed(&app, &model, "resolve", err))?;
+    ensure_models_root(&app).map_err(|err| download_failed(&app, &model, "install", err))?;
     let cancel_token = state.create_download_token(&model)?;
     struct DownloadGuard<'a>(&'a AppHandle<AppRuntime>, String);
     impl Drop for DownloadGuard<'_> {
@@ -376,22 +377,7 @@ pub async fn download_model_now(
                 return Ok(map_status(status, &manager));
             }
             tracing::error!("[speech] download {model} failed: {err:#}");
-            let detail = crate::analytics::error_detail(&err);
-            let stage = match detail.reason {
-                "verification" => "verify",
-                "storage" => "install",
-                _ => "download",
-            };
-            crate::analytics::track_model_download_failed(&app, &model, stage, detail);
-            let message = format!("{err:#}");
-            let _ = app.emit(
-                "download:error",
-                DownloadErrorPayload {
-                    model,
-                    error: message.clone(),
-                },
-            );
-            return Err(message);
+            return Err(download_failed(&app, &model, "download", err));
         }
     };
 
@@ -438,19 +424,57 @@ pub async fn download_model_now(
     Ok(map_status(status, &manager))
 }
 
-fn track_download_error(
+fn download_failed(
     app: &AppHandle<AppRuntime>,
     model: &str,
     stage: &str,
     err: anyhow::Error,
 ) -> String {
-    crate::analytics::track_model_download_failed(
-        app,
-        model,
-        stage,
-        crate::analytics::error_detail(&err),
+    let detail = crate::analytics::error_detail(&err);
+    let reason = download_failure_reason(&err, &detail);
+    let stage = match (stage, detail.reason) {
+        ("download", "verification") => "verify",
+        ("download", "storage") => "install",
+        _ => stage,
+    };
+    crate::analytics::track_model_download_failed(app, model, stage, detail);
+    let message = format!("{err:#}");
+    let _ = app.emit(
+        "download:error",
+        DownloadErrorPayload {
+            model: model.to_string(),
+            error: message.clone(),
+            reason,
+        },
     );
-    format!("{err:#}")
+    message
+}
+
+/// The reason shown to the user; the raw message stays in the payload.
+fn download_failure_reason(
+    err: &anyhow::Error,
+    detail: &crate::analytics::ErrorDetail,
+) -> &'static str {
+    let disk_full = err
+        .chain()
+        .filter_map(|cause| cause.downcast_ref::<std::io::Error>())
+        .any(|io| {
+            matches!(
+                io.kind(),
+                std::io::ErrorKind::StorageFull | std::io::ErrorKind::QuotaExceeded
+            )
+        });
+    if disk_full {
+        return "disk_full";
+    }
+    match (detail.error_type, detail.reason) {
+        ("io", "not_found") => "failed",
+        (_, "not_found" | "unauthorized" | "http_4xx") => "unavailable",
+        (_, "network" | "timeout" | "http_5xx" | "rate_limited") => "network",
+        (_, "blocked") => "blocked",
+        (_, "verification" | "decode") => "damaged",
+        _ => "failed",
+    }
 }
 
 /// The manager deletes with `remove_dir_all`, so clear the tree first.
