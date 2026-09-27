@@ -304,6 +304,8 @@ pub async fn download_model_now(
     let spec = download_spec(&model, ane, &manager)
         .map_err(|err| download_failed(&app, &model, "resolve", err))?;
     ensure_models_root(&app).map_err(|err| download_failed(&app, &model, "install", err))?;
+    ensure_disk_space(&manager.model_dir(&model), &spec)
+        .map_err(|err| download_failed(&app, &model, "install", err))?;
     let cancel_token = state.create_download_token(&model)?;
     struct DownloadGuard<'a>(&'a AppHandle<AppRuntime>, String);
     impl Drop for DownloadGuard<'_> {
@@ -424,6 +426,45 @@ pub async fn download_model_now(
     Ok(map_status(status, &manager))
 }
 
+/// Free space a download must leave behind, so a model never fills the disk.
+const DISK_HEADROOM_BYTES: u64 = 5 * 1024 * 1024 * 1024;
+
+/// Refuses a download that would leave less than `DISK_HEADROOM_BYTES` free.
+/// Archives count twice: the zip and its extracted copy exist together.
+pub(super) fn ensure_disk_space(dir: &Path, spec: &speech_models::InstallSpec) -> Result<()> {
+    let needed: u64 = spec
+        .files
+        .iter()
+        .filter(|file| !dir.join(&file.path).exists())
+        .map(|file| {
+            let size = file.size_bytes.unwrap_or(0);
+            let partial = dir.join(format!(
+                "{}.{}",
+                file.path,
+                if file.extract { "zip" } else { "part" }
+            ));
+            let remaining = size.saturating_sub(std::fs::metadata(partial).map_or(0, |m| m.len()));
+            if file.extract {
+                remaining + size
+            } else {
+                remaining
+            }
+        })
+        .sum();
+    let volume = dir.ancestors().find(|path| path.exists()).unwrap_or(dir);
+    let available = crate::platform::available_space(volume)
+        .with_context(|| format!("read free space for {}", volume.display()))?;
+    if available < needed + DISK_HEADROOM_BYTES {
+        return Err(anyhow::Error::new(std::io::Error::from(
+            std::io::ErrorKind::StorageFull,
+        ))
+        .context(format!(
+            "Not enough disk space: needs {needed} bytes plus {DISK_HEADROOM_BYTES} spare, {available} available"
+        )));
+    }
+    Ok(())
+}
+
 fn download_failed(
     app: &AppHandle<AppRuntime>,
     model: &str,
@@ -455,16 +496,7 @@ fn download_failure_reason(
     err: &anyhow::Error,
     detail: &crate::analytics::ErrorDetail,
 ) -> &'static str {
-    let disk_full = err
-        .chain()
-        .filter_map(|cause| cause.downcast_ref::<std::io::Error>())
-        .any(|io| {
-            matches!(
-                io.kind(),
-                std::io::ErrorKind::StorageFull | std::io::ErrorKind::QuotaExceeded
-            )
-        });
-    if disk_full {
+    if crate::platform::is_disk_full(err) {
         return "disk_full";
     }
     match (detail.error_type, detail.reason) {

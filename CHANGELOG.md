@@ -23,6 +23,7 @@
 - Full-size Whisper Large V3 and Distil-Whisper Large V3.5 are no longer offered for new downloads. If you already have one, it keeps working.
 - On Windows, Settings now shows whether Glimpse can use your microphone, with a button to fix it when it's blocked.
 - When a model download fails, Glimpse says why in plain words and offers to retry.
+- Glimpse won't start a model download that would leave less than 5 GB free on your disk.
 
 ### Fixes
 

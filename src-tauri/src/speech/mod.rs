@@ -294,6 +294,9 @@ pub(crate) fn upgrade_parakeet_encoder(app: &AppHandle<AppRuntime>) {
     let staging = model_dir.join(".encoder-upgrade");
     let manager = glimpse_speech::models::ModelInstallManager::new(staging.clone());
     let staged_dir = manager.model_dir(MODEL);
+    if let Err(err) = install::ensure_disk_space(&staged_dir, &spec) {
+        return tracing::warn!("[speech] {MODEL} encoder upgrade skipped: {err:#}");
+    }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         match manager.install(&spec, Default::default()).await {

@@ -261,7 +261,7 @@ pub(crate) fn convert_library_item(
             let source_size = fs::metadata(source_path)
                 .with_context(|| format!("Failed to read file size for {}", source_path.display()))?
                 .len();
-            let available = fs2::available_space(item_dir).with_context(|| {
+            let available = crate::platform::available_space(item_dir).with_context(|| {
                 format!(
                     "Failed to read available disk space for {}",
                     item_dir.display()
