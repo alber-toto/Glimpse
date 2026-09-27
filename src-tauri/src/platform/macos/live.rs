@@ -1,7 +1,6 @@
 use crate::AppRuntime;
 use crate::recording::live_window::WINDOW_LABEL;
 use anyhow::{Context, Result, anyhow};
-use tauri::Manager;
 use tauri::{AppHandle, WebviewWindow};
 use tauri_nspanel::{
     CollectionBehavior, ManagerExt, PanelLevel, StyleMask, WebviewWindowExt, tauri_panel,
@@ -35,7 +34,9 @@ pub fn init(app: &AppHandle<AppRuntime>, live_window: &WebviewWindow<AppRuntime>
         .borderless()
         .resizable()
         .nonactivating_panel();
-    panel.set_style_mask(style.into());
+    if let Err(err) = panel.set_style_mask(style.into()) {
+        tracing::warn!("Failed to set live view panel style mask: {err}");
+    }
     panel.set_level(PanelLevel::Floating.into());
 
     // Full screen auxiliary keeps it over full screen meeting apps.
