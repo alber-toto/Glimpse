@@ -181,6 +181,15 @@ const TRANSCRIBE_ANE_ENCODERS: &[TranscribeAneEncoder] = &[
         size_bytes: ANE_QWEN3_ASR_0_6B_ZIP_BYTES,
         sha256: ANE_QWEN3_ASR_0_6B_ZIP_SHA256,
     },
+    // Keeps the full GGUF: live streaming still runs its ggml encoder.
+    TranscribeAneEncoder {
+        model: "parakeet_unified_en_int8",
+        replacement_files: None,
+        dir_name: "parakeet-unified-en-0.6b-Q8_0-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Parakeet-Unified-EN-0.6B-coreml/resolve/main/parakeet-unified-en-0.6b-Q8_0-encoder.mlmodelc.zip",
+        size_bytes: 1_091_102_158,
+        sha256: "0f0db7464c605de1a129a9919da00f5b984274d6ff8d13214db63145ca76b089",
+    },
 ];
 
 macro_rules! whisper_files {

@@ -19,6 +19,7 @@
 - Parakeet Unified and the Nemotron models now work on Intel Macs.
 - On Apple Silicon, new Neural Engine downloads of Qwen3-ASR are smaller (about 980 MB instead of 1.2 GB) and use about 220 MB less memory.
 - Parakeet TDT V3 with the Neural Engine now actually runs on the Neural Engine. On an M2 Pro, transcription takes about 40% less time. If it's your current model, Glimpse fetches the new version once in the background.
+- Parakeet Unified can now use the Neural Engine on Apple Silicon. On an M2 Pro, transcription takes about half the time. Live transcripts keep using the graphics chip.
 - Detecting speakers again on a Library item keeps the names you gave them.
 - Full-size Whisper Large V3 and Distil-Whisper Large V3.5 are no longer offered for new downloads. If you already have one, it keeps working.
 - On Windows, Settings now shows whether Glimpse can use your microphone, with a button to fix it when it's blocked.
