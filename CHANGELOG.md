@@ -17,6 +17,7 @@
 - Glimpse is smaller: the app itself went from 49 MB to 31 MB.
 - Nemotron Streaming and Nemotron 3.5 Streaming are more accurate, use about half the memory, and are much smaller downloads (about 750 MB instead of 2.5 GB). If you use one of the older Parakeet or Nemotron models, Glimpse downloads its new version once in the background.
 - Parakeet Unified and the Nemotron models now work on Intel Macs.
+- New installs on Intel Macs now start with Parakeet TDT V3, like on Apple Silicon and Windows.
 - On Apple Silicon, new Neural Engine downloads of Qwen3-ASR are smaller (about 980 MB instead of 1.2 GB) and use about 220 MB less memory.
 - Parakeet TDT V3 with the Neural Engine now actually runs on the Neural Engine. On an M2 Pro, transcription takes about 40% less time. If it's your current model, Glimpse fetches the new version once in the background.
 - Parakeet Unified can now use the Neural Engine on Apple Silicon. On an M2 Pro, transcription takes about half the time. Live transcripts keep using the graphics chip.
