@@ -71,18 +71,22 @@ const DEFAULT_CHOICES: SourceChoices = {
   apps: [],
 };
 
-const choicesFromSources = (sources: RecordingSources): SourceChoices => ({
-  microphone: sources.microphone !== null,
-  systemAudio: sources.system_audio !== null,
-  // A recording started on the system default is saved with no device id.
-  microphoneDevice: sources.microphone
-    ? (sources.microphone.device_id ?? "")
-    : null,
+const choicesFromSources = (sources: RecordingSources): SourceChoices => {
+  const saved = sources.system_audio?.apps ?? [];
   // Apps without a bundle id are keyed by pid, which won't match next launch.
-  apps: (sources.system_audio?.apps ?? []).filter(
-    (app) => !app.id.startsWith("pid:"),
-  ),
-});
+  const apps = saved.filter((app) => !app.id.startsWith("pid:"));
+  return {
+    microphone: sources.microphone !== null,
+    // Losing every picked app must not widen the capture to the whole system.
+    systemAudio:
+      sources.system_audio !== null && (saved.length === 0 || apps.length > 0),
+    // A recording started on the system default is saved with no device id.
+    microphoneDevice: sources.microphone
+      ? (sources.microphone.device_id ?? "")
+      : null,
+    apps,
+  };
+};
 
 const formatClock = (elapsedMs: number) => {
   const total = Math.floor(elapsedMs / 1000);
@@ -704,13 +708,14 @@ const RecordingView = ({ isActive, onOpenLibraryItem }: RecordingViewProps) => {
   };
 
   const toggleApp = (app: SelectedApp) => {
-    setChoices((prev) => ({
-      ...prev,
-      systemAudio: true,
-      apps: prev.apps.some((entry) => entry.id === app.id)
-        ? prev.apps.filter((entry) => entry.id !== app.id)
-        : [...prev.apps, { id: app.id, name: app.name, icon: app.icon }],
-    }));
+    setChoices((prev) => {
+      // Apps kept from before system audio was turned off aren't shown as picked.
+      const current = prev.systemAudio ? prev.apps : [];
+      const apps = current.some((entry) => entry.id === app.id)
+        ? current.filter((entry) => entry.id !== app.id)
+        : [...current, { id: app.id, name: app.name, icon: app.icon }];
+      return { ...prev, systemAudio: apps.length > 0, apps };
+    });
   };
 
   const idle = !active && !busy;
