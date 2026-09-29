@@ -358,11 +358,15 @@ fn load_live_hints(item: &LibraryItem) -> Option<LiveSpeakerHints> {
 
 /// Carries live speaker edits onto the final speakers of the labeled system
 /// track: merges join, and names and colors go to the speaker overlapping most.
+/// Only a first transcription uses them; later ones keep the item's own names.
 pub(super) fn carry_live_speakers(
     item: &LibraryItem,
     system: &mut LibraryTranscriptionResult,
     speakers: &mut Vec<Speaker>,
 ) {
+    if item.transcribed_at.is_some() {
+        return;
+    }
     let Some(hints) = load_live_hints(item) else {
         return;
     };
@@ -533,7 +537,12 @@ pub(super) fn rediarize(item: &LibraryItem, model_path: &Path) -> Result<Rediari
             words: result.words,
             speakers,
         };
-        keep_speaker_names(item, &mut labeled);
+        keep_speaker_names(
+            item,
+            &labeled.segments,
+            labeled.words.as_deref(),
+            labeled.speakers.as_mut(),
+        );
         return Ok(labeled);
     };
 
@@ -599,14 +608,24 @@ pub(super) fn rediarize(item: &LibraryItem, model_path: &Path) -> Result<Rediari
         words: (!words.is_empty()).then_some(words),
         speakers,
     };
-    keep_speaker_names(item, &mut labeled);
+    keep_speaker_names(
+        item,
+        &labeled.segments,
+        labeled.words.as_deref(),
+        labeled.speakers.as_mut(),
+    );
     Ok(labeled)
 }
 
 /// Gives each re-detected speaker the name and color of the renamed speaker it
 /// overlaps most, one to one, when that covers at least half its speech.
-fn keep_speaker_names(item: &LibraryItem, labeled: &mut Rediarized) {
-    let Some(speakers) = labeled.speakers.as_mut() else {
+pub(super) fn keep_speaker_names(
+    item: &LibraryItem,
+    segments: &[TranscriptSegment],
+    words: Option<&[TranscriptSegment]>,
+    speakers: Option<&mut Vec<Speaker>>,
+) {
+    let Some(speakers) = speakers else {
         return;
     };
     let defaults = recording_speakers();
@@ -646,7 +665,7 @@ fn keep_speaker_names(item: &LibraryItem, labeled: &mut Rediarized) {
         item.words.as_deref(),
         item.segments.as_deref().unwrap_or_default(),
     );
-    let new = timeline(labeled.words.as_deref(), &labeled.segments);
+    let new = timeline(words, segments);
     let longest = old
         .iter()
         .map(|(start, end, _)| end.saturating_sub(*start))

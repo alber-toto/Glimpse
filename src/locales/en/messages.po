@@ -2532,6 +2532,11 @@ msgid "settings.about.version_label"
 msgstr "Glimpse"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.retranscribe_failed"
+msgstr "Glimpse couldn't transcribe this again, so it kept the earlier transcript."
+
+#. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
 msgid "member_card.aria"
 msgstr "Glimpse member card"
@@ -2890,6 +2895,11 @@ msgid "onboarding.license_step.tile_speakers"
 msgstr "Know who said what"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.large"
+msgstr "L"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.description"
 msgstr "Label segments by speaker automatically"
@@ -3119,6 +3129,11 @@ msgstr "Longest recording today: {0}"
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.auto_pause_media.body_duck"
 msgstr "Lowers system volume while recording."
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.medium"
+msgstr "M"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/LicenseStep.tsx
@@ -4459,6 +4474,11 @@ msgstr "Runs setup again"
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.ane.detail"
 msgstr "Runs the encoder on the Neural Engine. Faster and uses less power. First load takes longer while macOS optimizes it."
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.small"
+msgstr "S"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/ShareCardModal.tsx

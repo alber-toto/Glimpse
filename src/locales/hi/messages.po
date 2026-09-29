@@ -2532,6 +2532,11 @@ msgid "settings.about.version_label"
 msgstr "Glimpse"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.retranscribe_failed"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
 msgid "member_card.aria"
 msgstr "Glimpse सदस्य कार्ड"
@@ -2890,6 +2895,11 @@ msgid "onboarding.license_step.tile_speakers"
 msgstr "जानें कि किसने क्या कहा"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.large"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.description"
 msgstr "वक्ता के अनुसार खंडों को स्वचालित रूप से लेबल करें"
@@ -3119,6 +3129,11 @@ msgstr "आज की सबसे लंबी रिकॉर्डिंग: 
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.auto_pause_media.body_duck"
 msgstr "रिकॉर्ड करते समय सिस्टम वॉल्यूम कम करता है।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.medium"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/LicenseStep.tsx
@@ -4459,6 +4474,11 @@ msgstr "सेटअप विज़ार्ड फिर से चलाए�
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.ane.detail"
 msgstr "Neural Engine पर एन्कोडर चलाता है। तेज़ है और कम ऊर्जा का उपयोग करता है। macOS के इसे अनुकूलित करने के दौरान पहली बार लोड होने में अधिक समय लगता है।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.small"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/license/components/ShareCardModal.tsx

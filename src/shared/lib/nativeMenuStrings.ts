@@ -105,6 +105,11 @@ export const NATIVE_MENU_STRINGS = [
     message: "Your disk is full, so Glimpse couldn't save this dictation.",
   }),
   msg({
+    id: "native.toast.retranscribe_failed",
+    message:
+      "Glimpse couldn't transcribe this again, so it kept the earlier transcript.",
+  }),
+  msg({
     id: "native.toast.milestone",
     message: "{count} words dictated with Glimpse!",
   }),

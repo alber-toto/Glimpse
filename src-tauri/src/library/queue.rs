@@ -242,23 +242,25 @@ fn start_library_transcription_internal(
                         Some(item.duration_seconds),
                         source.as_str(),
                     );
-                    let _ = storage.update_library_item(
-                        &id,
-                        LibraryItemPatch {
-                            status: Some(LibraryItemStatus::Error {
+                    if !restore_previous_transcript(&app_handle, &storage, &item, false) {
+                        let _ = storage.update_library_item(
+                            &id,
+                            LibraryItemPatch {
+                                status: Some(LibraryItemStatus::Error {
+                                    message: "No speech detected".to_string(),
+                                }),
+                                ..Default::default()
+                            },
+                        );
+                        let _ = app_handle.emit(
+                            EVENT_LIBRARY_ERROR,
+                            LibraryErrorPayload {
+                                id: id.clone(),
                                 message: "No speech detected".to_string(),
-                            }),
-                            ..Default::default()
-                        },
-                    );
-                    let _ = app_handle.emit(
-                        EVENT_LIBRARY_ERROR,
-                        LibraryErrorPayload {
-                            id: id.clone(),
-                            message: "No speech detected".to_string(),
-                            cancelled: false,
-                        },
-                    );
+                                cancelled: false,
+                            },
+                        );
+                    }
                 } else {
                     let speech_model = result
                         .speech_model
@@ -315,28 +317,30 @@ fn start_library_transcription_internal(
                         source.as_str(),
                     );
                 }
-                let status = if cancelled {
-                    LibraryItemStatus::Cancelled
-                } else {
-                    LibraryItemStatus::Error {
-                        message: message.clone(),
-                    }
-                };
-                let _ = storage.update_library_item(
-                    &id,
-                    LibraryItemPatch {
-                        status: Some(status),
-                        ..Default::default()
-                    },
-                );
-                let _ = app_handle.emit(
-                    EVENT_LIBRARY_ERROR,
-                    LibraryErrorPayload {
-                        id: id.clone(),
-                        cancelled,
-                        message,
-                    },
-                );
+                if !restore_previous_transcript(&app_handle, &storage, &item, cancelled) {
+                    let status = if cancelled {
+                        LibraryItemStatus::Cancelled
+                    } else {
+                        LibraryItemStatus::Error {
+                            message: message.clone(),
+                        }
+                    };
+                    let _ = storage.update_library_item(
+                        &id,
+                        LibraryItemPatch {
+                            status: Some(status),
+                            ..Default::default()
+                        },
+                    );
+                    let _ = app_handle.emit(
+                        EVENT_LIBRARY_ERROR,
+                        LibraryErrorPayload {
+                            id: id.clone(),
+                            cancelled,
+                            message,
+                        },
+                    );
+                }
             }
             Err(err) => {
                 let message = format!("Library transcription task failed: {err}");
@@ -349,23 +353,25 @@ fn start_library_transcription_internal(
                     Some(item.duration_seconds),
                     source.as_str(),
                 );
-                let _ = storage.update_library_item(
-                    &id,
-                    LibraryItemPatch {
-                        status: Some(LibraryItemStatus::Error {
-                            message: message.clone(),
-                        }),
-                        ..Default::default()
-                    },
-                );
-                let _ = app_handle.emit(
-                    EVENT_LIBRARY_ERROR,
-                    LibraryErrorPayload {
-                        id: id.clone(),
-                        cancelled: false,
-                        message,
-                    },
-                );
+                if !restore_previous_transcript(&app_handle, &storage, &item, false) {
+                    let _ = storage.update_library_item(
+                        &id,
+                        LibraryItemPatch {
+                            status: Some(LibraryItemStatus::Error {
+                                message: message.clone(),
+                            }),
+                            ..Default::default()
+                        },
+                    );
+                    let _ = app_handle.emit(
+                        EVENT_LIBRARY_ERROR,
+                        LibraryErrorPayload {
+                            id: id.clone(),
+                            cancelled: false,
+                            message,
+                        },
+                    );
+                }
             }
         }
 
@@ -541,6 +547,12 @@ fn transcribe_library_item(
             if let Some(labeled) = labeled.as_mut() {
                 speakers::carry_live_speakers(item, &mut result, labeled);
             }
+            speakers::keep_speaker_names(
+                item,
+                result.segments.as_deref().unwrap_or_default(),
+                result.words.as_deref(),
+                labeled.as_mut(),
+            );
             result.speakers = labeled;
         }
         return Ok(result);
@@ -590,6 +602,12 @@ fn transcribe_library_item(
         speakers::carry_live_speakers(item, &mut system, speakers);
     }
     let mut merged = merge_track_results(microphone, system);
+    speakers::keep_speaker_names(
+        item,
+        merged.segments.as_deref().unwrap_or_default(),
+        merged.words.as_deref(),
+        speakers.as_mut(),
+    );
     merged.speakers = speakers;
     Ok(merged)
 }
@@ -731,6 +749,7 @@ fn transcribe_recording_tracks(
 
     for ((index, ..), track) in active.iter().zip(chunked) {
         results[*index] = track.finish();
+        results[*index].speech_model = stand_in_model(item, &ready_model);
     }
     Ok(results)
 }
@@ -771,6 +790,48 @@ fn merge_track_results(
     }
 }
 
+/// A finished item that fails or is cancelled while transcribing again gets
+/// its previous transcript back instead of being left empty.
+fn restore_previous_transcript(
+    app: &AppHandle<AppRuntime>,
+    storage: &StorageManager,
+    item: &LibraryItem,
+    cancelled: bool,
+) -> bool {
+    if item.transcribed_at.is_none() || item.transcript.as_deref().is_none_or(str::is_empty) {
+        return false;
+    }
+    let restored = storage.update_library_item(
+        &item.id,
+        LibraryItemPatch {
+            status: Some(LibraryItemStatus::Complete),
+            transcript: Some(item.transcript.clone().unwrap_or_default()),
+            transcript_edited: Some(item.transcript_edited),
+            segments: Some(item.segments.clone().unwrap_or_default()),
+            speakers: Some(item.speakers.clone()),
+            ..Default::default()
+        },
+    );
+    if !matches!(restored, Ok(Some(_))) {
+        return false;
+    }
+    if !cancelled {
+        toast::show(
+            app,
+            "error",
+            None,
+            &toast::native(app, "native.toast.retranscribe_failed"),
+        );
+    }
+    let _ = app.emit(
+        EVENT_LIBRARY_COMPLETE,
+        LibraryCompletePayload {
+            id: item.id.clone(),
+        },
+    );
+    true
+}
+
 fn local_model(
     app: &AppHandle<AppRuntime>,
     settings: &UserSettings,
@@ -778,10 +839,19 @@ fn local_model(
     remote_fallback: bool,
 ) -> Result<model_manager::ReadyModel> {
     if remote_fallback || remote_speech::is_remote_model(&item.speech_model) {
-        model_manager::ensure_local_fallback_model(app, &settings.local_model)
-    } else {
-        model_manager::ensure_model_ready(app, &item.speech_model)
+        return model_manager::ensure_local_fallback_model(app, &settings.local_model);
     }
+    // The item's model can be gone: removed by a later version, deleted, or
+    // still downloading its new version.
+    model_manager::ensure_model_ready(app, &item.speech_model).or_else(|err| {
+        model_manager::ensure_model_ready(app, &settings.local_model).map_err(|_| err)
+    })
+}
+
+/// The model to record on the item when a local one stood in for its own.
+fn stand_in_model(item: &LibraryItem, model: &model_manager::ReadyModel) -> Option<String> {
+    (!remote_speech::is_remote_model(&item.speech_model) && model.key != item.speech_model)
+        .then(|| model.key.clone())
 }
 
 fn transcribe_audio_file(
@@ -832,13 +902,17 @@ fn transcribe_audio_file(
         language: &language,
     };
 
-    if matches!(ready_model.engine, model_manager::LocalModelEngine::Whisper) {
+    let mut result = if matches!(ready_model.engine, model_manager::LocalModelEngine::Whisper) {
         transcribe_chunked(&run, &audio_path, &wav_info, ChunkStrategy::Whisper, pass)
     } else if wav_info.duration_seconds <= (DIRECT_TRANSCRIBE_MINUTES as f32 * 60.0) {
         transcribe_direct(&run, &audio_path)
     } else {
         transcribe_chunked(&run, &audio_path, &wav_info, ChunkStrategy::Parakeet, pass)
+    }?;
+    if !remote_fallback {
+        result.speech_model = stand_in_model(item, &ready_model);
     }
+    Ok(result)
 }
 
 // Ok(Some) = done, Ok(None) = fall back to local, Err = cancel/unavailable.
