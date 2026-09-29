@@ -1074,7 +1074,7 @@ fn refresh_menus(app: &AppHandle<AppRuntime>) {
 }
 
 fn start_state_emitter(app: AppHandle<AppRuntime>, shared: Arc<Shared>) {
-    if shared.emitter_running.swap(true, Ordering::Relaxed) {
+    if shared.emitter_running.swap(true, Ordering::SeqCst) {
         return;
     }
     std::thread::Builder::new()
@@ -1100,8 +1100,13 @@ fn start_state_emitter(app: AppHandle<AppRuntime>, shared: Arc<Shared>) {
                 }
                 let _ = app.emit(EVENT_STATE, state);
                 if !active {
-                    shared.emitter_running.store(false, Ordering::Relaxed);
-                    break;
+                    shared.emitter_running.store(false, Ordering::SeqCst);
+                    // A session that started meanwhile saw the flag still set
+                    // and left its updates to this thread.
+                    if !shared.is_active() || shared.emitter_running.swap(true, Ordering::SeqCst) {
+                        break;
+                    }
+                    continue;
                 }
                 std::thread::sleep(STATE_TICK);
             }
@@ -1119,9 +1124,9 @@ fn check_microphone_permission() -> bool {
         let _ = permissions::request_microphone_permission();
         permissions::refresh_microphone_permission()
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
     {
-        true
+        crate::permissions::check_microphone_permission()
     }
 }
 
