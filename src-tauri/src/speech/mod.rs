@@ -280,11 +280,13 @@ pub(crate) fn upgrade_parakeet_encoder(app: &AppHandle<AppRuntime>) {
     let model_dir = models_dir.join(MODEL);
     let encoder = model_dir.join(&dir_name);
     let is_old = |encoder: &Path| encoder.join("model.mil").is_file();
+    let staging = model_dir.join(".encoder-upgrade");
     if !is_old(&encoder) || app.state::<AppState>().current_settings().local_model != MODEL {
+        // A partial download from an upgrade that no longer applies.
+        let _ = crate::platform::remove_dir_all_compat(&staging);
         return;
     }
     spec.files.retain(|file| file.extract);
-    let staging = model_dir.join(".encoder-upgrade");
     let manager = glimpse_speech::models::ModelInstallManager::new(staging.clone());
     let staged_dir = manager.model_dir(MODEL);
     if let Err(err) = install::ensure_disk_space(&staged_dir, &spec) {
