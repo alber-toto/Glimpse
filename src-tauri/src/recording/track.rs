@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU8, Ordering},
     },
     thread::JoinHandle,
 };
@@ -116,6 +116,9 @@ impl LiveTap {
     }
 }
 
+pub(crate) const WRITE_FAILED: u8 = 1;
+pub(crate) const DISK_FULL: u8 = 2;
+
 /// Writes one source as mono 16-bit WAV at up to `STORED_RATE`, incrementally, on its own thread.
 pub(crate) struct TrackWriter {
     tx: Sender<TrackMessage>,
@@ -125,13 +128,13 @@ pub(crate) struct TrackWriter {
 }
 
 impl TrackWriter {
-    /// A failed write stops the track but keeps what reached the file;
-    /// `disk_full` is set when the disk ran out of space.
+    /// A failed write stops the track but keeps what reached the file, and
+    /// sets `failure` to [`WRITE_FAILED`] or [`DISK_FULL`].
     pub(crate) fn spawn(
         path: PathBuf,
         source_rate: u32,
         thread_name: &str,
-        disk_full: Arc<AtomicBool>,
+        failure: Arc<AtomicU8>,
     ) -> Result<Self> {
         if let Some(dir) = path.parent() {
             fs::create_dir_all(dir)
@@ -236,9 +239,12 @@ impl TrackWriter {
                     let finish = matches!(message, TrackMessage::Finish { .. });
                     if !failed && let Err(err) = step(message) {
                         tracing::error!("Recording track stopped writing: {err:#}");
-                        if crate::platform::is_disk_full(&err) {
-                            disk_full.store(true, Ordering::Relaxed);
-                        }
+                        let reason = if crate::platform::is_disk_full(&err) {
+                            DISK_FULL
+                        } else {
+                            WRITE_FAILED
+                        };
+                        failure.store(reason, Ordering::Relaxed);
                         failed = true;
                     }
                     if finish {

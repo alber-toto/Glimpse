@@ -96,6 +96,11 @@ export const NATIVE_MENU_STRINGS = [
       "Your disk is full, so Glimpse stopped recording. What was recorded so far is saved.",
   }),
   msg({
+    id: "native.toast.recording_write_failed",
+    message:
+      "Glimpse couldn't keep writing the recording, so it stopped. What was recorded so far is saved.",
+  }),
+  msg({
     id: "native.toast.recording_low_disk",
     message:
       "Your disk is almost full. Glimpse will stop recording if it runs out of space.",

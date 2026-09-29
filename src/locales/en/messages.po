@@ -2533,6 +2533,11 @@ msgstr "Glimpse"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_write_failed"
+msgstr "Glimpse couldn't keep writing the recording, so it stopped. What was recorded so far is saved."
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
 msgid "native.toast.retranscribe_failed"
 msgstr "Glimpse couldn't transcribe this again, so it kept the earlier transcript."
 

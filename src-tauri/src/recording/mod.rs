@@ -18,7 +18,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -226,8 +226,8 @@ struct Shared {
     session_dir: Mutex<Option<PathBuf>>,
     started_at: Mutex<Option<DateTime<Local>>>,
     finish_requested: AtomicBool,
-    // Set by a track writer that ran out of disk space.
-    disk_full: Arc<AtomicBool>,
+    // Set by a track writer that stopped writing.
+    write_failure: Arc<AtomicU8>,
     emitter_running: AtomicBool,
     live: live::LiveState,
 }
@@ -312,7 +312,7 @@ impl Shared {
         *self.session_dir.lock() = None;
         *self.started_at.lock() = None;
         self.finish_requested.store(false, Ordering::Relaxed);
-        self.disk_full.store(false, Ordering::Relaxed);
+        self.write_failure.store(0, Ordering::Relaxed);
         self.live.end();
     }
 }
@@ -375,7 +375,7 @@ impl Default for RecordingManager {
             session_dir: Mutex::new(None),
             started_at: Mutex::new(None),
             finish_requested: AtomicBool::new(false),
-            disk_full: Arc::new(AtomicBool::new(false)),
+            write_failure: Arc::new(AtomicU8::new(0)),
             emitter_running: AtomicBool::new(false),
             live: live::LiveState::default(),
         });
@@ -663,9 +663,9 @@ impl Worker {
                     silenced: None,
                 };
                 let (writer_tx, writer_rx) = bounded::<Result<TrackWriter>>(1);
-                let disk_full = Arc::clone(&self.shared.disk_full);
+                let failure = Arc::clone(&self.shared.write_failure);
                 let capture = system_audio::SystemAudioCapture::start(&scope, move |rate| {
-                    match TrackWriter::spawn(path, rate, "glimpse-recording-system", disk_full) {
+                    match TrackWriter::spawn(path, rate, "glimpse-recording-system", failure) {
                         Ok(writer) => {
                             let callback = sink.into_callback(writer.input());
                             let _ = writer_tx.send(Ok(writer));
@@ -715,12 +715,12 @@ impl Worker {
                     silenced: Some(listening),
                 };
                 let (writer_tx, writer_rx) = bounded::<Result<TrackWriter>>(1);
-                let disk_full = Arc::clone(&self.shared.disk_full);
+                let failure = Arc::clone(&self.shared.write_failure);
                 let make_sink = move |rate| match TrackWriter::spawn(
                     path,
                     rate,
                     "glimpse-recording-microphone",
-                    disk_full,
+                    failure,
                 ) {
                     Ok(writer) => {
                         let callback = sink.into_callback(writer.input());
@@ -1082,14 +1082,14 @@ fn start_state_emitter(app: AppHandle<AppRuntime>, shared: Arc<Shared>) {
         .spawn(move || {
             let mut last_tray_key = None;
             loop {
-                if shared.disk_full.swap(false, Ordering::Relaxed) {
+                let message = match shared.write_failure.swap(0, Ordering::Relaxed) {
+                    track::DISK_FULL => Some("native.toast.recording_disk_full"),
+                    track::WRITE_FAILED => Some("native.toast.recording_write_failed"),
+                    _ => None,
+                };
+                if let Some(message) = message {
                     request_finish_from_tray(&app);
-                    crate::toast::show(
-                        &app,
-                        "error",
-                        None,
-                        &crate::toast::native(&app, "native.toast.recording_disk_full"),
-                    );
+                    crate::toast::show(&app, "error", None, &crate::toast::native(&app, message));
                 }
                 let state = shared.state();
                 let active = state.status != "idle";
