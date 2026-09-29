@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use crate::tray::SettingsPage;
-use crate::{AppRuntime, SETTINGS_WINDOW_LABEL};
+use crate::{AppRuntime, AppState, SETTINGS_WINDOW_LABEL};
 
 pub(crate) const WINDOW_LABEL: &str = "live";
 
@@ -86,6 +86,11 @@ pub fn open_live_view(app: AppHandle<AppRuntime>) -> Result<(), String> {
             window
         }
     };
+    app.state::<AppState>()
+        .recording()
+        .shared
+        .live
+        .set_requested(true);
     crate::platform::live::show(&app, &window);
     hide_settings(&app);
     Ok(())

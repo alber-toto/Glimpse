@@ -1569,15 +1569,6 @@ pub fn get_live_transcript(app: AppHandle<AppRuntime>) -> LiveTranscript {
     app.state::<AppState>().recording().shared.live.last()
 }
 
-/// Turning it off frees the speaker model; the transcript so far stays until the recording ends.
-#[tauri::command]
-pub fn set_live_transcription(app: AppHandle<AppRuntime>, enabled: bool) -> LiveTranscript {
-    let state = app.state::<AppState>();
-    let live = &state.recording().shared.live;
-    live.set_requested(enabled);
-    live.last()
-}
-
 /// Applies a live speaker edit, stores it with the session and publishes the result.
 fn edit_live_speakers(
     app: &AppHandle<AppRuntime>,

@@ -245,9 +245,18 @@ const PrefsMenu = ({
           buttonClassName="relative w-7 py-0.5 rounded ui-text-label font-medium transition-colors duration-200 z-10"
           activeIndicatorLayoutId="live-text-size"
           options={[
-            { value: "small", label: "S" },
-            { value: "medium", label: "M" },
-            { value: "large", label: "L" },
+            {
+              value: "small",
+              label: t({ id: "live.prefs.text_size.small", message: "S" }),
+            },
+            {
+              value: "medium",
+              label: t({ id: "live.prefs.text_size.medium", message: "M" }),
+            },
+            {
+              value: "large",
+              label: t({ id: "live.prefs.text_size.large", message: "L" }),
+            },
           ]}
         />,
       )}
@@ -311,6 +320,7 @@ const LiveView = () => {
   const listRef = useRef<HTMLUListElement>(null);
   const followFrame = useRef<number | null>(null);
   const followTop = useRef(0);
+  const compactTimer = useRef<number | undefined>(undefined);
   const shownSpeakers = useRef(new Map<string, string>());
   const seenWords = useRef(new Map<string, Set<number>>());
   const reduceMotion = useReducedMotion();
@@ -335,6 +345,7 @@ const LiveView = () => {
   const toggleCompact = () => {
     setMenuOpen(false);
     setSpeakerMenu(null);
+    window.clearTimeout(compactTimer.current);
     if (compact) {
       recordingApi
         .setLiveViewCompact(false)
@@ -343,7 +354,7 @@ const LiveView = () => {
       return;
     }
     setCompact(true);
-    window.setTimeout(() => {
+    compactTimer.current = window.setTimeout(() => {
       recordingApi.setLiveViewCompact(true).catch(() => {});
     }, COMPACT_EASE_MS);
   };
@@ -413,10 +424,12 @@ const LiveView = () => {
   // Springs toward the bottom whenever the list grows, starting from rest and
   // keeping its speed when more text lands mid-glide. Opening and jumping to
   // live snap instead.
-  const hasSegments = segments.length > 0;
+  const hasRows = rows.length > 0;
+  // Paused while a speaker menu is open; its scroll listener would close it.
+  const speakerMenuOpen = speakerMenu !== null;
   useEffect(() => {
     const scroller = scrollerRef.current;
-    if (!following || !scroller) return;
+    if (!following || speakerMenuOpen || !scroller) return;
     scroller.scrollTop = scroller.scrollHeight;
     followTop.current = scroller.scrollTop;
     let velocity = 0;
@@ -454,7 +467,7 @@ const LiveView = () => {
       observer.disconnect();
       stopFollowing();
     };
-  }, [following, hasSegments, reduceMotion]);
+  }, [following, speakerMenuOpen, hasRows, reduceMotion]);
 
   const handleScroll = () => {
     const scroller = scrollerRef.current;
@@ -805,11 +818,7 @@ const LiveView = () => {
                 onScroll={handleScroll}
                 className="h-full overflow-y-auto px-4 py-4 custom-scrollbar"
               >
-                {!hasSegments ? (
-                  <div className="flex h-full items-center justify-center px-6 text-center ui-text-body-sm text-content-muted text-pretty">
-                    {emptyMessage}
-                  </div>
-                ) : (
+                {hasRows && (
                   <ul ref={listRef}>
                     {rows.map((row, index) =>
                       row.kind === "turn"
@@ -823,6 +832,11 @@ const LiveView = () => {
                 )}
               </motion.div>
             </div>
+            {turns.length === 0 && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-10 text-center ui-text-body-sm text-content-muted text-pretty">
+                {emptyMessage}
+              </div>
+            )}
             <AnimatePresence>
               {silenceWarning && (
                 <motion.div

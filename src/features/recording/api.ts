@@ -96,10 +96,6 @@ export async function getLiveTranscript(): Promise<LiveTranscript> {
   return invoke<LiveTranscript>("get_live_transcript");
 }
 
-export async function setLiveTranscription(enabled: boolean): Promise<void> {
-  await invoke("set_live_transcription", { enabled });
-}
-
 export async function renameLiveSpeaker(
   id: string,
   name: string,

@@ -13,7 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crossbeam_channel::{Receiver, Sender, bounded};
+use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded};
 use glimpse_speech::diarization::{LiveDiarizer, SpeakerTurn};
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -40,6 +40,11 @@ const GAP_FRAMES: usize = 20;
 // Audio kept around speech when a window is cut or silence is dropped.
 const TAIL_FRAMES: usize = 10;
 const MAX_WINDOW_FRAMES: usize = 500;
+const MIN_WINDOW_FRAMES: usize = 100;
+// Longest a live pass may hold the transcriber, which a dictation waits on.
+// Windows start short and grow while they fit (15 s takes about 0.2 s on an
+// M2 Pro). Whisper pads every pass to 30 s, so its length changes nothing.
+const LOCK_BUDGET: Duration = Duration::from_millis(500);
 // About 2 s of new audio before an open window is transcribed again.
 const OPEN_STEP_FRAMES: usize = 67;
 const SILENCE_DROP_FRAMES: usize = 67;
@@ -238,8 +243,10 @@ impl LiveState {
         inner.last.revision = revision;
     }
 
-    /// Drops the session's transcript once it is saved or discarded.
+    /// Drops the session's transcript once it is saved or discarded. The next
+    /// recording transcribes live only if the live view opens for it.
     pub(super) fn end(&self) {
+        self.requested.store(false, Ordering::Relaxed);
         self.begin(false, false);
     }
 
@@ -603,6 +610,7 @@ impl LiveWorker {
                     running: false,
                     model: None,
                     warmed: false,
+                    max_window: MIN_WINDOW_FRAMES,
                     diarizer: None,
                     speaking: None,
                     last_manifest: Instant::now(),
@@ -722,7 +730,7 @@ impl TrackRun {
     }
 
     /// `flush` commits whatever speech is buffered, for a paused recording.
-    fn plan(&self, flush: bool) -> Plan {
+    fn plan(&self, flush: bool, max_window: usize) -> Plan {
         let frames = self.voiced.len();
         let Some(first) = self.voiced.iter().position(|&voiced| voiced) else {
             return if frames >= SILENCE_DROP_FRAMES {
@@ -736,7 +744,7 @@ impl TrackRun {
         }
         let mut speech = 0;
         let mut quiet = 0;
-        for (index, &voiced) in self.voiced.iter().enumerate().take(MAX_WINDOW_FRAMES) {
+        for (index, &voiced) in self.voiced.iter().enumerate().take(max_window) {
             if voiced {
                 speech += 1;
                 quiet = 0;
@@ -752,8 +760,8 @@ impl TrackRun {
                 };
             }
         }
-        if frames >= MAX_WINDOW_FRAMES {
-            let window = to_pcm(&self.samples[..MAX_WINDOW_FRAMES * FRAME]);
+        if frames >= max_window {
+            let window = to_pcm(&self.samples[..max_window * FRAME]);
             let cut = crate::recorder::quiet_cut_index(&window, LIVE_RATE) / FRAME;
             return Plan::Commit(cut.max(1));
         }
@@ -851,6 +859,8 @@ struct Runner {
     // The local model live text uses, keyed by the setting that chose it.
     model: Option<(String, ReadyModel)>,
     warmed: bool,
+    // Window length in frames that fits `LOCK_BUDGET` at the model's speed.
+    max_window: usize,
     diarizer: Option<SystemDiarizer>,
     speaking: Option<(String, Instant)>,
     last_manifest: Instant,
@@ -864,8 +874,6 @@ impl Runner {
             let requested = self.shared.live.requested.load(Ordering::Relaxed);
             if requested && !self.running {
                 self.enable();
-            } else if !requested && self.running {
-                self.disable();
             }
             let worked = self.running && self.step();
             if self.running {
@@ -926,22 +934,6 @@ impl Runner {
         };
     }
 
-    fn disable(&mut self) {
-        self.release_microphone(true);
-        self.running = false;
-        for track in &mut self.tracks {
-            track.tap.set_enabled(false);
-            track.clear();
-        }
-        self.model = None;
-        self.warmed = false;
-        self.diarizer = None;
-        let mut inner = self.shared.live.inner.lock();
-        inner.open = Default::default();
-        inner.diarizing = false;
-        inner.status = LiveStatus::Off;
-    }
-
     /// Follows the dictation model setting, falling back to any installed local model.
     fn refresh_model(&mut self) {
         let setting = self.state().current_settings().local_model;
@@ -951,6 +943,11 @@ impl Runner {
         self.warmed = false;
         self.model = match crate::model_manager::ensure_local_fallback_model(&self.app, &setting) {
             Ok(model) => {
+                self.max_window = if matches!(model.engine, LocalModelEngine::Whisper) {
+                    MAX_WINDOW_FRAMES
+                } else {
+                    MIN_WINDOW_FRAMES
+                };
                 crate::speech::warm_model(&self.app, model.key.clone());
                 Some((setting, model))
             }
@@ -989,7 +986,7 @@ impl Runner {
             }
         }
         for track in &mut self.tracks {
-            while let Plan::Drop(frames) = track.plan(flush) {
+            while let Plan::Drop(frames) = track.plan(flush, self.max_window) {
                 track.advance(frames);
                 self.shared.live.inner.lock().open[track.source.index()] = None;
             }
@@ -1046,7 +1043,7 @@ impl Runner {
             .tracks
             .iter()
             .enumerate()
-            .filter_map(|(index, track)| match track.plan(flush) {
+            .filter_map(|(index, track)| match track.plan(flush, self.max_window) {
                 Plan::Commit(frames) => Some((index, frames, track.start)),
                 _ => None,
             })
@@ -1057,7 +1054,7 @@ impl Runner {
             .tracks
             .iter()
             .enumerate()
-            .filter(|(_, track)| matches!(track.plan(flush), Plan::Open))
+            .filter(|(_, track)| matches!(track.plan(flush, self.max_window), Plan::Open))
             .max_by_key(|(_, track)| track.untranscribed_speech())
             .map(|(index, _)| index)
         {
@@ -1087,8 +1084,13 @@ impl Runner {
         let Some(diarizer) = self.diarizer.as_mut() else {
             return;
         };
-        let pill = || self.app.state::<AppState>().pill().status() != crate::pill::PillStatus::Idle;
-        match diarizer.feed(flush, pill) {
+        // Gives way to a dictation, and to a finishing recording so saving
+        // never waits on a backlog.
+        let stop = || {
+            self.app.state::<AppState>().pill().status() != crate::pill::PillStatus::Idle
+                || !matches!(self.stop.try_recv(), Err(TryRecvError::Empty))
+        };
+        match diarizer.feed(flush, stop) {
             Ok(Some((turns, settled_ms))) => {
                 let mut inner = self.shared.live.inner.lock();
                 let from = inner.epoch_from;
@@ -1120,6 +1122,8 @@ impl Runner {
         let dictionary = crate::dictionary::dictionary_entries_for_model(model, &settings);
         let language = (!settings.language.trim().is_empty()).then_some(settings.language.as_str());
         let transcriber = self.state().local_transcriber();
+        let was_loaded = transcriber.loaded_model_id().as_deref() == Some(model.key.as_str());
+        let started = Instant::now();
         let Some(result) = transcriber.try_transcribe_with_segments(
             model,
             &pcm,
@@ -1130,6 +1134,18 @@ impl Runner {
         ) else {
             return false;
         };
+        // Shrinks only after a pass over budget; short passes carry fixed
+        // overhead, so they may only grow it. A load or a failure says nothing.
+        let elapsed = started.elapsed().as_secs_f64();
+        if was_loaded && result.is_ok() && !matches!(model.engine, LocalModelEngine::Whisper) {
+            let fits = (frames as f64 * LOCK_BUDGET.as_secs_f64() / elapsed) as usize;
+            let window = if elapsed > LOCK_BUDGET.as_secs_f64() {
+                fits
+            } else {
+                self.max_window.max(fits)
+            };
+            self.max_window = window.clamp(MIN_WINDOW_FRAMES, MAX_WINDOW_FRAMES);
+        }
         self.warmed = true;
         let piece = match result {
             Ok(result) => {

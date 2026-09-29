@@ -12,7 +12,7 @@ const EMPTY: LiveTranscript = {
   status: "starting",
 };
 
-// Mirrors the backend's live transcript and asks it to keep one running.
+// Mirrors the backend's live transcript.
 export function useLiveTranscript() {
   const [transcript, setTranscript] = useState<LiveTranscript>(EMPTY);
   const current = useRef(EMPTY);
@@ -30,13 +30,15 @@ export function useLiveTranscript() {
       recordingApi
         .getLiveTranscript()
         .then((snapshot) => {
-          if (!cancelled) commit(snapshot);
+          if (!cancelled && snapshot.revision >= current.current.revision) {
+            commit(snapshot);
+          }
         })
         .catch(() => {});
     };
 
     // Events carry only the changed tail; a gap in revisions means one was
-    // missed (or a new recording restarted the count), so take a full snapshot.
+    // missed, so take a full snapshot.
     const apply = (next: LiveTranscript) => {
       if (cancelled) return;
       const prev = current.current;
@@ -64,7 +66,6 @@ export function useLiveTranscript() {
       })
       .catch(() => {});
 
-    recordingApi.setLiveTranscription(true).catch(() => {});
     refetch();
 
     return () => {

@@ -622,7 +622,6 @@ pub fn run() {
             recording::live_window::finish_from_live_view,
             recording::live_window::set_live_view_compact,
             recording::get_live_transcript,
-            recording::set_live_transcription,
             recording::rename_live_speaker,
             recording::set_live_speaker_color,
             recording::merge_live_speaker,
