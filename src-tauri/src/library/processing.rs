@@ -119,6 +119,7 @@ pub(crate) fn create_recording_item(
     fs::create_dir_all(&item_dir)
         .with_context(|| format!("Failed to create library folder at {}", item_dir.display()))?;
 
+    let from_microphone = output.microphone_path.is_some();
     let (primary, secondary) = match (output.microphone_path, output.system_path) {
         (Some(mic), system) => (mic, system),
         (None, Some(system)) => (system, None),
@@ -138,19 +139,26 @@ pub(crate) fn create_recording_item(
     let remote_selection = crate::remote_speech::is_remote_model(model_key);
     let show_timestamps = remote_selection || model_supports_timestamps(model_key);
     // Names and colors given to You and Others during the recording carry over.
-    let speakers = secondary_audio_path.as_ref().map(|_| {
-        super::speakers::recording_speakers()
-            .map(|speaker| {
-                output
-                    .live
-                    .speakers
-                    .iter()
-                    .find(|edited| edited.id == speaker.id)
-                    .cloned()
-                    .unwrap_or(speaker)
-            })
-            .to_vec()
-    });
+    let edited = |speaker: &Speaker| {
+        output
+            .live
+            .speakers
+            .iter()
+            .find(|edited| edited.id == speaker.id)
+            .cloned()
+    };
+    let [you, others] = super::speakers::recording_speakers();
+    let speakers = if secondary_audio_path.is_some() {
+        Some(vec![
+            edited(&you).unwrap_or(you),
+            edited(&others).unwrap_or(others),
+        ])
+    } else if from_microphone {
+        // A microphone-only recording gets a You speaker only when it was edited.
+        edited(&you).map(|you| vec![you])
+    } else {
+        None
+    };
 
     let item = LibraryItem {
         id,

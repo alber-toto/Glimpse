@@ -21,7 +21,7 @@
 - On Apple Silicon, new Neural Engine downloads of Qwen3-ASR are smaller (about 980 MB instead of 1.2 GB) and use about 220 MB less memory.
 - Parakeet TDT V3 with the Neural Engine now actually runs on the Neural Engine. On an M2 Pro, transcription takes about 40% less time. If it's your current model, Glimpse fetches the new version once in the background.
 - Parakeet Unified can now use the Neural Engine on Apple Silicon when transcribing recordings and files in the Library. On an M2 Pro, that takes about half the time.
-- Detecting speakers again or transcribing a Library item again keeps the names you gave speakers.
+- Detecting speakers again or transcribing a Library item again keeps the names and colors you gave speakers.
 - Transcribing a Library item again works even when the model it was made with is no longer installed. Glimpse uses your current model instead.
 - Full-size Whisper Large V3 and Distil-Whisper Large V3.5 are no longer offered for new downloads. If you already have one, it keeps working.
 - On Windows, Settings now shows whether Glimpse can use your microphone. When Windows blocks it, dictating or recording says so, with a button that opens the right privacy settings page.
@@ -38,6 +38,7 @@
 - If your disk fills up while you record, Glimpse stops, keeps what it recorded so far, and tells you. Before, the recording kept going without saving anything new.
 - Dictation tells you when your disk is full instead of failing quietly.
 - If transcribing a Library item again fails or you cancel it, the earlier transcript comes back instead of an empty item.
+- If Glimpse can't keep writing a recording to disk for any reason, it now stops and tells you, like it already did for a full disk, instead of quietly saving a shorter recording.
 - On the Record screen, picking an app while system audio is off records only that app, instead of turning system audio back on for everything or bringing back apps you'd unpicked.
 - If you still use Distil-Whisper Large V3.5, it no longer skips a stretch of text in long recordings.
 - Parakeet Unified no longer returns nothing for very short recordings, and no longer drops the last word.

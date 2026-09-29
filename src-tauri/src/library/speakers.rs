@@ -31,6 +31,15 @@ pub(crate) fn recording_speakers() -> [Speaker; 2] {
     ]
 }
 
+/// The You speaker a microphone-only recording has when it was edited live.
+pub(super) fn single_track_identity(item: &LibraryItem) -> Option<Speaker> {
+    item.speakers
+        .iter()
+        .flatten()
+        .find(|speaker| speaker.id == MICROPHONE_SPEAKER)
+        .cloned()
+}
+
 /// The item's speaker for a recording track, keeping a name the user gave it.
 pub(super) fn track_speaker(item: &LibraryItem, default: Speaker) -> Speaker {
     item.speakers
@@ -530,7 +539,7 @@ pub(super) fn rediarize(item: &LibraryItem, model_path: &Path) -> Result<Rediari
         let speakers = label_tracks([Track {
             result: &mut result,
             turns: Some(turns),
-            identity: None,
+            identity: single_track_identity(item),
         }]);
         let mut labeled = Rediarized {
             segments: result.segments.unwrap_or_default(),
@@ -617,7 +626,7 @@ pub(super) fn rediarize(item: &LibraryItem, model_path: &Path) -> Result<Rediari
     Ok(labeled)
 }
 
-/// Gives each re-detected speaker the name and color of the renamed speaker it
+/// Gives each re-detected speaker the name and color of the edited speaker it
 /// overlaps most, one to one, when that covers at least half its speech.
 pub(super) fn keep_speaker_names(
     item: &LibraryItem,
@@ -629,22 +638,27 @@ pub(super) fn keep_speaker_names(
         return;
     };
     let defaults = recording_speakers();
-    let renamed: Vec<&Speaker> = item
+    // Speakers given a new name or color, and whether the name is new.
+    let edited: Vec<(&Speaker, bool)> = item
         .speakers
         .iter()
         .flatten()
-        .filter(|speaker| {
-            let default = match defaults.iter().find(|default| default.id == speaker.id) {
-                Some(default) => default.name.clone(),
-                None => format!(
-                    "Speaker {}",
-                    speaker.id.rsplit('_').next().unwrap_or_default()
+        .filter_map(|speaker| {
+            let (name, color) = match defaults.iter().find(|default| default.id == speaker.id) {
+                Some(default) => (default.name.clone(), default.color.clone()),
+                None => (
+                    format!(
+                        "Speaker {}",
+                        speaker.id.rsplit('_').next().unwrap_or_default()
+                    ),
+                    None,
                 ),
             };
-            speaker.name != default
+            let named = speaker.name != name;
+            (named || speaker.color != color).then_some((speaker, named))
         })
         .collect();
-    if renamed.is_empty() {
+    if edited.is_empty() {
         return;
     }
 
@@ -673,8 +687,8 @@ pub(super) fn keep_speaker_names(
         .unwrap_or_default();
 
     let mut spoken: Vec<(&str, u64)> = Vec::new();
-    // (new speaker, renamed speaker, milliseconds heard as both)
-    let mut overlaps: Vec<(&str, &Speaker, u64)> = Vec::new();
+    // (new speaker, edited speaker, milliseconds heard as both)
+    let mut overlaps: Vec<(&str, (&Speaker, bool), u64)> = Vec::new();
     for (start, end, id) in &new {
         match spoken.iter_mut().find(|(known, _)| known == id) {
             Some((_, total)) => *total += end.saturating_sub(*start),
@@ -691,12 +705,12 @@ pub(super) fn keep_speaker_names(
             if overlap == 0 {
                 continue;
             }
-            let Some(speaker) = renamed.iter().find(|speaker| speaker.id == *old_id) else {
+            let Some(&speaker) = edited.iter().find(|(speaker, _)| speaker.id == *old_id) else {
                 continue;
             };
             match overlaps
                 .iter_mut()
-                .find(|(new_id, old, _)| new_id == id && old.id == speaker.id)
+                .find(|(new_id, (old, _), _)| new_id == id && old.id == speaker.0.id)
             {
                 Some((_, _, total)) => *total += overlap,
                 None => overlaps.push((id, speaker, overlap)),
@@ -707,7 +721,7 @@ pub(super) fn keep_speaker_names(
 
     let mut named: Vec<&str> = Vec::new();
     let mut used: Vec<&str> = Vec::new();
-    for (new_id, old, overlap) in overlaps {
+    for (new_id, (old, named_by_user), overlap) in overlaps {
         let total = spoken
             .iter()
             .find(|(id, _)| *id == new_id)
@@ -718,7 +732,10 @@ pub(super) fn keep_speaker_names(
         named.push(new_id);
         used.push(&old.id);
         if let Some(speaker) = speakers.iter_mut().find(|speaker| speaker.id == new_id) {
-            speaker.name.clone_from(&old.name);
+            // A default name like "Speaker 2" would be wrong on another number.
+            if named_by_user {
+                speaker.name.clone_from(&old.name);
+            }
             speaker.color.clone_from(&old.color);
         }
     }

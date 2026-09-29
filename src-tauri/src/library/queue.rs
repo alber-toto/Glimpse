@@ -538,11 +538,12 @@ fn transcribe_library_item(
         if token.is_cancelled() {
             return Err(cancelled_error());
         }
-        if turns.is_some() {
+        let identity = speakers::single_track_identity(item);
+        if turns.is_some() || identity.is_some() {
             let mut labeled = speakers::label_tracks([Track {
                 result: &mut result,
                 turns,
-                identity: None,
+                identity,
             }]);
             if let Some(labeled) = labeled.as_mut() {
                 speakers::carry_live_speakers(item, &mut result, labeled);
