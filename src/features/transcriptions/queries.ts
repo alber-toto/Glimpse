@@ -16,7 +16,7 @@ import type {
 } from "../../types";
 
 type CompletePayload = { record?: TranscriptionRecord | null };
-type ErrorPayload = { stage: string };
+type ErrorPayload = { stage: string; id?: string };
 
 const PAGE_SIZE = 50;
 const FIRST_PAGE = [0];
@@ -226,14 +226,12 @@ export function useRetryTranscription(enabled: boolean = true) {
 }
 
 // Cleanup runs in the background; an id stays busy until its event arrives.
+// Listens while mounted, since a cleanup can finish before a lazy listener is ready.
 export function useRetryLlmCleanup() {
   const { t } = useLingui();
   const [cleaningIds, setCleaningIds] = useState<string[]>([]);
-  const listening = cleaningIds.length > 0;
 
   useEffect(() => {
-    if (!listening) return;
-
     let cancelled = false;
     const unlisteners: UnlistenFn[] = [];
 
@@ -248,7 +246,10 @@ export function useRetryLlmCleanup() {
 
     listen<ErrorPayload>("transcription:error", (event) => {
       if (cancelled || event.payload?.stage !== "llm_cleanup") return;
-      setCleaningIds([]);
+      const failedId = event.payload.id;
+      setCleaningIds((prev) =>
+        failedId ? prev.filter((entry) => entry !== failedId) : [],
+      );
       showErrorToast(
         t({
           id: "transcriptions.cleanup_retry_failed",
@@ -264,7 +265,7 @@ export function useRetryLlmCleanup() {
       cancelled = true;
       unlisteners.forEach((fn) => void Promise.resolve(fn()).catch(() => {}));
     };
-  }, [listening, t]);
+  }, [t]);
 
   const mutation = useMutation({
     mutationFn: transcriptionsApi.retryLlmCleanup,

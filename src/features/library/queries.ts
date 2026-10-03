@@ -58,6 +58,10 @@ function patchItemInCache(
       };
     },
   );
+  // An open item that left the filtered list is read from its own query.
+  queryClient.setQueryData<LibraryItem>(libraryKeys.item(id), (old) =>
+    old ? updater(old) : old,
+  );
   return found;
 }
 

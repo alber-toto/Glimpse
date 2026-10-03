@@ -114,6 +114,7 @@ pub(crate) fn retry_llm_cleanup(
                             TranscriptionErrorPayload {
                                 message: format!("Cleanup failed: {err}"),
                                 stage: "llm_cleanup".to_string(),
+                                id: Some(record_id.clone()),
                             },
                         );
                     }
@@ -127,6 +128,7 @@ pub(crate) fn retry_llm_cleanup(
                     TranscriptionErrorPayload {
                         message: format!("Cleanup failed: {message}"),
                         stage: "llm_cleanup".to_string(),
+                        id: Some(record_id.clone()),
                     },
                 );
             }

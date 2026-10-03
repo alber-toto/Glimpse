@@ -1035,7 +1035,7 @@ msgstr "Aggiornamento automatico"
 #. js-lingui-explicit-id
 #: src/features/settings/components/SpeechModelPanel.tsx
 msgid "settings.speech_model.model.automatic_default"
-msgstr ""
+msgstr "Automatico ({defaultModel})"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -3499,7 +3499,7 @@ msgstr "Modello (predefinito: {0})"
 #. js-lingui-explicit-id
 #: src/features/settings/components/SpeechModelPanel.tsx
 msgid "settings.speech_model.model.placeholder_default"
-msgstr ""
+msgstr "Modello (predefinito: {defaultModel})"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/ModelDownloadStatus.tsx

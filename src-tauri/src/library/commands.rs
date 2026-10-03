@@ -170,17 +170,11 @@ pub fn delete_library_item(
 
     match determine_delete_scope(&app, &item.audio_path) {
         LibraryDeleteScope::DeleteFile(path) => {
-            if path.exists() && !trashed(&path) {
-                fs::remove_file(&path)
-                    .map_err(|err| format!("Failed to delete library file: {err}"))?;
+            if path.exists() {
+                move_to_trash(&path)?;
             }
         }
-        LibraryDeleteScope::DeleteDirectory(path) => {
-            if !trashed(&path) {
-                crate::platform::remove_dir_all_compat(&path)
-                    .map_err(|err| format!("Failed to delete library files: {err}"))?;
-            }
-        }
+        LibraryDeleteScope::DeleteDirectory(path) => move_to_trash(&path)?,
         LibraryDeleteScope::SkipFilesystemDeletion => {}
     }
 
@@ -190,15 +184,11 @@ pub fn delete_library_item(
     Ok(())
 }
 
-// Falls back to deleting for good when the volume has no Trash.
-fn trashed(path: &Path) -> bool {
-    match crate::platform::move_to_trash(path) {
-        Ok(()) => true,
-        Err(err) => {
-            tracing::warn!("Couldn't move library files to the Trash, deleting them: {err}");
-            false
-        }
-    }
+// Never deletes for good: deleting promises the files can be restored, so a
+// failed move keeps the item and its files.
+fn move_to_trash(path: &Path) -> Result<(), String> {
+    crate::platform::move_to_trash(path)
+        .map_err(|err| format!("Couldn't move the audio to the Trash: {err}"))
 }
 
 #[tauri::command]

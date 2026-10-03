@@ -420,6 +420,7 @@ export function useSettingsForm({
   );
   const modelStatus = modelStatusesQuery.statusByModel;
   const appInfo = appInfoQuery.data ?? null;
+  const appInfoFailed = appInfoQuery.isError;
   const platformCapabilities = useMemo(() => getPlatformCapabilities(), []);
   const loading =
     isOpen &&
@@ -1940,6 +1941,7 @@ export function useSettingsForm({
     modelStatus,
     downloadState,
     appInfo,
+    appInfoFailed,
 
     captureActive,
     capturePreview,

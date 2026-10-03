@@ -174,6 +174,7 @@ const InlineHoldButton = ({
 type AboutTabProps = {
   variants: Variants;
   appInfo: AppInfo | null;
+  appInfoFailed: boolean;
   transcriptionMode: TranscriptionMode;
   cliInstallStatus: CliInstallStatus | null;
   cliInstallBusy: boolean;
@@ -188,6 +189,7 @@ type AboutTabProps = {
 const AboutTab = ({
   variants,
   appInfo,
+  appInfoFailed,
   transcriptionMode,
   cliInstallStatus,
   cliInstallBusy,
@@ -463,7 +465,10 @@ const AboutTab = ({
           </SectionLabel>
           <UpdateChecker
             onOpenWhatsNew={onOpenWhatsNew}
-            storeBuild={appInfo ? appInfo.store_build : undefined}
+            // Without app info the backend still refuses checks on store builds.
+            storeBuild={
+              appInfo ? appInfo.store_build : appInfoFailed ? false : undefined
+            }
           />
         </div>
         <div className="space-y-2">

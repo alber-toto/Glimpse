@@ -248,6 +248,7 @@ const SettingsScreen = ({
                 key="about"
                 variants={paneVariants}
                 appInfo={form.appInfo}
+                appInfoFailed={form.appInfoFailed}
                 transcriptionMode={form.transcriptionMode}
                 cliInstallStatus={form.cliInstallStatus}
                 cliInstallBusy={form.cliInstallBusy}
