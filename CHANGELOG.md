@@ -1,3 +1,22 @@
+1.3.1
+
+### Improvements
+
+- Deleting a Library item moves its audio to the Trash (Recycle Bin on Windows), so you can get it back.
+- Deleting from the Library list now asks first, and Retranscribe from the list lets you pick the model before it replaces the transcript.
+- When something fails, like a rename, a retry or a toast button, Glimpse now tells you instead of doing nothing.
+
+### Fixes
+
+- Pressing Esc closes only the open menu or dialog, instead of also closing Settings or the Library item behind it.
+- An open Library item stays open when it no longer matches your search or filter.
+- The Library's Active filter now includes queued and importing items.
+- Typing capital letters no longer turns delete buttons red.
+- A microphone picked during setup is now saved.
+- Retrying cleanup on a dictation keeps showing progress until it finishes.
+- The Settings error banner and the ask on Home no longer push the page around.
+- More of Glimpse is translated, including key names, dates in What's New, and error messages.
+
 1.3.0
 
 ### New Features
