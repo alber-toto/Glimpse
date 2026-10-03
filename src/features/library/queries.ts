@@ -58,10 +58,12 @@ function patchItemInCache(
       };
     },
   );
-  // An open item that left the filtered list is read from its own query.
-  queryClient.setQueryData<LibraryItem>(libraryKeys.item(id), (old) =>
-    old ? updater(old) : old,
-  );
+  // An open item that left the filtered list reads its own query, which may
+  // already hold the saved transcript, so refetch it instead of appending.
+  void queryClient.invalidateQueries({
+    queryKey: libraryKeys.item(id),
+    exact: true,
+  });
   return found;
 }
 

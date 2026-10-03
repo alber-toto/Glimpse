@@ -156,7 +156,7 @@ pub fn delete_library_item(
     app: AppHandle<AppRuntime>,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    state.remove_library_job(&id);
+    let was_queued = state.remove_library_job(&id);
     state.cancel_library_transcription(&id);
     release_library_slot(&app, &state, &id);
 
@@ -168,14 +168,26 @@ pub fn delete_library_item(
         return Ok(());
     };
 
-    match determine_delete_scope(&app, &item.audio_path) {
-        LibraryDeleteScope::DeleteFile(path) => {
-            if path.exists() {
-                move_to_trash(&path)?;
-            }
+    let trashed = match determine_delete_scope(&app, &item.audio_path) {
+        LibraryDeleteScope::DeleteFile(path) if path.exists() => move_to_trash(&path),
+        LibraryDeleteScope::DeleteDirectory(path) => move_to_trash(&path),
+        _ => Ok(()),
+    };
+    if let Err(err) = trashed {
+        // The item stays; a job it lost from the queue shows as cancelled, like
+        // the Cancel button. An active job reports its own cancellation.
+        if was_queued {
+            set_library_status(&storage, &id, LibraryItemStatus::Cancelled);
+            let _ = app.emit(
+                EVENT_LIBRARY_ERROR,
+                LibraryErrorPayload {
+                    id: id.clone(),
+                    message: "Transcription cancelled".to_string(),
+                    cancelled: true,
+                },
+            );
         }
-        LibraryDeleteScope::DeleteDirectory(path) => move_to_trash(&path)?,
-        LibraryDeleteScope::SkipFilesystemDeletion => {}
+        return Err(err);
     }
 
     storage
