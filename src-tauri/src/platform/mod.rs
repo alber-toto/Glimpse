@@ -180,12 +180,12 @@ pub fn move_to_trash(path: &Path) -> io::Result<()> {
 /// Moves a file or folder to the Trash (Recycle Bin on Windows).
 #[cfg(target_os = "windows")]
 pub fn move_to_trash(path: &Path) -> io::Result<()> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::Win32::UI::Shell::{
+    use ::windows::Win32::UI::Shell::{
         FO_DELETE, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_NOERRORUI, FOF_SILENT, SHFILEOPSTRUCTW,
         SHFileOperationW,
     };
-    use windows::core::PCWSTR;
+    use ::windows::core::PCWSTR;
+    use std::os::windows::ffi::OsStrExt;
 
     // pFrom is a list of paths, so it ends with two nulls.
     let from: Vec<u16> = path.as_os_str().encode_wide().chain([0, 0]).collect();
