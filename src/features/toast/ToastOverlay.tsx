@@ -16,6 +16,15 @@ const WINDOW_INSET_X = 8;
 const WINDOW_INSET_TOP = 16;
 const WINDOW_INSET_BOTTOM = 24;
 
+const DURATIONS: Record<ToastType, number> = {
+  error: 18000,
+  info: 3000,
+  success: 2000,
+  warning: 5000,
+  update: 0,
+  celebration: 6000,
+};
+
 const COLORS: Record<ToastType, { border: string; dot: string }> = {
   error: { border: "border-red-500/40", dot: "bg-red-500" },
   info: { border: "border-blue-500/30", dot: "bg-blue-400" },
@@ -215,6 +224,9 @@ const ToastOverlay: React.FC = () => {
       if (action !== "copy_last_transcription") dismissWithCleanup();
     } catch (err) {
       console.error("Action failed:", err);
+      // The error gets its own full display time, not the old toast's deadline.
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(dismiss, DURATIONS.error);
       setToast((prev) =>
         prev
           ? {
@@ -252,16 +264,8 @@ const ToastOverlay: React.FC = () => {
       setIsRetrying(false);
       resetCopied();
 
-      const durations: Record<ToastType, number> = {
-        error: 18000,
-        info: 3000,
-        success: 2000,
-        warning: 5000,
-        update: 0,
-        celebration: 6000,
-      };
       const autoDismiss = ev.payload.autoDismiss !== false;
-      const dur = ev.payload.duration ?? durations[ev.payload.type];
+      const dur = ev.payload.duration ?? DURATIONS[ev.payload.type];
       if (dur > 0 && autoDismiss) {
         timerRef.current = setTimeout(dismiss, dur);
       }

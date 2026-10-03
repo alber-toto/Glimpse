@@ -336,6 +336,7 @@ const LibraryView = ({
   const saveTags = async (itemId: string, tags: string[]) => {
     try {
       await updateItemWithTags(itemId, { tags });
+      return true;
     } catch (err) {
       console.error("Failed to save library tags:", err);
       showErrorToast(
@@ -344,6 +345,7 @@ const LibraryView = ({
           message: "Couldn't save the tags.",
         }),
       );
+      return false;
     }
   };
 
@@ -366,7 +368,8 @@ const LibraryView = ({
       setEditingTagId(null);
       return;
     }
-    await saveTags(itemId, [...item.tags, nextTag]);
+    // A failed save keeps the editor open with what was typed.
+    if (!(await saveTags(itemId, [...item.tags, nextTag]))) return;
     setTagDraft("");
     setEditingTagId(null);
   };
@@ -630,12 +633,12 @@ const LibraryView = ({
                       item={item}
                       layout={layout}
                       onOpen={() => setSelectedItemId(item.id)}
-                      onRemoveTag={(tag) =>
-                        saveTags(
+                      onRemoveTag={async (tag) => {
+                        await saveTags(
                           item.id,
                           item.tags.filter((entry) => entry !== tag),
-                        )
-                      }
+                        );
+                      }}
                       onClickTag={(tag) => setSearchQuery(`#${tag}`)}
                       editingNameId={editingNameId}
                       editingNameDraft={editingNameDraft}
