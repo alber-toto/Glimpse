@@ -1800,6 +1800,11 @@ msgid "settings.error.writing_models_failed"
 msgstr ""
 
 #. js-lingui-explicit-id
+#: src/features/library/components/library-utils.ts
+msgid "library.delete_error.trash_failed"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/recording/components/RecordingView.tsx
 msgid "record.live_failed"
 msgstr ""
@@ -4489,11 +4494,6 @@ msgid "settings.about.data.delete_all_description"
 msgstr "يحذف التسجيلات والنصوص والنماذج والإعدادات، ثم يُغلق التطبيق"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.rename"
-msgstr ""
-
-#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalizationView.tsx
 msgid "personalization.mode.rename"
 msgstr "إعادة تسمية"
@@ -4502,6 +4502,11 @@ msgstr "إعادة تسمية"
 #: src/features/library/components/LibraryCard.tsx
 msgid "library.card.rename"
 msgstr "إعادة تسمية"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.rename"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -4760,14 +4765,14 @@ msgid "settings.stats.share.save"
 msgstr "حفظ"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.rename_save"
-msgstr ""
-
-#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
 msgid "personalization.modal.save_name"
 msgstr "حفظ الاسم"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.rename_save"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/recording/components/RecordingView.tsx

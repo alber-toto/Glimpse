@@ -1800,6 +1800,11 @@ msgid "settings.error.writing_models_failed"
 msgstr "Couldn't load writing models: {detail}"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/library-utils.ts
+msgid "library.delete_error.trash_failed"
+msgstr "Couldn't move the audio to the Trash or Recycle Bin, so nothing was deleted."
+
+#. js-lingui-explicit-id
 #: src/features/recording/components/RecordingView.tsx
 msgid "record.live_failed"
 msgstr "Couldn't open the live view."
@@ -4489,11 +4494,6 @@ msgid "settings.about.data.delete_all_description"
 msgstr "Removes recordings, transcripts, models, and settings, then quits"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.rename"
-msgstr "Rename"
-
-#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalizationView.tsx
 msgid "personalization.mode.rename"
 msgstr "Rename"
@@ -4501,6 +4501,11 @@ msgstr "Rename"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryCard.tsx
 msgid "library.card.rename"
+msgstr "Rename"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.rename"
 msgstr "Rename"
 
 #. js-lingui-explicit-id
@@ -4760,13 +4765,13 @@ msgid "settings.stats.share.save"
 msgstr "Save"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.rename_save"
+#: src/features/personalization/components/PersonalityModal.tsx
+msgid "personalization.modal.save_name"
 msgstr "Save name"
 
 #. js-lingui-explicit-id
-#: src/features/personalization/components/PersonalityModal.tsx
-msgid "personalization.modal.save_name"
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.rename_save"
 msgstr "Save name"
 
 #. js-lingui-explicit-id
