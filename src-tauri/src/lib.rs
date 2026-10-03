@@ -1218,6 +1218,16 @@ impl AppState {
         }
     }
 
+    pub(crate) fn library_job_pending(&self, id: &str) -> bool {
+        self.library_tokens.lock().contains_key(id)
+            || self.library_active.lock().as_deref() == Some(id)
+            || self
+                .library_queue
+                .lock()
+                .iter()
+                .any(|queued| queued.id == id)
+    }
+
     pub fn remove_library_job(&self, id: &str) -> bool {
         let mut queue = self.library_queue.lock();
         let before = queue.len();

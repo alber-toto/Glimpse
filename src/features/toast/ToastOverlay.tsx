@@ -93,6 +93,8 @@ const ToastOverlay: React.FC = () => {
     null,
   );
   const toastRef = useRef<ToastState | null>(null);
+  // Bumped per shown toast, so a slow action can't touch a newer one.
+  const toastGenerationRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -211,6 +213,7 @@ const ToastOverlay: React.FC = () => {
   };
 
   const handleToastAction = async (action: string) => {
+    const generation = toastGenerationRef.current;
     try {
       const args =
         toast?.retryId &&
@@ -221,9 +224,15 @@ const ToastOverlay: React.FC = () => {
       await invoke(action, args);
       // copy_last_transcription replaces this toast with its own "Copied" toast,
       // so dismissing here would race and hide that confirmation.
-      if (action !== "copy_last_transcription") dismissWithCleanup();
+      if (
+        action !== "copy_last_transcription" &&
+        generation === toastGenerationRef.current
+      ) {
+        dismissWithCleanup();
+      }
     } catch (err) {
       console.error("Action failed:", err);
+      if (generation !== toastGenerationRef.current) return;
       // The error gets its own full display time, not the old toast's deadline.
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(dismiss, DURATIONS.error);
@@ -260,6 +269,7 @@ const ToastOverlay: React.FC = () => {
         clearTimeout(dismissAnimationTimerRef.current);
         dismissAnimationTimerRef.current = null;
       }
+      toastGenerationRef.current += 1;
       setToast({ ...ev.payload, isLeaving: false });
       setIsRetrying(false);
       resetCopied();

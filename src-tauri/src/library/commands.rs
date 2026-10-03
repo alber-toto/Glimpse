@@ -175,8 +175,9 @@ pub fn delete_library_item(
     };
     if let Err(err) = trashed {
         // The item stays; a job it lost from the queue shows as cancelled, like
-        // the Cancel button. An active job reports its own cancellation.
-        if was_queued {
+        // the Cancel button, unless a retry has queued it again meanwhile. An
+        // active job reports its own cancellation.
+        if was_queued && !state.library_job_pending(&id) {
             set_library_status(&storage, &id, LibraryItemStatus::Cancelled);
             let _ = app.emit(
                 EVENT_LIBRARY_ERROR,
