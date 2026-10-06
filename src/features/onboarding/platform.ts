@@ -7,7 +7,14 @@ import type { AppPlatformId } from "../../shared/lib/platform";
 type OnboardingPlatformId = AppPlatformId;
 
 export type OnboardingStep =
-  "welcome" | "model" | "import" | "permissions" | "done" | "practice";
+  | "welcome"
+  | "model"
+  | "import"
+  | "source"
+  | "permissions"
+  | "license"
+  | "done"
+  | "practice";
 
 export type OnboardingPlatform = {
   id: OnboardingPlatformId;

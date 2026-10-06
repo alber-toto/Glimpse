@@ -5,8 +5,6 @@ use std::collections::HashSet;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
-pub use icons::{InstalledApp, WebsiteIcon};
-
 use crate::settings::Personality;
 use crate::{AppRuntime, AppState, EVENT_SETTINGS_CHANGED};
 
@@ -125,6 +123,7 @@ pub fn set_personalities(
 ) -> Result<Vec<Personality>, String> {
     let cleaned = sanitize_personalities(&personalities);
     let mut settings = state.current_settings();
+    let previous_custom = custom_count(&settings.personalities);
     settings.personalities = cleaned.clone();
     let saved = state
         .persist_settings(settings)
@@ -133,19 +132,17 @@ pub fn set_personalities(
     if let Err(err) = app.emit(EVENT_SETTINGS_CHANGED, &saved) {
         tracing::error!("Failed to emit settings change: {err}");
     }
+    let custom = custom_count(&cleaned);
+    if custom != previous_custom {
+        crate::analytics::track_personalities_changed(&app, custom);
+    }
 
     Ok(cleaned)
 }
 
-#[tauri::command]
-pub fn list_installed_apps(app: AppHandle<AppRuntime>) -> Result<Vec<InstalledApp>, String> {
-    icons::list_installed_apps(app)
-}
-
-#[tauri::command]
-pub fn list_website_icons(
-    sites: Vec<String>,
-    app: AppHandle<AppRuntime>,
-) -> Result<Vec<WebsiteIcon>, String> {
-    icons::list_website_icons(sites, app)
+fn custom_count(personalities: &[Personality]) -> usize {
+    personalities
+        .iter()
+        .filter(|personality| crate::analytics::personality_label(Some(personality)) == "custom")
+        .count()
 }

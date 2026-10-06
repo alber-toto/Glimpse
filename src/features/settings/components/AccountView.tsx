@@ -7,22 +7,19 @@ import {
 import { useEffect, useRef, useState } from "react";
 import CustomerPortalLink from "../../license/components/CustomerPortalLink";
 import MemberCard from "../../license/components/MemberCard";
-import { looksLikeDiscountCode } from "../../license/licenseKeyShape";
+import { classifyActivationInput } from "../../license/licenseKeyShape";
 import type { LicenseState } from "../../license/api";
-import type { PurchaseTier } from "../../license/purchaseConfig";
-
-type AccountOpeningTarget = PurchaseTier | null;
-
 type AccountViewProps = {
   licenseState: LicenseState | null;
   licenseLoading: boolean;
   activating: boolean;
   deactivating: boolean;
-  openingTarget: AccountOpeningTarget;
+  opening: boolean;
   openError: string | null;
   activationError: string | null;
   deactivationError: string | null;
-  onOpenCheckout: (tier: PurchaseTier) => void;
+  checkoutReturned: boolean;
+  onOpenCheckout: () => void;
   onActivateLicense: (key: string) => void;
   onDeactivateLicense: () => void;
 };
@@ -37,10 +34,11 @@ const AccountView = ({
   licenseLoading,
   activating,
   deactivating,
-  openingTarget,
+  opening,
   openError,
   activationError,
   deactivationError,
+  checkoutReturned,
   onOpenCheckout,
   onActivateLicense,
   onDeactivateLicense,
@@ -53,6 +51,7 @@ const AccountView = ({
   const confirmTimeoutRef = useRef<number | null>(null);
 
   const isActive = licenseState?.status === "active";
+  const isUnverified = licenseState?.status === "unverified";
   const isTrialing = !isActive && (licenseState?.trialActive ?? false);
   const renewsAt =
     isActive && licenseState?.expiresAt
@@ -77,14 +76,39 @@ const AccountView = ({
     onActivateLicense(trimmedKey);
   };
 
-  const activationErrorText =
-    activationError && looksLikeDiscountCode(attemptedKey)
-      ? t({
+  const activationErrorText = (() => {
+    if (!activationError) return null;
+    switch (classifyActivationInput(attemptedKey)) {
+      case "order_id":
+        return t({
+          id: "settings.account.activate.order_id_error_generic",
+          message:
+            "That is your order number. Paste the license key from the same email.",
+        });
+      case "masked_key":
+        return t({
+          id: "settings.account.activate.masked_key_error_generic",
+          message:
+            "That is the shortened key. Copy the full one from your receipt email.",
+        });
+      case "discount_code":
+        return t({
           id: "settings.account.activate.discount_code_error",
           message:
             "That looks like a discount code. Enter it at checkout, then paste the license key from your receipt.",
-        })
-      : activationError;
+        });
+      default:
+        return activationError;
+    }
+  })();
+
+  const activationHintText = checkoutReturned
+    ? t({
+        id: "settings.account.activate.checkout_return_hint_generic",
+        message:
+          "Your license key is in your receipt email. Paste it here, or paste the whole email.",
+      })
+    : null;
 
   const handleDeactivateClick = () => {
     if (confirmDeactivate) {
@@ -115,6 +139,13 @@ const AccountView = ({
   const trialEndsAt = licenseState?.trialEndsAt ?? null;
   const trialStatusText = (() => {
     if (licenseLoading) return "\u00a0";
+
+    if (isUnverified) {
+      return t({
+        id: "settings.account.license.unverified",
+        message: "Reconnect to the internet to verify your license.",
+      });
+    }
 
     if (isTrialing) {
       if (trialDaysRemaining === 1) {
@@ -150,8 +181,7 @@ const AccountView = ({
           activationAttempt={activationAttempt}
           licenseLoading={licenseLoading}
           licenseState={licenseState}
-          openingTarget={openingTarget}
-          checkoutDisabled={openingTarget !== null}
+          opening={opening}
           onOpenCheckout={onOpenCheckout}
         />
 
@@ -164,7 +194,7 @@ const AccountView = ({
                 </p>
               ) : null}
               <CustomerPortalLink
-                source="settings_account"
+                provider={licenseState?.provider}
                 className={portalLinkClassName}
               />
             </div>
@@ -230,12 +260,7 @@ const AccountView = ({
                 })}
               </button>
             )
-          ) : (
-            <CustomerPortalLink
-              source="settings_account"
-              className={portalLinkClassName}
-            />
-          )}
+          ) : null}
         </div>
 
         {deactivationError ? (
@@ -264,6 +289,7 @@ const AccountView = ({
             className="mt-3 flex items-center gap-2 border-b border-border-secondary transition-colors focus-within:border-content-primary"
           >
             <input
+              autoFocus={checkoutReturned}
               value={licenseKey}
               onChange={(event) => setLicenseKey(event.target.value)}
               placeholder={t({
@@ -274,7 +300,7 @@ const AccountView = ({
                 id: "settings.account.activate.input_aria",
                 message: "Activation code",
               })}
-              className="min-w-0 flex-1 bg-transparent px-0.5 py-2 font-mono ui-text-body-sm ui-color-primary placeholder-content-disabled outline-none"
+              className="min-w-0 flex-1 bg-transparent px-0.5 py-1.5 font-mono ui-text-body-sm leading-normal ui-color-primary placeholder-content-disabled outline-none"
             />
             <button
               type="submit"
@@ -291,8 +317,10 @@ const AccountView = ({
               {!activating && <ArrowRight size={12} aria-hidden="true" />}
             </button>
           </form>
-          <p className="mt-2 min-h-10 ui-text-meta text-error text-pretty">
-            {activationErrorText}
+          <p
+            className={`mt-2 min-h-10 ui-text-meta text-pretty ${activationErrorText ? "text-error" : "ui-color-muted"}`}
+          >
+            {activationErrorText ?? activationHintText}
           </p>
         </section>
       )}

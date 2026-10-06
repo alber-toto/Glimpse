@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -40,6 +41,7 @@ pub(super) fn start(
             let run_loop = CFRunLoop::get_current();
             let reenable_tap = Arc::new(AtomicBool::new(false));
             let request_reenable = Arc::clone(&reenable_tap);
+            let swallowed_modifiers = Cell::new(Modifiers::empty());
             let options = if has_blocking_hotkeys {
                 CGEventTapOptions::Default
             } else {
@@ -66,12 +68,14 @@ pub(super) fn start(
                         &keyboard_tx,
                         &keyboard_blocking_hotkeys,
                         has_blocking_hotkeys,
+                        &swallowed_modifiers,
                         &request_reenable,
                     )
                 },
             ) {
                 Ok(event_tap) => event_tap,
                 Err(_) => {
+                    crate::analytics::track_shortcut_failed("event_tap", "unknown");
                     let _ = ready_tx.send(Err(
                         "Failed to create macOS event tap for global shortcuts".to_string(),
                     ));
@@ -150,6 +154,7 @@ fn handle_event(
     tx: &Sender<KeyEvent>,
     blocking_hotkeys: &BlockingHotkeys,
     can_block: bool,
+    swallowed_modifiers: &Cell<Modifiers>,
     reenable_tap: &AtomicBool,
 ) -> CallbackResult {
     let key_event = match event_type {
@@ -159,8 +164,16 @@ fn handle_event(
         CGEventType::OtherMouseDown => mouse_event(event, true),
         CGEventType::OtherMouseUp => mouse_event(event, false),
         CGEventType::TapDisabledByTimeout | CGEventType::TapDisabledByUserInput => {
+            let reason = if matches!(event_type, CGEventType::TapDisabledByTimeout) {
+                "timeout"
+            } else {
+                "user_input"
+            };
+            crate::analytics::track_shortcut_failed("event_tap_disabled", reason);
             reenable_tap.store(true, Ordering::Release);
+            swallowed_modifiers.set(Modifiers::empty());
             Some(KeyEvent {
+                occurred_at: std::time::Instant::now(),
                 modifiers: Modifiers::empty(),
                 key: None,
                 is_key_down: false,
@@ -175,7 +188,17 @@ fn handle_event(
         return CallbackResult::Keep;
     };
 
-    let should_block = can_block && should_block_event(blocking_hotkeys, &key_event);
+    let should_block =
+        can_block && should_block_event(blocking_hotkeys, swallowed_modifiers.get(), &key_event);
+    if let Some(modifier) = key_event.changed_modifier {
+        let mut swallowed = swallowed_modifiers.get();
+        if key_event.is_key_down && should_block {
+            swallowed.insert(modifier);
+        } else if !key_event.is_key_down {
+            swallowed.remove(modifier);
+        }
+        swallowed_modifiers.set(swallowed);
+    }
     if should_forward_event(blocking_hotkeys, &key_event) {
         let _ = tx.try_send(key_event);
     }
@@ -206,6 +229,7 @@ impl DictationKeyListener {
             let sender = unsafe { &*context.cast::<Sender<KeyEvent>>() };
             let _ = sender.try_send(KeyEvent {
                 modifiers: Modifiers::empty(),
+                occurred_at: std::time::Instant::now(),
                 key: Some(Key::Dictation),
                 is_key_down: state == 1,
                 changed_modifier: None,
@@ -250,6 +274,7 @@ fn key_event(event: &CGEvent, is_key_down: bool) -> Option<KeyEvent> {
     }
 
     Some(KeyEvent {
+        occurred_at: std::time::Instant::now(),
         modifiers,
         key: Some(key),
         is_key_down,
@@ -268,6 +293,7 @@ fn mouse_event(event: &CGEvent, is_key_down: bool) -> Option<KeyEvent> {
     };
 
     Some(KeyEvent {
+        occurred_at: std::time::Instant::now(),
         modifiers: modifiers_from_flags(event.get_flags(), None),
         key: Some(key),
         is_key_down,
@@ -282,6 +308,7 @@ fn flags_changed_event(event: &CGEvent) -> Option<KeyEvent> {
 
     if let Some(key) = lock_key_from_keycode(key_code) {
         return Some(KeyEvent {
+            occurred_at: std::time::Instant::now(),
             modifiers: modifiers_from_flags(flags, None),
             key: Some(key),
             is_key_down: flags.contains(CGEventFlags::CGEventFlagAlphaShift),
@@ -294,6 +321,7 @@ fn flags_changed_event(event: &CGEvent) -> Option<KeyEvent> {
     let modifiers = modifiers_from_flags(flags, Some(changed_modifier));
 
     Some(KeyEvent {
+        occurred_at: std::time::Instant::now(),
         modifiers,
         key: None,
         is_key_down: modifiers.contains(changed_modifier),

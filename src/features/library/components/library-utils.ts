@@ -1,5 +1,6 @@
 import { msg } from "@lingui/core/macro";
 import { i18n } from "../../../i18n";
+import type { AudioSources } from "../../../types";
 
 export const SUPPORTED_EXTENSIONS = [
   "wav",
@@ -112,9 +113,9 @@ export const formatImportErrorMessage = (rawMessage: string) => {
   if (lower.includes("selected model is not installed")) {
     return i18n._(
       msg({
-        id: "library.import_error.model_not_installed",
+        id: "library.import_error.model_missing",
         message:
-          "Selected model isn't installed. Download one in Settings -> Models.",
+          "The selected model isn't installed. Download one in Settings > Models.",
       }),
     );
   }
@@ -250,6 +251,16 @@ export const formatDeleteErrorMessage = (rawMessage: string) => {
       msg({
         id: "library.delete_error.invalid_path",
         message: "Couldn't delete this item due to an invalid file path.",
+      }),
+    );
+  }
+
+  if (lower.includes("move the audio to the trash")) {
+    return i18n._(
+      msg({
+        id: "library.delete_error.trash_failed",
+        message:
+          "Couldn't move the audio to the Trash or Recycle Bin, so nothing was deleted.",
       }),
     );
   }
@@ -403,4 +414,22 @@ export const getLibraryErrorDetails = (rawMessage: string) => {
   }
 
   return { message, showFfmpegHelp: false };
+};
+
+// "Zoom, Chrome + Microphone" / "System Audio + Microphone" / "Microphone".
+export const describeAudioSources = (
+  sources: AudioSources | null | undefined,
+  labels: { microphone: string; systemAudio: string },
+) => {
+  if (!sources) return null;
+  const parts: string[] = [];
+  if (sources.system_audio) {
+    parts.push(
+      sources.system_audio.length > 0
+        ? sources.system_audio.join(", ")
+        : labels.systemAudio,
+    );
+  }
+  if (sources.microphone) parts.push(labels.microphone);
+  return parts.length > 0 ? parts.join(" + ") : null;
 };

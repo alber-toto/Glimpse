@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, BufWriter, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -23,7 +23,7 @@ use crate::{AppRuntime, AppState, model_manager, storage::StorageManager};
 use super::types::{
     EVENT_LIBRARY_IMPORT_PROGRESS, ExportFormat, LibraryImportOptions,
     LibraryImportProgressPayload, LibraryItem, LibraryItemPatch, LibraryItemStatus,
-    SUPPORTED_AUDIO_FORMATS, SUPPORTED_VIDEO_FORMATS, Speaker, TARGET_SAMPLE_RATE,
+    RecordingOutput, SUPPORTED_AUDIO_FORMATS, SUPPORTED_VIDEO_FORMATS, Speaker, TARGET_SAMPLE_RATE,
     TranscriptSegment, cancelled_error, is_cancelled_error,
 };
 
@@ -70,8 +70,10 @@ pub(crate) fn create_item_from_path(
     } else {
         options.show_timestamps && model_supports_timestamps(&options.model_key)
     };
-    let detect_speakers =
-        options.detect_speakers && (remote_selection || crate::diarization::is_installed(app));
+    let detect_speakers = options.detect_speakers
+        && (remote_selection
+            || crate::speech::installed_diarizer_path(app).is_some()
+            || crate::diarization::is_installed(app));
 
     let item = LibraryItem {
         id,
@@ -81,6 +83,7 @@ pub(crate) fn create_item_from_path(
         store_original: options.store_original,
         status: LibraryItemStatus::Pending,
         transcript: None,
+        transcript_edited: false,
         segments: None,
         words: None,
         duration_seconds: 0.0,
@@ -95,10 +98,129 @@ pub(crate) fn create_item_from_path(
         detect_speakers,
         kind: crate::library::default_item_kind(),
         speakers: None,
+        secondary_audio_path: None,
+        sources: None,
+        bookmarks: None,
     };
 
     storage.insert_library_item(item.clone())?;
     Ok(item)
+}
+
+/// Moves a finished recording's tracks into the library and inserts the item.
+/// The microphone track is primary; system audio becomes the second track
+/// when both were captured, so the two sides get their own speaker.
+pub(crate) fn create_recording_item(
+    app: &AppHandle<AppRuntime>,
+    storage: Arc<StorageManager>,
+    model_key: &str,
+    output: RecordingOutput,
+) -> Result<LibraryItem> {
+    let id = Uuid::new_v4().to_string();
+    let item_dir = library_root(app)?.join(build_folder_name(&output.name, &id));
+    fs::create_dir_all(&item_dir)
+        .with_context(|| format!("Failed to create library folder at {}", item_dir.display()))?;
+
+    let from_microphone = output.microphone_path.is_some();
+    let (primary, secondary) = match (output.microphone_path, output.system_path) {
+        (Some(mic), system) => (mic, system),
+        (None, Some(system)) => (system, None),
+        (None, None) => return Err(anyhow!("Recording has no audio tracks")),
+    };
+    let audio_path = item_dir.join(format!("{id}.wav"));
+    let secondary_audio_path = secondary
+        .as_ref()
+        .map(|_| item_dir.join(format!("{id}-system.wav")));
+    let file_size_bytes = [Some(&primary), secondary.as_ref()]
+        .into_iter()
+        .flatten()
+        .filter_map(|path| fs::metadata(path).ok())
+        .map(|meta| meta.len())
+        .sum();
+
+    let remote_selection = crate::remote_speech::is_remote_model(model_key);
+    let show_timestamps = remote_selection || model_supports_timestamps(model_key);
+    // Names and colors given to You and Others during the recording carry over.
+    let edited = |speaker: &Speaker| {
+        output
+            .live
+            .speakers
+            .iter()
+            .find(|edited| edited.id == speaker.id)
+            .cloned()
+    };
+    let [you, others] = super::speakers::recording_speakers();
+    let speakers = if secondary_audio_path.is_some() {
+        Some(vec![
+            edited(&you).unwrap_or(you),
+            edited(&others).unwrap_or(others),
+        ])
+    } else if from_microphone {
+        // A microphone-only recording gets a You speaker only when it was edited.
+        edited(&you).map(|you| vec![you])
+    } else {
+        None
+    };
+
+    let item = LibraryItem {
+        id,
+        name: output.name,
+        audio_path: audio_path.display().to_string(),
+        source_path: String::new(),
+        store_original: false,
+        status: LibraryItemStatus::Pending,
+        transcript: None,
+        transcript_edited: false,
+        segments: None,
+        words: None,
+        duration_seconds: output.duration_seconds,
+        file_size_bytes,
+        original_format: "wav".to_string(),
+        created_at: output.started_at.with_timezone(&Utc).to_rfc3339(),
+        transcribed_at: None,
+        tags: Vec::new(),
+        llm_cleanup_enabled: false,
+        speech_model: model_key.to_string(),
+        show_timestamps,
+        detect_speakers: crate::speech::installed_diarizer_path(app).is_some(),
+        kind: "recording".to_string(),
+        speakers,
+        secondary_audio_path: secondary_audio_path
+            .as_ref()
+            .map(|path| path.display().to_string()),
+        sources: Some(output.sources),
+        bookmarks: Some(output.bookmarks),
+    };
+
+    let tracks = [
+        Some((&primary, &audio_path)),
+        secondary.as_ref().zip(secondary_audio_path.as_ref()),
+    ];
+    let stored = tracks
+        .iter()
+        .flatten()
+        .try_for_each(|(from, to)| move_file(from, to))
+        .and_then(|_| storage.insert_library_item(item.clone()));
+    if let Err(err) = stored {
+        // The session directory stays recoverable on the next launch.
+        for (from, to) in tracks.iter().flatten() {
+            let _ = move_file(to, from);
+        }
+        let _ = fs::remove_dir_all(&item_dir);
+        return Err(err);
+    }
+    super::speakers::save_live_hints(&item.id, &audio_path, &output.live);
+    Ok(item)
+}
+
+fn move_file(from: &Path, to: &Path) -> Result<()> {
+    if fs::rename(from, to).is_ok() {
+        return Ok(());
+    }
+    fs::copy(from, to)
+        .with_context(|| format!("Failed to move {} to {}", from.display(), to.display()))?;
+    let _ = fs::remove_file(from);
+    Ok(())
 }
 
 pub(crate) fn convert_library_item(
@@ -149,7 +271,7 @@ pub(crate) fn convert_library_item(
             let source_size = fs::metadata(source_path)
                 .with_context(|| format!("Failed to read file size for {}", source_path.display()))?
                 .len();
-            let available = fs2::available_space(item_dir).with_context(|| {
+            let available = crate::platform::available_space(item_dir).with_context(|| {
                 format!(
                     "Failed to read available disk space for {}",
                     item_dir.display()
@@ -498,6 +620,77 @@ pub(crate) fn read_wav_info(path: &Path) -> Result<WavInfo> {
     })
 }
 
+// About -66 dBFS: digital silence or a noise floor with nothing to transcribe.
+const SILENT_PEAK: i32 = 16;
+
+/// Whether a 16-bit WAV never rises above near silence. Stops at the first
+/// louder sample, so only a silent file is read to the end.
+pub(crate) fn wav_is_silent(path: &Path) -> Result<bool> {
+    let file = fs::File::open(path)
+        .with_context(|| format!("Failed to open WAV file at {}", path.display()))?;
+    let mut reader = hound::WavReader::new(BufReader::new(file))
+        .map_err(|err| anyhow!("WAV read error: {err}"))?;
+    let spec = reader.spec();
+    if spec.sample_format != hound::SampleFormat::Int || spec.bits_per_sample != 16 {
+        return Ok(false);
+    }
+    for sample in reader.samples::<i16>() {
+        let sample = sample.map_err(|err| anyhow!("WAV read error: {err}"))?;
+        if i32::from(sample).abs() > SILENT_PEAK {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+/// Decodes a 16-bit WAV to mono at `out_rate`, resampling as it reads so
+/// the full-rate audio is never held in memory.
+pub(crate) fn read_wav_resampled(path: &Path, out_rate: u32) -> Result<Vec<i16>> {
+    let file = fs::File::open(path)
+        .with_context(|| format!("Failed to open WAV file at {}", path.display()))?;
+    let reader = hound::WavReader::new(BufReader::new(file))
+        .map_err(|err| anyhow!("WAV read error: {err}"))?;
+    let spec = reader.spec();
+    if spec.sample_format != hound::SampleFormat::Int || spec.bits_per_sample != 16 {
+        return Err(anyhow!("Unsupported WAV sample format"));
+    }
+    if spec.sample_rate == 0 || out_rate == 0 {
+        return Err(anyhow!("Invalid sample rate"));
+    }
+    let channels = spec.channels.max(1) as usize;
+    let frames = reader.duration() as u64;
+    let step = f64::from(spec.sample_rate) / f64::from(out_rate);
+    let mut output = Vec::with_capacity((frames as f64 / step).ceil() as usize);
+
+    // Linear interpolation, matching what the diarizer does to the full-rate audio.
+    let mut position = 0.0_f64;
+    let mut previous = 0.0_f64;
+    let mut index = 0_u64;
+    let mut frame_sum = 0_i32;
+    let mut in_frame = 0;
+    for sample in reader.into_samples::<i16>() {
+        frame_sum += i32::from(sample.map_err(|err| anyhow!("WAV read error: {err}"))?);
+        in_frame += 1;
+        if in_frame < channels {
+            continue;
+        }
+        let current = f64::from(frame_sum) / channels as f64;
+        (frame_sum, in_frame) = (0, 0);
+        while position < index as f64 {
+            let fraction = position - (index - 1) as f64;
+            output.push((previous + (current - previous) * fraction).round() as i16);
+            position += step;
+        }
+        previous = current;
+        index += 1;
+    }
+    while position < index as f64 {
+        output.push(previous.round() as i16);
+        position += step;
+    }
+    Ok(output)
+}
+
 pub(crate) fn compute_total_chunks(total_samples: usize, chunk_samples: usize, step: usize) -> u32 {
     if total_samples == 0 {
         return 0;
@@ -519,97 +712,111 @@ pub(crate) fn compute_total_chunks(total_samples: usize, chunk_samples: usize, s
     count
 }
 
-pub(crate) fn stream_wav_chunks<F>(
-    path: &Path,
+/// Reads a WAV as overlapping mono chunks, cut at a quiet point near each
+/// chunk's end, without loading the whole file.
+pub(crate) struct WavChunks {
+    samples: hound::WavIntoSamples<BufReader<fs::File>, i16>,
+    sample_rate: u32,
+    channels: usize,
     chunk_samples: usize,
     overlap_samples: usize,
-    mut on_chunk: F,
-) -> Result<()>
-where
-    F: FnMut(usize, &[i16]) -> Result<()>,
-{
-    let file = fs::File::open(path)
-        .with_context(|| format!("Failed to open WAV file at {}", path.display()))?;
-    let mut reader = hound::WavReader::new(BufReader::new(file))
-        .map_err(|err| anyhow!("WAV read error: {err}"))?;
-    let spec = reader.spec();
-    if spec.sample_format != hound::SampleFormat::Int {
-        return Err(anyhow!("Unsupported WAV sample format"));
-    }
-    if spec.bits_per_sample != 16 {
-        return Err(anyhow!(
-            "Unsupported WAV bits per sample: {}",
-            spec.bits_per_sample
-        ));
-    }
-    if spec.sample_rate == 0 {
-        return Err(anyhow!("Invalid sample rate"));
+    raw_samples: Vec<i16>,
+    mono_samples: Vec<i16>,
+    chunk: Vec<i16>,
+    start_idx: usize,
+    last_cut: Option<usize>,
+    finished: bool,
+}
+
+impl WavChunks {
+    pub(crate) fn open(path: &Path, chunk_samples: usize, overlap_samples: usize) -> Result<Self> {
+        let file = fs::File::open(path)
+            .with_context(|| format!("Failed to open WAV file at {}", path.display()))?;
+        let reader = hound::WavReader::new(BufReader::new(file))
+            .map_err(|err| anyhow!("WAV read error: {err}"))?;
+        let spec = reader.spec();
+        if spec.sample_format != hound::SampleFormat::Int {
+            return Err(anyhow!("Unsupported WAV sample format"));
+        }
+        if spec.bits_per_sample != 16 {
+            return Err(anyhow!(
+                "Unsupported WAV bits per sample: {}",
+                spec.bits_per_sample
+            ));
+        }
+        if spec.sample_rate == 0 {
+            return Err(anyhow!("Invalid sample rate"));
+        }
+
+        let channels = spec.channels.max(1) as usize;
+        let chunk_samples = chunk_samples.max(1);
+        Ok(Self {
+            samples: reader.into_samples::<i16>(),
+            sample_rate: spec.sample_rate,
+            channels,
+            chunk_samples,
+            overlap_samples: overlap_samples.min(chunk_samples.saturating_sub(1)),
+            raw_samples: Vec::with_capacity(chunk_samples.saturating_mul(channels)),
+            mono_samples: Vec::with_capacity(chunk_samples),
+            chunk: Vec::with_capacity(chunk_samples),
+            start_idx: 0,
+            last_cut: None,
+            finished: false,
+        })
     }
 
-    let channels = spec.channels.max(1) as usize;
-    let chunk_samples = chunk_samples.max(1);
-    let overlap_samples = overlap_samples.min(chunk_samples.saturating_sub(1));
+    pub(crate) fn is_finished(&self) -> bool {
+        self.finished
+    }
 
-    let mut raw_samples: Vec<i16> = Vec::with_capacity(chunk_samples.saturating_mul(channels));
-    let mut mono_samples: Vec<i16> = Vec::with_capacity(chunk_samples);
-    let mut carry: Vec<i16> = Vec::with_capacity(overlap_samples);
-    let mut chunk: Vec<i16> = Vec::with_capacity(chunk_samples);
-    let mut start_idx: usize = 0;
-    let mut next_read = chunk_samples;
-    let mut samples_iter = reader.samples::<i16>();
+    /// The next chunk and the index of its first sample, or None at the end.
+    pub(crate) fn next_chunk(&mut self) -> Result<Option<(usize, &[i16])>> {
+        if self.finished {
+            return Ok(None);
+        }
+        // The previous chunk's overlap and anything past its cut carry over.
+        if let Some(cut) = self.last_cut.take() {
+            let keep_from = cut.saturating_sub(self.overlap_samples);
+            self.chunk.drain(..keep_from);
+            self.start_idx = self.start_idx.saturating_add(keep_from);
+        }
+        let next_read = self.chunk_samples.saturating_sub(self.chunk.len()).max(1);
 
-    loop {
-        raw_samples.clear();
-        let target = next_read.saturating_mul(channels);
+        self.raw_samples.clear();
+        let target = next_read.saturating_mul(self.channels);
         for _ in 0..target {
-            match samples_iter.next() {
-                Some(Ok(sample)) => raw_samples.push(sample),
+            match self.samples.next() {
+                Some(Ok(sample)) => self.raw_samples.push(sample),
                 Some(Err(err)) => return Err(anyhow!("WAV read error: {err}")),
                 None => break,
             }
         }
-        let eof = raw_samples.len() < target;
-        let frame_count = raw_samples.len() / channels;
-        if frame_count == 0 {
-            break;
+        let eof = self.raw_samples.len() < target;
+        self.finished = eof;
+        downmix_interleaved_to_mono_i16(&self.raw_samples, self.channels, &mut self.mono_samples);
+        // A carry-over of only the overlap was already transcribed.
+        if self.mono_samples.is_empty() && self.chunk.len() <= self.overlap_samples {
+            self.finished = true;
+            return Ok(None);
         }
+        self.chunk.extend_from_slice(&self.mono_samples);
 
-        if channels > 1 {
-            downmix_interleaved_to_mono_i16(&raw_samples, channels, &mut mono_samples);
-        } else {
-            mono_samples.clear();
-            mono_samples.extend_from_slice(&raw_samples);
-        }
-
-        chunk.clear();
-        if !carry.is_empty() {
-            chunk.extend_from_slice(&carry);
-        }
-        chunk.extend_from_slice(&mono_samples);
-        if chunk.is_empty() {
-            break;
-        }
         let cut = if eof {
-            chunk.len()
+            self.chunk.len()
         } else {
-            let min_cut = overlap_samples
-                .saturating_add(chunk_samples.saturating_sub(overlap_samples).div_ceil(2))
-                .min(chunk.len());
-            crate::recorder::quiet_cut_index(&chunk, spec.sample_rate).max(min_cut)
+            let min_cut = self
+                .overlap_samples
+                .saturating_add(
+                    self.chunk_samples
+                        .saturating_sub(self.overlap_samples)
+                        .div_ceil(2),
+                )
+                .min(self.chunk.len());
+            crate::recorder::quiet_cut_index(&self.chunk, self.sample_rate).max(min_cut)
         };
-        on_chunk(start_idx, &chunk[..cut])?;
-
-        if eof {
-            break;
-        }
-        let keep_from = cut.saturating_sub(overlap_samples);
-        carry.clear();
-        carry.extend_from_slice(&chunk[keep_from..]);
-        start_idx = start_idx.saturating_add(keep_from);
-        next_read = chunk_samples.saturating_sub(carry.len()).max(1);
+        self.last_cut = Some(cut);
+        Ok(Some((self.start_idx, &self.chunk[..cut])))
     }
-
-    Ok(())
 }
 
 fn downmix_interleaved_to_mono_i16(samples: &[i16], channels: usize, output: &mut Vec<i16>) {
@@ -695,7 +902,7 @@ fn decode_with_native_then_ffmpeg(
         Err(err) if is_cancelled_error(&err) => Err(err),
         Err(native_err) => {
             let _ = fs::remove_file(output);
-            let Some(ffmpeg) = find_ffmpeg_in_path() else {
+            let Some(ffmpeg) = find_tool_in_path("ffmpeg") else {
                 return Err(anyhow!(
                     "{native_err}. FFmpeg fallback is unavailable for this codec."
                 ));
@@ -1059,39 +1266,34 @@ fn convert_with_ffmpeg(
     duration_ms: Option<u64>,
     mut progress_cb: Option<&mut dyn FnMut(f32)>,
 ) -> Result<()> {
-    if let Some(token) = token
-        && token.is_cancelled()
-    {
+    let is_cancelled = || token.is_some_and(CancellationToken::is_cancelled);
+    if is_cancelled() {
         return Err(cancelled_error());
     }
 
-    if duration_ms.is_some() && progress_cb.is_some() {
-        let mut child = Command::new(ffmpeg)
-            .arg("-y")
-            .arg("-nostdin")
-            .arg("-loglevel")
-            .arg("error")
-            .arg("-progress")
-            .arg("pipe:1")
-            .arg("-nostats")
-            .arg("-i")
-            .arg(input)
-            .arg("-vn")
-            .arg("-acodec")
-            .arg("pcm_s16le")
-            .arg("-ar")
-            .arg(TARGET_SAMPLE_RATE.to_string())
-            .arg("-ac")
-            .arg("1")
-            .arg(output)
+    let report_progress = duration_ms.is_some() && progress_cb.is_some();
+    let mut command = Command::new(ffmpeg);
+    command.args(["-y", "-nostdin", "-loglevel", "error"]);
+    if report_progress {
+        command
+            .args(["-progress", "pipe:1", "-nostats"])
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|err| match err.kind() {
-                ErrorKind::NotFound => anyhow!("FFmpeg not found on PATH."),
-                _ => anyhow!("Failed to run ffmpeg: {err}"),
-            })?;
+            .stderr(Stdio::null());
+    }
+    command
+        .arg("-i")
+        .arg(input)
+        .args(["-vn", "-acodec", "pcm_s16le", "-ar"])
+        .arg(TARGET_SAMPLE_RATE.to_string())
+        .args(["-ac", "1"])
+        .arg(output);
 
+    let mut child = command.spawn().map_err(|err| match err.kind() {
+        ErrorKind::NotFound => anyhow!("FFmpeg not found on PATH."),
+        _ => anyhow!("Failed to run ffmpeg: {err}"),
+    })?;
+
+    if report_progress {
         let mut reader = BufReader::new(
             child
                 .stdout
@@ -1103,12 +1305,8 @@ fn convert_with_ffmpeg(
         let mut line = String::new();
 
         loop {
-            if let Some(token) = token
-                && token.is_cancelled()
-            {
-                let _ = child.kill();
-                let _ = child.wait();
-                let _ = fs::remove_file(output);
+            if is_cancelled() {
+                abort_ffmpeg(&mut child, output);
                 return Err(cancelled_error());
             }
 
@@ -1130,74 +1328,44 @@ fn convert_with_ffmpeg(
                 }
             }
         }
-
-        let status = child
-            .wait()
-            .map_err(|err| anyhow!("Failed to run ffmpeg: {err}"))?;
-        if let Some(token) = token
-            && token.is_cancelled()
-        {
-            let _ = fs::remove_file(output);
-            return Err(cancelled_error());
+    } else {
+        loop {
+            if is_cancelled() {
+                abort_ffmpeg(&mut child, output);
+                return Err(cancelled_error());
+            }
+            match child.try_wait() {
+                Ok(Some(_)) => break,
+                Ok(None) => thread::sleep(Duration::from_millis(200)),
+                Err(err) => {
+                    abort_ffmpeg(&mut child, output);
+                    return Err(anyhow!("Failed to run ffmpeg: {err}"));
+                }
+            }
         }
-        if !status.success() {
-            let _ = fs::remove_file(output);
-            return Err(anyhow!("ffmpeg conversion failed"));
-        }
-        if let Some(cb) = progress_cb.as_mut() {
-            cb(1.0);
-        }
-        return Ok(());
     }
 
-    let mut child = Command::new(ffmpeg)
-        .arg("-y")
-        .arg("-nostdin")
-        .arg("-loglevel")
-        .arg("error")
-        .arg("-i")
-        .arg(input)
-        .arg("-vn")
-        .arg("-acodec")
-        .arg("pcm_s16le")
-        .arg("-ar")
-        .arg(TARGET_SAMPLE_RATE.to_string())
-        .arg("-ac")
-        .arg("1")
-        .arg(output)
-        .spawn()
-        .map_err(|err| match err.kind() {
-            ErrorKind::NotFound => anyhow!("FFmpeg not found on PATH."),
-            _ => anyhow!("Failed to run ffmpeg: {err}"),
-        })?;
-    let status = loop {
-        if let Some(token) = token
-            && token.is_cancelled()
-        {
-            let _ = child.kill();
-            let _ = child.wait();
-            let _ = fs::remove_file(output);
-            return Err(cancelled_error());
-        }
-
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) => {
-                thread::sleep(Duration::from_millis(200));
-            }
-            Err(err) => {
-                let _ = child.kill();
-                let _ = fs::remove_file(output);
-                return Err(anyhow!("Failed to run ffmpeg: {err}"));
-            }
-        }
-    };
-
+    let status = child
+        .wait()
+        .map_err(|err| anyhow!("Failed to run ffmpeg: {err}"))?;
+    if is_cancelled() {
+        let _ = fs::remove_file(output);
+        return Err(cancelled_error());
+    }
     if !status.success() {
         let _ = fs::remove_file(output);
         return Err(anyhow!("ffmpeg conversion failed"));
     }
+    if report_progress && let Some(cb) = progress_cb.as_mut() {
+        cb(1.0);
+    }
     Ok(())
+}
+
+fn abort_ffmpeg(child: &mut Child, output: &Path) {
+    let _ = child.kill();
+    let _ = child.wait();
+    let _ = fs::remove_file(output);
 }
 
 fn find_binary_in_path(file_name: &str, fallback_dirs: &[&str]) -> Option<PathBuf> {
@@ -1218,11 +1386,11 @@ fn find_binary_in_path(file_name: &str, fallback_dirs: &[&str]) -> Option<PathBu
     None
 }
 
-fn find_ffmpeg_in_path() -> Option<PathBuf> {
+fn find_tool_in_path(name: &str) -> Option<PathBuf> {
     let file_name = if cfg!(target_os = "windows") {
-        "ffmpeg.exe"
+        format!("{name}.exe")
     } else {
-        "ffmpeg"
+        name.to_string()
     };
     let fallback_dirs: &[&str] = if cfg!(target_os = "macos") {
         &[
@@ -1234,30 +1402,11 @@ fn find_ffmpeg_in_path() -> Option<PathBuf> {
     } else {
         &["/usr/local/bin", "/usr/bin"]
     };
-    find_binary_in_path(file_name, fallback_dirs)
-}
-
-fn find_ffprobe_in_path() -> Option<PathBuf> {
-    let file_name = if cfg!(target_os = "windows") {
-        "ffprobe.exe"
-    } else {
-        "ffprobe"
-    };
-    let fallback_dirs: &[&str] = if cfg!(target_os = "macos") {
-        &[
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "/opt/local/bin",
-            "/usr/bin",
-        ]
-    } else {
-        &["/usr/local/bin", "/usr/bin"]
-    };
-    find_binary_in_path(file_name, fallback_dirs)
+    find_binary_in_path(&file_name, fallback_dirs)
 }
 
 pub(crate) fn probe_media_duration_ms(path: &Path) -> Option<u64> {
-    if let Some(ffprobe) = find_ffprobe_in_path() {
+    if let Some(ffprobe) = find_tool_in_path("ffprobe") {
         let output = Command::new(ffprobe)
             .arg("-v")
             .arg("error")
@@ -1425,15 +1574,18 @@ pub(crate) fn build_export_content(item: &LibraryItem, format: ExportFormat) -> 
     let transcript = item.transcript.clone().unwrap_or_default();
     match format {
         ExportFormat::Txt => Ok(format!(
-            "{}\nTranscribed: {}\n\n{}",
+            "{}\nTranscribed: {}\n\n{}{}",
             title,
             item.transcribed_at
                 .clone()
                 .unwrap_or_else(|| item.created_at.clone()),
+            bookmark_list(item, false)
+                .map(|list| format!("Bookmarks\n{list}\n\n"))
+                .unwrap_or_default(),
             build_speaker_transcript(item, false).unwrap_or(transcript)
         )),
         ExportFormat::Md => Ok(format!(
-            "# {}\n\n**Duration:** {}  \n**Transcribed:** {}  \n**Tags:** {}\n\n---\n\n{}",
+            "# {}\n\n**Duration:** {}  \n**Transcribed:** {}  \n**Tags:** {}\n\n{}---\n\n{}",
             title,
             format_duration(item.duration_seconds),
             item.transcribed_at
@@ -1444,11 +1596,42 @@ pub(crate) fn build_export_content(item: &LibraryItem, format: ExportFormat) -> 
             } else {
                 item.tags.join(", ")
             },
+            bookmark_list(item, true)
+                .map(|list| format!("## Bookmarks\n\n{list}\n\n"))
+                .unwrap_or_default(),
             build_speaker_transcript(item, true).unwrap_or(transcript)
         )),
         ExportFormat::Srt => build_srt(item),
         ExportFormat::Vtt => build_vtt(item),
     }
+}
+
+/// Bookmarks in time order, one `time  note` line each; None without any.
+fn bookmark_list(item: &LibraryItem, markdown: bool) -> Option<String> {
+    let mut bookmarks: Vec<_> = item.bookmarks.as_deref()?.iter().collect();
+    if bookmarks.is_empty() {
+        return None;
+    }
+    bookmarks.sort_by_key(|bookmark| bookmark.at_ms);
+    let lines: Vec<String> = bookmarks
+        .into_iter()
+        .map(|bookmark| {
+            let at = format_duration(bookmark.at_ms as f32 / 1000.0);
+            let label = bookmark
+                .label
+                .as_deref()
+                .map(|label| label.replace(['\r', '\n'], " "))
+                .filter(|label| !label.trim().is_empty())
+                .unwrap_or_else(|| "Bookmark".to_string());
+            let label = label.trim();
+            if markdown {
+                format!("- **{at}** {label}")
+            } else {
+                format!("{at}  {label}")
+            }
+        })
+        .collect();
+    Some(lines.join("\n"))
 }
 
 fn speaker_name<'a>(item: &'a LibraryItem, speaker_id: &Option<String>) -> Option<&'a str> {

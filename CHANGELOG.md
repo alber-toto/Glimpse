@@ -1,3 +1,296 @@
+1.3.1
+
+### Improvements
+
+- Parakeet TDT V3 on the Neural Engine transcribes about twice as fast. On an M2 Pro, short dictations take less than half as long, and a 9 minute recording takes under 2 seconds instead of about 4.
+- The Parakeet TDT V3 Neural Engine download is about half the size (about 550 MB instead of 1.1 GB). If it's your current model, Glimpse downloads the new version once in the background and keeps using the old one until the new one is ready.
+- On Apple Silicon, Parakeet Unified takes about a third less time to transcribe recordings and files in the Library.
+- On Windows graphics cards, Parakeet TDT V3 and Parakeet Unified take about 15 to 20% less time on short dictations and about a third less on long recordings.
+- Nemotron Streaming and Nemotron 3.5 Streaming transcribe recordings and Library files on your graphics card on Windows. A 9 minute recording takes about 3 to 5 seconds instead of a minute and a half, with far less memory. Live dictation still runs on the processor and feels the same.
+- On Mac, Nemotron Streaming transcribes recordings and Library files on the graphics chip, so a 9 minute recording takes about 6 seconds instead of 47. Nemotron 3.5 Streaming takes about half as long as before, and both use far less memory on long recordings.
+- On Windows PCs without a supported graphics card, long recordings transcribe about twice as fast, and about 3 times as fast on processors with many cores, where short dictations also take about half as long.
+- Deleting a Library item moves its audio to the Trash (Recycle Bin on Windows), so you can get it back.
+- Deleting from the Library list now asks first, and Retranscribe from the list lets you pick the model before it replaces the transcript.
+- When something fails, like a rename, a retry or a toast button, Glimpse now tells you instead of doing nothing.
+
+### Fixes
+
+- Fixed a crash on some Windows PCs every time Glimpse loaded a local model, caused by an older Microsoft Visual C++ runtime that another app installed.
+- Transcribing a long file with Parakeet Unified on Windows or an Intel Mac, for example from Raycast or Shortcuts, no longer comes back empty.
+- Pressing Esc closes only the open menu or dialog, instead of also closing Settings or the Library item behind it.
+- An open Library item stays open when it no longer matches your search or filter.
+- The Library's Active filter now includes queued and importing items.
+- Typing capital letters no longer turns delete buttons red.
+- A microphone picked during setup is now saved.
+- Retrying cleanup on a dictation keeps showing progress until it finishes.
+- The Settings error banner and the ask on Home no longer push the page around.
+- More of Glimpse is translated, including key names, dates in What's New, and error messages.
+
+1.3.0
+
+### New Features
+
+- Live transcripts for recordings. While you record, open a small window that shows what's being said as it happens, labeled by speaker. You can rename speakers, add bookmarks, pause or stop from it, and shrink it down to just the controls.
+- Your dictionary now works with Parakeet and Nemotron. Names and product words you add come out right more often.
+
+### Improvements
+
+- Much more accurate word timings with Whisper: most words now line up within a tenth of a second of when they're spoken, instead of landing about a quarter second late.
+- Whisper on Apple Silicon has a new Neural Engine version: about twice as fast, and Large V3 and Large V3 Turbo now run on the Neural Engine instead of the graphics chip. If your current Whisper model used the Neural Engine, Glimpse downloads the new version once in the background and gets it ready while you keep dictating. Other Whisper models need their Neural Engine version downloaded again.
+- Glimpse opens in your theme without flashing light and dark first, and the home screen appears all at once instead of filling in piece by piece.
+- Dictating while you record no longer ends up in the recording.
+- The microphone meter while recording now moves with your voice at a normal speaking volume.
+- Dictation finishes a little sooner, up to a quarter of a second, after you let go of the shortcut.
+- Local models transcribe faster. On Windows, from about 1.5 times faster with Nemotron to 6 times with Parakeet. On Mac, Whisper is about a quarter faster and Parakeet Unified about twice as fast.
+- Glimpse is smaller: the app itself went from 116 MB to 82 MB on Windows, and from 48 MB to 32 MB on Apple Silicon Macs.
+- Nemotron Streaming and Nemotron 3.5 Streaming are faster and much smaller downloads (about 750 MB instead of 2.5 GB). If you use one of the older Parakeet or Nemotron models, Glimpse downloads its new version once in the background. Other older Parakeet and Nemotron downloads are removed, so download them again to use them.
+- Parakeet Unified and the Nemotron models now work on Intel Macs.
+- New installs on Intel Macs now start with Parakeet TDT V3, like on Apple Silicon and Windows.
+- On Apple Silicon, new Neural Engine downloads of Qwen3-ASR are smaller (about 980 MB instead of 1.2 GB) and use about 220 MB less memory.
+- Parakeet TDT V3 with the Neural Engine now actually runs on the Neural Engine. On an M2 Pro, transcription takes about 40% less time. If it's your current model, Glimpse fetches the new version once in the background.
+- Parakeet Unified can now use the Neural Engine on Apple Silicon when transcribing recordings and files in the Library. On an M2 Pro, that takes about half the time.
+- Detecting speakers again or transcribing a Library item again keeps the names and colors you gave speakers.
+- Transcribing a Library item again works even when the model it was made with is no longer installed. Glimpse uses your current model instead.
+- Full-size Whisper Large V3 and Distil-Whisper Large V3.5 are no longer offered for new downloads. If you already have one, it keeps working.
+- On Windows, Settings now shows whether Glimpse can use your microphone. When Windows blocks it, dictating or recording says so, with a button that opens the right privacy settings page.
+- When a model download fails, Glimpse says why in plain words and offers to retry.
+- Glimpse won't start a model download that would leave less than 5 GB free on your disk.
+- Glimpse warns you when you start a recording with less than 1 GB free on your disk.
+- Warmer, brighter colors in light mode that match the Glimpse logo, and error messages in the Library are easier to read.
+- The Record screen now tells you when your microphone or the app you're recording hasn't made a sound yet.
+
+### Fixes
+
+- On Mac, quitting Glimpse while it's transcribing no longer crashes.
+- Whisper no longer crashes on very short recordings.
+- If your disk fills up while you record, Glimpse stops, keeps what it recorded so far, and tells you. Before, the recording kept going without saving anything new.
+- Dictation tells you when your disk is full instead of failing quietly.
+- If transcribing a Library item again fails or you cancel it, the earlier transcript comes back instead of an empty item.
+- If Glimpse can't keep writing a recording to disk for any reason, it now stops and tells you, like it already did for a full disk, instead of quietly saving a shorter recording.
+- On the Record screen, picking an app while system audio is off records only that app, instead of turning system audio back on for everything or bringing back apps you'd unpicked.
+- If you still use Distil-Whisper Large V3.5, it no longer skips a stretch of text in long recordings.
+- Parakeet Unified no longer returns nothing for very short recordings, and no longer drops the last word.
+- Parakeet TDT V3 no longer skips sentences after long pauses in longer recordings.
+- On Intel Macs, Glimpse now skips silence the same way it does on Apple Silicon, so Whisper types phantom text like "Thank you." much less often.
+
+1.2.7
+
+### Speaker Detection
+
+- Speaker detection uses NVIDIA's new Nemotron-3 model, which mixes up speakers about four times less often and makes about 40% fewer mistakes overall.
+- Up to 8 speakers are told apart, up from 4.
+- On Mac, detecting speakers is about three times faster, and the model is a smaller download (106 MB instead of 139 MB). If you already use speaker detection, Glimpse downloads the new model in the background and removes the old one.
+
+### Improvements
+
+- Renaming a speaker selects their name, so you can just type the new one.
+- Right-click a speaker in the Library to rename them, change their color, merge them into another speaker, show only their lines, or remove them. Right-click the dot beside a line to move just that line to a different speaker.
+- Speaker edits show up right away instead of after a short pause.
+- In the Speakers menu, click the eye next to any speaker to hide their lines, and click it again to bring them back.
+- If a model download is interrupted, even by quitting Glimpse, it picks up where it left off instead of starting over.
+
+### Fixes
+
+- Your license now checks in even if your network blocks Glimpse's license server, so it no longer disappears after updating.
+- If Glimpse can't reach the license server when it opens, it keeps trying in the background instead of waiting until you restart it.
+- Your license stays active if you leave Glimpse open for more than a week.
+- Pasting a whole receipt from an older purchase finds the activation code in it.
+
+1.2.6
+
+### Improvements
+
+- The Personalization screen is cleaner: each mode shows a line of its instructions and its apps and websites at a glance, and editing a mode has more room.
+- The Dictionary screen is cleaner: words show as compact tags you can click to edit, and replacements line up in two columns.
+- The Record screen is calmer before you start, and the Start Recording button shows a red dot.
+- On Mac, dictation finishes about half a second sooner.
+- Cleanup with Apple Intelligence is ready sooner after a break, because Glimpse loads the model while you're still speaking.
+- Press Cmd+F (Ctrl+F on Windows) to search the Library, or to search the transcript of an open item.
+- Library search finds items that contain all your words, in any order, so "budget meeting" also finds "meeting about the budget".
+- Enter and Shift+Enter step through transcript search results one match at a time, in every view.
+
+### Fixes
+
+- When a model download fails, the error in Settings says why, like a network error, instead of only naming the file.
+- Replacements keep the capitals you typed, so "iPhone" no longer becomes "IPhone" at the start of a sentence.
+- Replacements with symbols, like "C++" or "e.g.", now work, and ones like "24/7" are no longer written in all caps.
+- A replacement's result is no longer changed again by another replacement, and longer phrases win over shorter ones inside them.
+- Searching a transcript no longer moves your cursor into the transcript and replaces its text as you type.
+- Library search no longer autocorrects what you type.
+- Search highlights in a transcript no longer push letters apart in the middle of a word.
+
+1.2.5
+
+### Speaker Detection
+
+Glimpse can now tell who's speaking in your Library. Download the speaker detection model from Settings → Models, under Experimental. It runs on your computer.
+
+- **Made for recordings.** Your microphone and your computer's audio are labeled separately, up to 4 voices each.
+- **Reads like a script.** Turn timestamps off to see one paragraph per speaker.
+- **Detect speakers again** from any item's menu, without transcribing again.
+- **Cloud models too.** Mistral, xAI, ElevenLabs, Deepgram and OpenAI's diarize model can label speakers themselves.
+
+### Improvements
+
+- Grok Voice Transcribe from xAI is now available as a cloud model.
+- ElevenLabs and Deepgram connect directly with just an API key.
+- Cloud models default to each provider's latest: GPT Transcribe for OpenAI and OpenRouter, Scribe v2 for ElevenLabs.
+- Recordings are half the size and still sound clear.
+- Long recordings show their transcript as it comes in.
+- Pausing a recording turns off the microphone, and the menu bar icon turns orange.
+- If your microphone disconnects during a recording, Glimpse switches to another one and lets you know.
+- If one side of a recording is silent, Glimpse skips it and finishes sooner.
+- Recording sources show as app icons.
+- The Library shows transcription progress as a percentage.
+- Library search updates as you type, with an X to clear it.
+- Buying Glimpse opens the website to compare plans, and Glimpse activates on its own after you pay.
+
+### Fixes
+
+- Fireworks AI uses its new endpoint.
+- Long recordings and imports start transcribing much sooner.
+- Quick shortcut taps no longer stop dictation when the microphone is slow to start.
+- The Library's transcribing dots pulse again instead of sitting still.
+- Imports from the command line show up in the Library while they transcribe.
+- Other animations that had stopped, like the Glimpse logo, move again.
+
+1.2.1
+
+### Improvements
+
+- The menu bar menu on Mac is simpler. It has Start Recording, Copy Last Transcription and your recent transcriptions. Models, microphone and Check for Updates moved to the Glimpse menu at the top left.
+- Start Recording is grayed out when you don't have a license.
+- On Windows, the tray menu gains Copy Last Transcription, and Check for Updates outside the Microsoft Store version.
+- Onboarding flows better. Your model downloads in the background while you finish setting up, and the practice dictation waits for it instead of failing.
+- Model downloads show one percentage for the whole model instead of starting over on each file.
+- Onboarding now asks how you found Glimpse.
+
+### Fixes
+
+- Choosing a cloud model from the menu on Mac works again. Before, it switched straight back off.
+- On Windows, changing the microphone from the tray after your trial ended could turn off Cleanup, and it stayed off after activating a license. It no longer does.
+
+1.2.0
+
+### Introducing Recording Mode
+
+Glimpse can now record your meetings, calls, lectures and anything else playing on your computer, and turn it all into a transcript with the same models you dictate with. Start a recording from the new Record screen or the menu bar. Your microphone and your computer's audio are kept as separate tracks, so the transcript knows what you said and what everyone else said.
+
+- **Choose what to record.** Your microphone, your whole computer, or only the apps you pick, like Zoom or your browser. Glimpse starts the next recording with the same setup.
+- **Bookmarks.** Mark a moment while you record, add a note, and jump straight back to it later in the Library. Markdown and text exports list them at the top.
+- **Menu bar controls.** Keep an eye on the timer, and pause, bookmark or finish without opening Glimpse.
+- **No doubled words.** When your microphone hears the other side through your speakers, Glimpse recognizes it and keeps those words out of your side of the transcript.
+- **Nothing lost.** If Glimpse quits in the middle of a recording, it's saved to your Library the next time you open the app.
+- **Both sides in the Library.** Play the recording back with both tracks together, or mute either one.
+- **Control it from anywhere.** Start, pause, bookmark and finish recordings from Raycast or the `glimpse` command line tool.
+
+Recording your computer's audio needs macOS 14.2 or later. Picking apps on Windows needs Windows 10 version 2004 or later.
+
+### Improvements
+
+- Cleaner, faster onboarding.
+- Parakeet now uses the faster GGUF version by default.
+- Neural Engine acceleration is on by default on Apple Silicon.
+- Going from onboarding to in app feels significantly more fluid.
+- The Library has a fresh, simpler look, with plain rows or a grid, and a transcript that follows along as it plays.
+
+### Raycast
+
+The Glimpse extension for Raycast has a new version with this release.
+
+- Start, pause, bookmark and finish recordings, with a timer in the menu bar while you record.
+- Recordings stand out in Browse Library, and you can jump straight to the Record screen.
+- Edit your text replacements with the new Manage Replacements command.
+- Clearer messages when Glimpse isn't running, the command line tool isn't installed, or a license is needed.
+- Switch Speech Model can download models again.
+
+### Fixes
+
+- Glimpse no longer crashes when you sign out of Windows or shut down while it's running.
+- On Windows, Glimpse now lets you know when it has updated itself, as it already did on Mac.
+- Long transcriptions in the Library come out noticeably cleaner. Glimpse no longer repeats words where it stitches the pieces of a long file together, which was most noticeable with Whisper.
+- Websites can no longer reach the Local API while it's running. Scripts and apps on your computer still work as before, and browser access stays available when you turn on CORS.
+- Transcribing from the command line now uses your selected model, including cloud models. Add `--local` to keep the audio on your computer.
+- Starting the Local API from the command line now uses a model you've downloaded, and tells you when you need to download one first. The Local API only ever runs local models.
+
+1.1.6
+
+### Fixes
+
+- Testing the microphone in Settings no longer lowers other apps' volume or causes crackling from the speakers.
+- Long dictations are gentler on the audio system, which reduces the chance of glitches while recording.
+- Shortcuts made of modifiers only, like Ctrl+Alt, no longer capture the first key for other apps, so Ctrl+C and Ctrl+V keep working everywhere while Glimpse runs.
+- Personalization modes start turned off on new installs. Turn on the ones you want in Personalization.
+
+### Improvements
+
+- The Providers screen now shows where each provider gets turned on, with a shortcut to that screen.
+- Hovering the ghost and brush icons on a shortcut explains what Temporary and Cleanup do.
+
+1.1.5
+
+### New Models
+
+Glimpse now supports transcribe.cpp, a local transcription engine. This adds support for Qwen3-ASR and a new GGUF version of Parakeet, with optional Neural Engine acceleration on Apple Silicon. Over time if transcribe.cpp integrates well, we will begin moving to completely to that backend, which will unify our entire model selection.
+
+- **Parakeet TDT 0.6B V3 (GGUF)** An alternative to the existing Parakeet model, also available on Windows and Intel Macs. In our M2 Pro benchmark, transcription was over 4× faster with Neural Engine acceleration, excluding model loading time.
+- **Qwen3-ASR 0.6B** Supports 30 languages and your custom dictionary, with optional Neural Engine acceleration on Apple Silicon.
+
+### Removed Models
+
+The following models no longer show up for download.
+
+- Whisper Tiny, Base and Medium
+- Distil-Whisper Small and Medium
+- Q5 and full-precision variants of Whisper Small and Large V3 Turbo
+
+Small is the smallest recommended Whisper, and Large V3 Turbo replaces Medium at the same size. Q8 is near-lossless at half the size of full precision, so the quantization picker now only appears for Large V3. Intel Macs default to Whisper Small Q8.
+
+### Fixes
+
+- Fixed Neural Engine acceleration not taking effect after downloading it for an already-loaded model.
+- Fixed shortcuts using Ctrl and Alt together on Windows.
+- Fixed Windows shortcuts getting stuck after locking the screen or responding to a permission prompt.
+- Hovering over the Windows system tray icon now shows Glimpse's name.
+
+
+### Improvements
+
+- Reduced the storage needed for Parakeet with Neural Engine acceleration.
+- When a model errors while downloading, the error can now be expanded and copied.
+- The Models screen now shows cloud and local side by side, with a switch to turn cloud on or off.
+- Collapsed sidebar icons show their name on hover.
+- Many UI elements have been improved and refined.
+
+---
+
+1.1.4
+
+### Improvements
+
+- After buying, the Account screen now says where your license key is, and activation is more forgiving about what you paste.
+- A small celebration appears the first time your dictated words pass certain milestones.
+- A few more anonymous categories are reported when analytics is on. Never audio, text or keys. The full list is on the [Analytics wiki page](https://github.com/glimpse-hq/Glimpse/wiki/Analytics).
+- If your microphone disconnects while you are dictating, Glimpse stops the recording and saves what it heard to History.
+- Failed recordings and transcriptions now report what kind of problem it was, so edge cases can be found and fixed. Only a category is sent, never the error text.
+- Some small design refinements to the pill and toasts.
+
+### Fixes
+
+- The image in the news menu no longer flickers in a frame after the rest of the menu.
+
+---
+
+1.1.3
+
+### Improvements
+
+- The news bell now sits inside the account pill on the Home screen, so the top corner is a little tidier.
+- Small buttons and menus across Settings, Personalization, Library and the What's New and FAQ windows now share the same corner rounding.
+- A lot of code behind the scenes has been cleaned up, so Glimpse should run a little smoother.
+
+---
+
 1.1.2
 
 ### Improvements

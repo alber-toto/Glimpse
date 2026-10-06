@@ -42,6 +42,7 @@ export function PermissionsStep({
     <OnboardingStep
       stepKey="permissions"
       motionProps={stepMotionProps}
+      align="center"
       footer={
         <>
           <button
@@ -54,13 +55,6 @@ export function PermissionsStep({
               id: "onboarding.permissions.continue",
               message: "Continue",
             })}
-          </button>
-          <button
-            type="button"
-            onClick={onNext}
-            className="ui-text-body-sm text-content-muted transition-colors hover:text-content-primary"
-          >
-            {t({ id: "onboarding.permissions.skip", message: "Skip" })}
           </button>
         </>
       }
@@ -150,7 +144,7 @@ function PermissionRow({
           type="button"
           onClick={onRequest}
           disabled={checking}
-          className="shrink-0 ui-text-body-sm-strong text-cloud underline-offset-4 transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 ui-text-body-sm-strong ui-color-cloud underline-offset-4 transition-colors hover:underline disabled:cursor-not-allowed disabled:opacity-50"
         >
           {actionLabel}
         </button>

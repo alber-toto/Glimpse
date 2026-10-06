@@ -29,6 +29,7 @@ mod pill;
 mod platform;
 mod recent_transcriptions;
 mod recorder;
+mod recording;
 mod settings;
 mod speech;
 mod storage;
@@ -43,7 +44,7 @@ pub(crate) use speech::engine as local_transcription;
 pub(crate) use speech::install as model_manager;
 pub(crate) use speech::remote as remote_speech;
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -67,6 +68,7 @@ use tauri::async_runtime;
 use tauri::tray::TrayIcon;
 use tauri::{AppHandle, Manager, Wry};
 use tauri_plugin_deep_link::DeepLinkExt;
+use tray::SettingsPage;
 
 #[cfg(target_os = "macos")]
 use tauri::ActivationPolicy;
@@ -124,6 +126,10 @@ pub(crate) const EVENT_TRANSCRIPTION_COMPLETE: &str = "transcription:complete";
 pub(crate) const EVENT_TRANSCRIPTION_ERROR: &str = "transcription:error";
 pub(crate) const EVENT_SETTINGS_CHANGED: &str = "settings:changed";
 pub(crate) const EVENT_LICENSE_CHECKOUT_RETURNED: &str = "license:checkout-returned";
+const EVENT_LICENSE_CHANGED: &str = "license:changed";
+// Only calls the server when the saved license is due for a refresh.
+const LICENSE_SYNC_INTERVAL: Duration = Duration::from_secs(15 * 60);
+#[cfg(target_os = "macos")]
 pub(crate) const FEEDBACK_URL: &str = "https://github.com/glimpse-hq/Glimpse/issues/new/choose";
 #[cfg(target_os = "windows")]
 pub(crate) const FFMPEG_HELP_URL: &str =
@@ -170,9 +176,21 @@ where
             continue;
         }
 
-        if let Err(err) = license::handle_deep_link(app) {
-            tracing::error!("{err}");
-        }
+        let app = app.clone();
+        let key = license::deep_link_license_key(raw_url);
+        tauri::async_runtime::spawn(async move {
+            // A link never replaces a license that is already active.
+            if let Some(key) = key
+                && let Some(state) = app.try_state::<AppState>()
+                && !license::has_active_license(&state.settings_store)
+                && let Err(err) = activate_license_and_note(&app, &state, key).await
+            {
+                tracing::warn!("License from checkout link did not activate: {err}");
+            }
+            if let Err(err) = license::handle_deep_link(&app) {
+                tracing::error!("{err}");
+            }
+        });
     }
 }
 
@@ -211,78 +229,6 @@ pub(crate) fn sync_launch_at_login(
     }
 
     Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn handle_app_menu_event(app: &AppHandle<AppRuntime>, id: &str) {
-    use crate::recent_transcriptions::{
-        MENU_ID_RECENT_TRANSCRIPTION_PREFIX, copy_transcription_to_clipboard,
-    };
-    use crate::speech::menu::handle_speech_menu_event;
-    use platform::macos::menu::{
-        MENU_ID_CHECK_UPDATES, MENU_ID_MIC_DEFAULT, MENU_ID_MIC_PREFIX, MENU_ID_REPORT_ISSUE,
-        MENU_ID_WEBSITE,
-    };
-    use tauri_plugin_opener::OpenerExt;
-
-    if let Some(saved) = handle_speech_menu_event(app, id) {
-        refresh_speech_menus(app, &saved);
-        return;
-    }
-
-    match id {
-        MENU_ID_CHECK_UPDATES => {
-            let _ = tray::open_settings_about(app);
-        }
-        MENU_ID_WEBSITE => {
-            let _ = app
-                .opener()
-                .open_url("https://tryglimpse.cc/", None::<&str>);
-        }
-        MENU_ID_REPORT_ISSUE => {
-            let _ = app.opener().open_url(FEEDBACK_URL, None::<&str>);
-        }
-        MENU_ID_MIC_DEFAULT => {
-            set_microphone(app, None);
-        }
-        _ => {
-            if let Some(transcription_id) = id.strip_prefix(MENU_ID_RECENT_TRANSCRIPTION_PREFIX) {
-                copy_transcription_to_clipboard(app, transcription_id);
-            } else if let Some(device_id_raw) = id.strip_prefix(MENU_ID_MIC_PREFIX) {
-                let device_id = device_id_raw.strip_prefix("dev:").unwrap_or(device_id_raw);
-                set_microphone(app, Some(device_id));
-            }
-        }
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn refresh_speech_menus(app: &AppHandle<AppRuntime>, settings: &settings::UserSettings) {
-    if let Err(err) = set_app_menu(app, settings) {
-        tracing::error!("Failed to refresh app menu: {err}");
-    }
-    if let Err(err) = tray::refresh_tray_menu(app, settings) {
-        tracing::error!("Failed to refresh tray menu: {err}");
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn set_microphone(app: &AppHandle<AppRuntime>, device_id: Option<&str>) {
-    let state = app.state::<AppState>();
-    let mut current = state.current_settings_unmasked();
-    if current.microphone_device.as_deref() == device_id {
-        return;
-    }
-    let previous = current.clone();
-    current.microphone_device = device_id.map(|id| id.to_string());
-    match state.persist_settings(current.clone()) {
-        Ok(saved) => {
-            analytics::track_settings_changes(app, &previous, &saved);
-            refresh_speech_menus(app, &saved);
-            state.emit_settings_changed(app, &saved);
-        }
-        Err(err) => tracing::error!("Failed to update microphone selection: {err}"),
-    }
 }
 
 #[cfg(target_os = "macos")]
@@ -447,11 +393,8 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
 
-    #[cfg(target_os = "macos")]
-    let builder = builder.on_menu_event(|app, event| {
-        let id = event.id().as_ref();
-        handle_app_menu_event(app, id);
-    });
+    let builder =
+        builder.on_menu_event(|app, event| tray::handle_menu_event(app, event.id().as_ref()));
 
     builder
         .setup(|app| {
@@ -463,11 +406,13 @@ pub fn run() {
             analytics::set_crash_phase("logging");
             init_logging(handle);
             analytics::set_crash_phase("crash_handler");
+            let previous_session = analytics::begin_session(handle);
+            analytics::set_app(handle);
             let crash_marker = handle
                 .path()
                 .app_data_dir()
                 .ok()
-                .map(|dir| dir.join("last_crash.txt"));
+                .map(|dir| dir.join(analytics::CRASH_MARKER_FILE));
             let crash_log = handle.path().app_log_dir().ok().map(|dir| {
                 let _ = std::fs::create_dir_all(&dir);
                 dir.join("crash.log")
@@ -491,25 +436,25 @@ pub fn run() {
 
             analytics::set_crash_phase("app_state");
             app.manage(AppState::new(Arc::clone(&settings_store), settings, handle));
+            speech::upgrade_retired_diarizer(handle);
+            speech::remove_whisper_cpp_files(handle);
+            speech::compile_pending_ane_encoders(handle);
+            speech::upgrade_parakeet_encoder(handle);
+            speech::replace_onnx_models(handle);
             {
                 let h = handle.clone();
                 async_runtime::spawn(async move {
-                    let state = h.state::<AppState>();
-                    match license::secure_grant_refresh_needed(&state.settings_store) {
-                        Ok(true) => {
-                            if let Err(err) =
-                                license::refresh_license(state.http(), &state.settings_store).await
-                            {
-                                tracing::warn!("Could not refresh the saved license: {err}");
-                            }
-                        }
-                        Ok(false) => {}
-                        Err(err) => tracing::warn!("Could not inspect the saved license: {err}"),
-                    }
-
+                    sync_license(&h).await;
                     // Start after the refresh so the license gate reflects current state.
-                    let settings = state.current_settings();
+                    let settings = h.state::<AppState>().current_settings();
                     local_api::start_from_settings(&h, &settings);
+
+                    // Retries a failed launch check, and keeps a long-running app's
+                    // license inside its offline trust window.
+                    loop {
+                        tokio::time::sleep(LICENSE_SYNC_INTERVAL).await;
+                        sync_license(&h).await;
+                    }
                 });
             }
             analytics::set_crash_phase("services");
@@ -518,6 +463,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             meeting::start_automatic_detection(handle);
             library::commands::recover_interrupted_library_items(handle);
+            recording::recover_interrupted_sessions(handle);
             register_deep_link_handlers(app);
 
             #[cfg(target_os = "macos")]
@@ -600,8 +546,11 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     analytics::set_crash_phase("analytics_init");
                     analytics::init(&h).await;
+                    if let Some(previous) = &previous_session {
+                        analytics::report_unclean_exit(&h, previous);
+                    }
                     if let Some(path) = crash_marker {
-                        analytics::report_pending_crash(&h, &path);
+                        analytics::report_pending_crash(&h, &path, previous_session.is_none());
                     }
                     {
                         let app_state = h.state::<AppState>();
@@ -643,8 +592,8 @@ pub fn run() {
             auto_dictionary::reject_auto_dictionary_suggestion,
             personalization::get_personalities,
             personalization::set_personalities,
-            personalization::list_installed_apps,
-            personalization::list_website_icons,
+            personalization::icons::list_installed_apps,
+            personalization::icons::list_website_icons,
             import::commands::detect_importable_apps,
             import::commands::preview_import,
             import::commands::apply_import,
@@ -665,11 +614,13 @@ pub fn run() {
             cancel_retry_transcription,
             library::commands::create_library_item,
             library::commands::get_library_items_page,
+            library::commands::get_library_item,
             library::commands::update_library_item,
             library::commands::generate_library_item_title,
             library::commands::delete_library_item,
             library::commands::cancel_library_transcription,
             library::commands::retry_library_transcription,
+            library::commands::rediarize_library_item,
             library::commands::export_library_item_to_path,
             library::commands::get_library_tags,
             library::commands::probe_library_import_files,
@@ -681,6 +632,27 @@ pub fn run() {
             meeting::start_detected_meeting_recording,
             meeting::dismiss_detected_meeting_prompt,
             meeting::continue_detected_meeting_recording,
+            recording::get_recording_capabilities,
+            recording::list_audio_apps,
+            recording::get_recording_session_state,
+            recording::get_last_recording_sources,
+            recording::start_recording_session,
+            recording::pause_recording_session,
+            recording::resume_recording_session,
+            recording::add_recording_bookmark,
+            recording::finish_recording_session,
+            recording::update_recording_bookmark,
+            recording::remove_recording_bookmark,
+            recording::discard_recording_session,
+            recording::open_system_audio_settings,
+            recording::live_window::open_live_view,
+            recording::live_window::hide_live_view,
+            recording::live_window::finish_from_live_view,
+            recording::live_window::set_live_view_compact,
+            recording::get_live_transcript,
+            recording::rename_live_speaker,
+            recording::set_live_speaker_color,
+            recording::merge_live_speaker,
             model_manager::list_models,
             get_diarization_model,
             model_manager::check_model_status,
@@ -697,6 +669,7 @@ pub fn run() {
             cli_install::remove_cli,
             audio::list_input_devices,
             toast::toast_dismissed,
+            toast::resize_toast_window,
             open_accessibility_settings,
             check_accessibility_permission,
             check_microphone_permission,
@@ -707,21 +680,28 @@ pub fn run() {
             open_ffmpeg_install,
             complete_onboarding,
             start_hold_recording,
-            stop_hold_recording,
+            pill::stop_hold_recording,
             cancel_recording,
+            start_microphone_test,
+            stop_microphone_test,
             view_recovered_transcriptions,
             copy_last_transcription,
             reset_onboarding,
             toast::debug_show_toast,
             analytics::report_frontend_crash,
             analytics::track_onboarding_step_viewed,
+            analytics::track_onboarding_source,
             analytics::track_paywall_shown,
             analytics::track_paywall_clicked,
+            analytics::track_gate_blocked,
+            analytics::track_feature_used_command,
+            analytics::track_screen_viewed,
             fetch_llm_models,
             apple_llm_availability,
             fetch_remote_speech_models,
             open_about_page,
             open_account_page,
+            open_models_page,
             asks::get_ask_prompt,
             asks::mark_ask_prompt_seen,
             asks::resolve_ask_prompt,
@@ -756,6 +736,7 @@ pub fn run() {
                 // Quit-time panics (e.g. tao's Windows event-loop teardown)
                 // should not report as crashes while running.
                 analytics::set_crash_phase("shutdown");
+                analytics::end_session();
                 let state = handler.state::<AppState>();
                 state.local_transcriber.unload_if_idle();
                 state.stop_preflight_loop();
@@ -766,6 +747,14 @@ pub fn run() {
                     (now - state.session_started_at).as_secs_f64(),
                     counters.transcription_count,
                 );
+                #[cfg(target_os = "macos")]
+                platform::macos::skip_static_destructors();
+                #[cfg(target_os = "windows")]
+                platform::windows::crash::exit_if_session_ending();
+            }
+            #[cfg(target_os = "windows")]
+            tauri::RunEvent::ExitRequested { .. } => {
+                platform::windows::crash::note_exit_requested();
             }
             _ => {}
         });
@@ -845,6 +834,7 @@ type GlimpseResult<T> = Result<T>;
 pub struct LibraryJob {
     pub id: String,
     pub kind: LibraryJobKind,
+    pub source: library::JobSource,
 }
 
 #[derive(Clone)]
@@ -866,13 +856,14 @@ pub struct AppState {
     hotkeys: core::hotkeys::HotkeyCoordinator,
     shortcut_capture_active: AtomicBool,
     pub(crate) tray: parking_lot::Mutex<Option<TrayIcon<AppRuntime>>>,
-    pub(crate) settings_close_handler_registered: AtomicBool,
     transcription_cancelled: AtomicBool,
     transcription_token: parking_lot::Mutex<Option<CancellationToken>>,
     ffmpeg_toast_shown: AtomicBool,
     pending_recording_path: parking_lot::Mutex<Option<PathBuf>>,
     pending_selected_text: parking_lot::Mutex<Option<String>>,
     download_tokens: parking_lot::Mutex<HashMap<String, CancellationToken>>,
+    download_percent: parking_lot::Mutex<HashMap<String, u8>>,
+    pub(crate) ready_models: parking_lot::Mutex<HashSet<String>>,
     library_tokens: parking_lot::Mutex<HashMap<String, CancellationToken>>,
     library_queue: parking_lot::Mutex<VecDeque<LibraryJob>>,
     library_active: parking_lot::Mutex<Option<String>>,
@@ -890,6 +881,7 @@ pub struct AppState {
     should_start_in_background: bool,
     /// Cached so analytics can tag events without touching the settings DB.
     license_snapshot: parking_lot::Mutex<Option<LicenseSnapshot>>,
+    recording: recording::RecordingManager,
 }
 
 #[derive(Clone)]
@@ -954,6 +946,13 @@ impl AppState {
             Arc::new(local_transcription::LocalTranscriber::new(model_cache_dir));
         local_transcriber.start_idle_monitor();
 
+        // Cache readiness before registering shortcuts to keep disk I/O off the keypress path.
+        let ready_models = speech::catalog::local_manifests()
+            .iter()
+            .filter(|model| model_manager::ensure_model_ready(app_handle, model.id).is_ok())
+            .map(|model| model.id.to_string())
+            .collect();
+
         Self {
             pill: Arc::new(PillController::new(Arc::clone(&recorder))),
             http,
@@ -964,13 +963,14 @@ impl AppState {
             hotkeys: core::hotkeys::HotkeyCoordinator::default(),
             shortcut_capture_active: AtomicBool::new(false),
             tray: parking_lot::Mutex::new(None),
-            settings_close_handler_registered: AtomicBool::new(false),
             transcription_cancelled: AtomicBool::new(false),
             transcription_token: parking_lot::Mutex::new(None),
             ffmpeg_toast_shown: AtomicBool::new(false),
             pending_recording_path: parking_lot::Mutex::new(None),
             pending_selected_text: parking_lot::Mutex::new(None),
             download_tokens: parking_lot::Mutex::new(HashMap::new()),
+            download_percent: parking_lot::Mutex::new(HashMap::new()),
+            ready_models: parking_lot::Mutex::new(ready_models),
             library_tokens: parking_lot::Mutex::new(HashMap::new()),
             library_queue: parking_lot::Mutex::new(VecDeque::new()),
             library_active: parking_lot::Mutex::new(None),
@@ -989,7 +989,12 @@ impl AppState {
             streaming_session: parking_lot::Mutex::new(None),
             license_snapshot: parking_lot::Mutex::new(None),
             should_start_in_background,
+            recording: recording::RecordingManager::new(),
         }
+    }
+
+    pub(crate) fn recording(&self) -> &recording::RecordingManager {
+        &self.recording
     }
 
     pub fn should_open_settings_on_startup(&self) -> bool {
@@ -1046,6 +1051,7 @@ impl AppState {
             && self.library_active.lock().is_none()
             && self.library_queue.lock().is_empty()
             && self.retry_tokens.lock().is_empty()
+            && !self.recording.is_active()
     }
 
     pub fn set_auto_update_completed(&self) {
@@ -1194,12 +1200,16 @@ impl AppState {
         self.pending_selected_text.lock().take()
     }
 
-    pub fn create_download_token(&self, model: &str) -> CancellationToken {
-        replace_download_token(&mut self.download_tokens.lock(), model)
+    pub fn create_download_token(&self, model: &str) -> Result<CancellationToken, String> {
+        let mut downloads = self.download_tokens.lock();
+        if downloads.contains_key(model) {
+            return Err("This model already has a download in progress".to_string());
+        }
+        Ok(replace_download_token(&mut downloads, model))
     }
 
     pub fn cancel_download(&self, model: &str) -> bool {
-        match self.download_tokens.lock().remove(model) {
+        match self.download_tokens.lock().get(model) {
             Some(token) => {
                 token.cancel();
                 true
@@ -1209,7 +1219,27 @@ impl AppState {
     }
 
     pub fn clear_download_token(&self, model: &str, token: &CancellationToken) {
-        clear_download_token_if_current(&mut self.download_tokens.lock(), model, token);
+        let mut downloads = self.download_tokens.lock();
+        if downloads.get(model).is_some_and(|current| current == token) {
+            clear_download_token_if_current(&mut downloads, model, token);
+            self.download_percent.lock().remove(model);
+        }
+    }
+
+    pub fn note_download_percent(&self, model: &str, percent: u8) {
+        self.download_percent
+            .lock()
+            .insert(model.to_string(), percent);
+    }
+
+    pub fn download_percent(&self, model: &str) -> Option<u8> {
+        self.download_tokens.lock().contains_key(model).then(|| {
+            self.download_percent
+                .lock()
+                .get(model)
+                .copied()
+                .unwrap_or_default()
+        })
     }
 
     pub fn register_library_transcription(&self, id: String) -> CancellationToken {
@@ -1248,11 +1278,25 @@ impl AppState {
         Some(next)
     }
 
+    pub(crate) fn library_job_active(&self) -> bool {
+        self.library_active.lock().is_some()
+    }
+
     pub fn clear_active_library_job(&self, id: &str) {
         let mut active = self.library_active.lock();
         if active.as_deref() == Some(id) {
             *active = None;
         }
+    }
+
+    pub(crate) fn library_job_pending(&self, id: &str) -> bool {
+        self.library_tokens.lock().contains_key(id)
+            || self.library_active.lock().as_deref() == Some(id)
+            || self
+                .library_queue
+                .lock()
+                .iter()
+                .any(|queued| queued.id == id)
     }
 
     pub fn remove_library_job(&self, id: &str) -> bool {
@@ -1406,6 +1450,21 @@ fn check_microphone_permission() -> bool {
 }
 
 #[tauri::command]
+fn start_microphone_test(
+    app: AppHandle<AppRuntime>,
+    device_id: Option<String>,
+) -> Result<String, String> {
+    let state = app.state::<AppState>();
+    state.pill().start_microphone_test(&app, device_id)
+}
+
+#[tauri::command]
+fn stop_microphone_test(app: AppHandle<AppRuntime>) {
+    let state = app.state::<AppState>();
+    state.pill().stop_microphone_test(&app);
+}
+
+#[tauri::command]
 fn request_microphone_permission() -> Result<bool, String> {
     permissions::request_microphone_permission()
 }
@@ -1422,10 +1481,7 @@ fn open_input_monitoring_settings() -> Result<(), String> {
 
 #[tauri::command]
 fn open_llm_cleanup_settings(app: AppHandle<AppRuntime>) -> Result<(), String> {
-    tray::open_settings_models(&app).map_err(|err| {
-        tracing::error!("Failed to open settings window: {err}");
-        err.to_string()
-    })
+    open_settings_page(&app, SettingsPage::Models)
 }
 
 #[tauri::command]
@@ -1455,11 +1511,6 @@ fn start_hold_recording(app: AppHandle<AppRuntime>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn stop_hold_recording(app: AppHandle<AppRuntime>) {
-    pill::stop_hold_recording(&app);
-}
-
-#[tauri::command]
 fn reset_onboarding(
     app: AppHandle<AppRuntime>,
     state: tauri::State<AppState>,
@@ -1477,14 +1528,53 @@ fn update_settings(
 }
 
 /// Caches the license status for analytics and reports a lapsed trial once.
-fn note_license_state(
+pub(crate) fn note_license_state(
     app: &tauri::AppHandle<AppRuntime>,
     state: &AppState,
     license_state: &license::LicenseState,
 ) {
+    let previous = state.license_snapshot().map(|snapshot| snapshot.status);
     state.note_license_state(license_state);
-    if license::take_trial_expiry_report(&state.settings_store, license_state) {
+    // Start Recording is enabled by the license, so the menus follow its status.
+    if previous.is_some_and(|status| status != license_state.status.as_str()) {
+        tray::refresh_menus(app, &state.current_settings());
+    }
+    // Preserve the expiry marker while analytics is disabled.
+    if state.current_settings().analytics_enabled
+        && license::take_trial_expiry_report(&state.settings_store, license_state)
+    {
         analytics::track_trial_expired(app);
+    }
+}
+
+/// Refreshes the saved license when due and confirms the trial, then pushes
+/// a changed status to Settings.
+async fn sync_license(app: &tauri::AppHandle<AppRuntime>) {
+    let state = app.state::<AppState>();
+    match license::secure_grant_refresh_needed(&state.settings_store) {
+        Ok(true) => {
+            if let Err(err) = license::refresh_license(state.http(), &state.settings_store).await {
+                tracing::warn!("Could not refresh the saved license: {err}");
+            }
+        }
+        Ok(false) => {}
+        Err(err) => tracing::warn!("Could not inspect the saved license: {err}"),
+    }
+    if let Err(err) = license::sync_trial(state.http(), &state.settings_store).await {
+        tracing::warn!("Could not confirm the trial with the server: {err}");
+    }
+
+    match license::get_license_state(&state.settings_store) {
+        Ok(license_state) => {
+            let previous = state.license_snapshot().map(|snapshot| snapshot.status);
+            note_license_state(app, &state, &license_state);
+            if previous.is_some_and(|status| status != license_state.status.as_str()) {
+                let _ = app.emit(EVENT_LICENSE_CHANGED, &license_state);
+                // Gated settings read differently once the license changes.
+                state.emit_settings_changed(app, &state.current_settings_unmasked());
+            }
+        }
+        Err(err) => tracing::warn!("Could not read the license state: {err}"),
     }
 }
 
@@ -1504,17 +1594,30 @@ async fn activate_license(
     state: tauri::State<'_, AppState>,
     args: license::ActivateLicenseArgs,
 ) -> Result<license::LicenseState, String> {
+    activate_license_and_note(&app, &state, args.key).await
+}
+
+async fn activate_license_and_note(
+    app: &tauri::AppHandle<AppRuntime>,
+    state: &AppState,
+    key: String,
+) -> Result<license::LicenseState, String> {
+    let input_shape = analytics::activation_input_shape(&key);
+    let trial_day = license::trial_day(&state.settings_store).ok();
+    let args = license::ActivateLicenseArgs { key };
     match license::activate_license(state.http(), &state.settings_store, args).await {
         Ok(license_state) => {
-            note_license_state(&app, &state, &license_state);
+            note_license_state(app, state, &license_state);
             analytics::track_license_activated(
-                &app,
+                app,
                 license_state.edition.map(|edition| edition.as_str()),
+                trial_day,
+                input_shape,
             );
             Ok(license_state)
         }
         Err(err) => {
-            analytics::track_license_activation_failed(&app, &err);
+            analytics::track_license_activation_failed(app, &err, input_shape);
             Err(err)
         }
     }
@@ -1611,11 +1714,10 @@ struct AppInfo {
     data_dir_path: String,
     storage_breakdown: StorageBreakdown,
     store_build: bool,
-    os_major: u32,
 }
 
 #[cfg(target_os = "macos")]
-fn macos_major_version() -> u32 {
+pub(crate) fn macos_major_version() -> u32 {
     static MAJOR: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
     *MAJOR.get_or_init(|| {
         std::process::Command::new("sw_vers")
@@ -1629,7 +1731,7 @@ fn macos_major_version() -> u32 {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn macos_major_version() -> u32 {
+pub(crate) fn macos_major_version() -> u32 {
     0
 }
 
@@ -1679,7 +1781,6 @@ fn get_app_info(app: AppHandle<AppRuntime>) -> Result<AppInfo, String> {
             total_bytes,
         },
         store_build: platform::is_store_build(),
-        os_major: macos_major_version(),
     })
 }
 
@@ -1737,17 +1838,25 @@ async fn fetch_remote_speech_models(
 }
 
 #[tauri::command]
-fn open_about_page(app: AppHandle<AppRuntime>) {
-    if let Err(err) = tray::open_settings_about(&app) {
-        tracing::error!("Failed to open settings window: {err}");
-    }
+fn open_about_page(app: AppHandle<AppRuntime>) -> Result<(), String> {
+    open_settings_page(&app, SettingsPage::About)
 }
 
 #[tauri::command]
-fn open_account_page(app: AppHandle<AppRuntime>) {
-    if let Err(err) = tray::open_settings_account(&app) {
+fn open_account_page(app: AppHandle<AppRuntime>) -> Result<(), String> {
+    open_settings_page(&app, SettingsPage::Account)
+}
+
+#[tauri::command]
+fn open_models_page(app: AppHandle<AppRuntime>) -> Result<(), String> {
+    open_settings_page(&app, SettingsPage::Models)
+}
+
+fn open_settings_page(app: &AppHandle<AppRuntime>, page: SettingsPage) -> Result<(), String> {
+    tray::open_settings_page(app, page).map_err(|err| {
         tracing::error!("Failed to open settings window: {err}");
-    }
+        err.to_string()
+    })
 }
 
 #[tauri::command]
@@ -1880,14 +1989,7 @@ fn delete_transcription(
         Err(err) => Err(format!("Failed to delete transcription: {err}")),
     }?;
 
-    let settings = state.current_settings();
-    if let Err(err) = tray::refresh_tray_menu(&app, &settings) {
-        tracing::error!("Failed to refresh tray menu: {err}");
-    }
-    #[cfg(target_os = "macos")]
-    if let Err(err) = set_app_menu(&app, &settings) {
-        tracing::error!("Failed to refresh app menu: {err}");
-    }
+    tray::refresh_menus(&app, &state.current_settings());
 
     Ok(result)
 }
@@ -1922,13 +2024,7 @@ fn delete_transcriptions_for_day(
     }
 
     let settings = state.current_settings();
-    if let Err(err) = tray::refresh_tray_menu(&app, &settings) {
-        tracing::error!("Failed to refresh tray menu: {err}");
-    }
-    #[cfg(target_os = "macos")]
-    if let Err(err) = set_app_menu(&app, &settings) {
-        tracing::error!("Failed to refresh app menu: {err}");
-    }
+    tray::refresh_menus(&app, &settings);
 
     Ok(deleted_count)
 }
@@ -1973,14 +2069,14 @@ pub(crate) fn hide_overlay(app: &AppHandle<AppRuntime>) {
 }
 
 pub(crate) fn stop_active_recording(app: &AppHandle<AppRuntime>) {
-    app.state::<AppState>().pill().cancel(app);
+    app.state::<AppState>().pill().cancel(app, "escape");
 }
 
 #[tauri::command]
 fn cancel_recording(app: AppHandle<AppRuntime>) {
     let state = app.state::<AppState>();
     if state.pill().status() == pill::PillStatus::Processing {
-        state.pill().cancel_processing(&app);
+        state.pill().cancel_processing(&app, "escape");
     } else {
         stop_active_recording(&app);
         hide_overlay(&app);
@@ -1992,7 +2088,9 @@ pub(crate) fn persist_recording_async(
     recording: CompletedRecording,
     settings: settings::UserSettings,
     temporary: bool,
+    auto_paste: bool,
     cancel_token: CancellationToken,
+    origin: transcribe::DictationOrigin,
 ) {
     let input = if settings.microphone_device.is_some() {
         "selected"
@@ -2005,12 +2103,13 @@ pub(crate) fn persist_recording_async(
             analytics::track_recording_failed(
                 &app,
                 "persist",
-                analytics::classify_failure_reason(&err.to_string()),
+                analytics::error_detail(&err),
                 input,
             );
-            emit_error(
+            persist_failed(
                 &app,
-                format!("Failed to resolve recordings directory: {err}"),
+                format!("Failed to resolve recordings directory: {err:#}"),
+                false,
             );
             return;
         }
@@ -2043,7 +2142,12 @@ pub(crate) fn persist_recording_async(
                 None,
             ),
         };
-        analytics::track_dictation_discarded(&app, code);
+        analytics::track_dictation_discarded(
+            &app,
+            code,
+            Some((recording.ended_at - recording.started_at).num_milliseconds() as f32 / 1000.0),
+            Some(recorder::calculate_rms_i16(&recording.samples)),
+        );
         tracing::error!("Recording rejected: {reason}");
         if let Some(notice) = notice {
             toast::show(&app, "warning", None, &toast::native(&app, notice));
@@ -2078,34 +2182,41 @@ pub(crate) fn persist_recording_async(
                 recording,
                 settings,
                 temporary,
+                auto_paste,
                 cancel_token,
+                origin,
             ),
             Ok(Err(err)) => {
                 analytics::track_recording_failed(
                     &app,
                     "persist",
-                    analytics::classify_failure_reason(&err.to_string()),
+                    analytics::error_detail(&err),
                     input,
                 );
-                emit_error(&app, format!("Unable to save recording: {err}"));
+                persist_failed(
+                    &app,
+                    format!("Unable to save recording: {err:#}"),
+                    platform::is_disk_full(&err),
+                );
             }
             Err(err) => {
-                analytics::track_recording_failed(
-                    &app,
-                    "persist",
-                    analytics::classify_failure_reason(&err.to_string()),
-                    input,
-                );
-                emit_error(&app, format!("Recording task failed: {err}"));
+                analytics::track_recording_failed(&app, "persist", "task_failed", input);
+                persist_failed(&app, format!("Recording task failed: {err}"), false);
             }
         }
     });
 }
 
-pub(crate) fn emit_error(app: &AppHandle<AppRuntime>, message: String) {
-    app.state::<AppState>()
-        .pill()
-        .transition_to_error(app, &message);
+// Saving runs while the pill shows Processing, where `transition_to_error` is ignored.
+fn persist_failed(app: &AppHandle<AppRuntime>, message: String, disk_full: bool) {
+    tracing::error!("{message}");
+    let text = if disk_full {
+        toast::native(app, "native.toast.dictation_disk_full")
+    } else {
+        pill::simplify_recording_error(&message)
+    };
+    toast::show(app, "error", None, &text);
+    app.state::<AppState>().pill().finish_processing(app);
 }
 
 pub(crate) fn emit_event<T: Serialize + Clone>(
@@ -2129,7 +2240,7 @@ pub(crate) fn recordings_root(app: &AppHandle<AppRuntime>) -> GlimpseResult<Path
 
 #[tauri::command]
 fn view_recovered_transcriptions(app: AppHandle<AppRuntime>) -> Result<(), String> {
-    tray::open_settings_history(&app).map_err(|err| err.to_string())
+    open_settings_page(&app, SettingsPage::History)
 }
 
 #[tauri::command]
@@ -2217,6 +2328,7 @@ fn preview_recording_prune_for_policy(
     count_or_prune_recordings(app, policy, Local::now(), RecordingPruneAction::Count)
 }
 
+#[derive(Clone, Copy)]
 enum RecordingPruneAction {
     Count,
     Delete,
@@ -2234,66 +2346,18 @@ fn count_or_prune_recordings(
     }
 
     let cutoff = settings::recording_prune_cutoff(policy, now);
-    let (count, _) = match action {
-        RecordingPruneAction::Count => count_prunable_recording_tree(&root, policy, cutoff)?,
-        RecordingPruneAction::Delete => prune_recording_tree(&root, policy, cutoff)?,
-    };
+    let (count, _) = walk_recording_tree(&root, policy, cutoff, action)?;
     Ok(count)
 }
 
-fn prune_recording_tree(
+fn walk_recording_tree(
     path: &Path,
     policy: RecordingPrunePolicy,
     cutoff: Option<DateTime<Local>>,
+    action: RecordingPruneAction,
 ) -> GlimpseResult<(u32, bool)> {
-    let mut deleted_count = 0;
-    let mut is_empty = true;
-
-    for entry in fs::read_dir(path)
-        .with_context(|| format!("Failed to read recordings directory {}", path.display()))?
-    {
-        let entry = entry?;
-        let child_path = entry.path();
-        let metadata = entry.metadata()?;
-
-        if metadata.is_dir() {
-            if is_pending_recordings_dir(&child_path) {
-                is_empty = false;
-                continue;
-            }
-            let (child_deleted, child_empty) = prune_recording_tree(&child_path, policy, cutoff)?;
-            deleted_count += child_deleted;
-            if child_empty {
-                fs::remove_dir(&child_path).with_context(|| {
-                    format!(
-                        "Failed to remove empty recordings directory {}",
-                        child_path.display()
-                    )
-                })?;
-            } else {
-                is_empty = false;
-            }
-            continue;
-        }
-
-        if should_prune_recording_file(&child_path, &metadata, policy, cutoff) {
-            fs::remove_file(&child_path)
-                .with_context(|| format!("Failed to remove recording {}", child_path.display()))?;
-            deleted_count += 1;
-        } else {
-            is_empty = false;
-        }
-    }
-
-    Ok((deleted_count, is_empty))
-}
-
-fn count_prunable_recording_tree(
-    path: &Path,
-    policy: RecordingPrunePolicy,
-    cutoff: Option<DateTime<Local>>,
-) -> GlimpseResult<(u32, bool)> {
-    let mut candidate_count = 0;
+    let delete = matches!(action, RecordingPruneAction::Delete);
+    let mut count = 0;
     let mut is_empty = true;
 
     for entry in fs::read_dir(path)
@@ -2309,22 +2373,34 @@ fn count_prunable_recording_tree(
                 continue;
             }
             let (child_count, child_empty) =
-                count_prunable_recording_tree(&child_path, policy, cutoff)?;
-            candidate_count += child_count;
+                walk_recording_tree(&child_path, policy, cutoff, action)?;
+            count += child_count;
             if !child_empty {
                 is_empty = false;
+            } else if delete {
+                fs::remove_dir(&child_path).with_context(|| {
+                    format!(
+                        "Failed to remove empty recordings directory {}",
+                        child_path.display()
+                    )
+                })?;
             }
             continue;
         }
 
         if should_prune_recording_file(&child_path, &metadata, policy, cutoff) {
-            candidate_count += 1;
+            if delete {
+                fs::remove_file(&child_path).with_context(|| {
+                    format!("Failed to remove recording {}", child_path.display())
+                })?;
+            }
+            count += 1;
         } else {
             is_empty = false;
         }
     }
 
-    Ok((candidate_count, is_empty))
+    Ok((count, is_empty))
 }
 
 fn is_pending_recordings_dir(path: &Path) -> bool {
@@ -2387,4 +2463,7 @@ pub(crate) struct TranscriptionCompletePayload {
 pub(crate) struct TranscriptionErrorPayload {
     pub(crate) message: String,
     pub(crate) stage: String,
+    // The record a cleanup retry failed for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) id: Option<String>,
 }

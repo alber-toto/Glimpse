@@ -87,6 +87,7 @@ impl HotkeyCoordinator {
                                 action,
                                 hotkey_state,
                                 options,
+                                event.occurred_at,
                             );
                         }
                     }
@@ -94,7 +95,13 @@ impl HotkeyCoordinator {
             }
 
             for (action, hotkey_state, options) in state.release_all() {
-                pill::handle_registered_hotkey_event(&app_handle, action, hotkey_state, options);
+                pill::handle_registered_hotkey_event(
+                    &app_handle,
+                    action,
+                    hotkey_state,
+                    options,
+                    std::time::Instant::now(),
+                );
             }
             Ok(())
         })?;
@@ -337,6 +344,10 @@ impl WorkerSession {
             .spawn(move || {
                 if let Err(err) = task(stop_rx) {
                     tracing::error!("Hotkey worker exited with error: {err}");
+                    crate::analytics::track_shortcut_failed(
+                        "worker_exit",
+                        crate::analytics::error_detail(&err),
+                    );
                 }
             })
             .map_err(|err| anyhow!("Failed to spawn hotkey worker: {err}"))?;
@@ -449,33 +460,19 @@ pub(crate) fn shortcuts_conflict(left: &Hotkey, right: &Hotkey) -> bool {
     left == right || is_modifier_only_prefix(left, right) || is_modifier_only_prefix(right, left)
 }
 
+const MODIFIER_GROUPS: [(Modifiers, Modifiers); 4] = [
+    (Modifiers::CMD_LEFT, Modifiers::CMD_RIGHT),
+    (Modifiers::CTRL_LEFT, Modifiers::CTRL_RIGHT),
+    (Modifiers::OPT_LEFT, Modifiers::OPT_RIGHT),
+    (Modifiers::SHIFT_LEFT, Modifiers::SHIFT_RIGHT),
+];
+
 fn is_modifier_only_prefix(prefix: &Hotkey, full: &Hotkey) -> bool {
     prefix.key.is_none()
         && !prefix.modifiers.is_empty()
-        && modifier_group_subset(
-            prefix.modifiers,
-            full.modifiers,
-            Modifiers::CMD_LEFT,
-            Modifiers::CMD_RIGHT,
-        )
-        && modifier_group_subset(
-            prefix.modifiers,
-            full.modifiers,
-            Modifiers::CTRL_LEFT,
-            Modifiers::CTRL_RIGHT,
-        )
-        && modifier_group_subset(
-            prefix.modifiers,
-            full.modifiers,
-            Modifiers::OPT_LEFT,
-            Modifiers::OPT_RIGHT,
-        )
-        && modifier_group_subset(
-            prefix.modifiers,
-            full.modifiers,
-            Modifiers::SHIFT_LEFT,
-            Modifiers::SHIFT_RIGHT,
-        )
+        && MODIFIER_GROUPS.iter().all(|(left, right)| {
+            modifier_group_subset(prefix.modifiers, full.modifiers, *left, *right)
+        })
         && (!prefix.modifiers.contains(Modifiers::FN) || full.modifiers.contains(Modifiers::FN))
         && (full.key.is_some() || prefix.modifiers != full.modifiers)
 }
@@ -522,6 +519,7 @@ mod tests {
 
     fn event(modifiers: Modifiers, key: Option<Key>, is_key_down: bool) -> KeyEvent {
         KeyEvent {
+            occurred_at: std::time::Instant::now(),
             modifiers,
             key,
             is_key_down,
@@ -584,6 +582,7 @@ mod tests {
 
     fn modifier_only_press() -> KeyEvent {
         KeyEvent {
+            occurred_at: std::time::Instant::now(),
             modifiers: Modifiers::OPT_RIGHT,
             key: None,
             is_key_down: true,

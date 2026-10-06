@@ -25,6 +25,7 @@ import DotMatrix from "../../../shared/ui/DotMatrix";
 import { useClickOutside } from "../../../shared/hooks/useClickOutside";
 import TranscriptText from "../../../shared/ui/TranscriptText";
 import FloatingPortal from "../../../shared/ui/FloatingPortal";
+import { showErrorToast } from "../../../shared/lib/errorToast";
 
 interface TranscriptionItemProps {
   record: TranscriptionRecord;
@@ -34,6 +35,7 @@ interface TranscriptionItemProps {
   onRetryLlm?: (id: string) => Promise<void>;
   onUndoLlm?: (id: string) => Promise<void>;
   isRetrying?: boolean;
+  isCleaning?: boolean;
   showLlmButtons?: boolean;
   shiftHeld?: boolean;
   showDate?: boolean;
@@ -49,6 +51,7 @@ const TranscriptionItem: React.FC<TranscriptionItemProps> = ({
   onRetryLlm,
   onUndoLlm,
   isRetrying = false,
+  isCleaning = false,
   showLlmButtons = false,
   shiftHeld = false,
   showDate = false,
@@ -60,7 +63,8 @@ const TranscriptionItem: React.FC<TranscriptionItemProps> = ({
   const { copied, copy } = useCopyToClipboard(2000);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancellingRetry, setIsCancellingRetry] = useState(false);
-  const [isRetryingLlm, setIsRetryingLlm] = useState(false);
+  const [startingCleanup, setStartingCleanup] = useState(false);
+  const isRetryingLlm = startingCleanup || isCleaning;
   const [isUndoingLlm, setIsUndoingLlm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(initialOverflowing);
@@ -133,6 +137,12 @@ const TranscriptionItem: React.FC<TranscriptionItemProps> = ({
       await onDelete(record.id);
     } catch (err) {
       console.error("Failed to delete:", err);
+      showErrorToast(
+        t({
+          id: "transcriptions.item.delete_failed",
+          message: "Couldn't delete the transcription.",
+        }),
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -146,6 +156,12 @@ const TranscriptionItem: React.FC<TranscriptionItemProps> = ({
       await onRetry(record.id);
     } catch (err) {
       console.error("Failed to retry:", err);
+      showErrorToast(
+        t({
+          id: "transcriptions.item.retry_failed",
+          message: "Couldn't retry the transcription.",
+        }),
+      );
     }
   };
 
@@ -159,6 +175,12 @@ const TranscriptionItem: React.FC<TranscriptionItemProps> = ({
       await onCancelRetry(record.id);
     } catch (err) {
       console.error("Failed to stop retry:", err);
+      showErrorToast(
+        t({
+          id: "transcriptions.item.stop_failed",
+          message: "Couldn't stop the transcription.",
+        }),
+      );
     } finally {
       setIsCancellingRetry(false);
     }
@@ -166,15 +188,21 @@ const TranscriptionItem: React.FC<TranscriptionItemProps> = ({
 
   const handleRetryLlm = async () => {
     if (isRetryingLlm || !onRetryLlm) return;
-    setIsRetryingLlm(true);
+    setStartingCleanup(true);
     setMenuOpen(false);
     setSelectionText("");
     try {
       await onRetryLlm(record.id);
     } catch (err) {
       console.error("Failed to retry cleanup:", err);
+      showErrorToast(
+        t({
+          id: "transcriptions.cleanup_retry_failed",
+          message: "Couldn't clean up the transcription.",
+        }),
+      );
     } finally {
-      setIsRetryingLlm(false);
+      setStartingCleanup(false);
     }
   };
 
@@ -187,6 +215,12 @@ const TranscriptionItem: React.FC<TranscriptionItemProps> = ({
       await onUndoLlm(record.id);
     } catch (err) {
       console.error("Failed to undo cleanup:", err);
+      showErrorToast(
+        t({
+          id: "transcriptions.item.restore_failed",
+          message: "Couldn't restore the original transcript.",
+        }),
+      );
     } finally {
       setIsUndoingLlm(false);
     }
@@ -543,7 +577,7 @@ const TranscriptionItem: React.FC<TranscriptionItemProps> = ({
                       onClick={handleCopySelection}
                       className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-secondary hover:bg-surface-elevated transition-colors"
                     >
-                      <Copy size={12} className="text-content-muted" />
+                      <RotateCw size={12} className="ui-color-cloud" />
                       <span>
                         {t({
                           id: "transcriptions.item.copy_selection",

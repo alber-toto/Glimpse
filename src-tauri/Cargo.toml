@@ -1,6 +1,6 @@
 [package]
 name = "Glimpse"
-version = "1.1.2"
+version = "1.3.1"
 description = "Open-source voice-to-text productivity app built with Tauri"
 authors = ["Glimpse HQ"]
 edition = "2024"
@@ -19,50 +19,61 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [profile.release]
 lto = "thin"
 codegen-units = 1
+# Line tables go to a separate dSYM (macOS) for symbolicating crash reports;
+# the shipped binary is still stripped. On Windows, `strip` skips the PDB, so
+# release CI sets CARGO_PROFILE_RELEASE_STRIP=none there.
+debug = "line-tables-only"
+split-debuginfo = "packed"
 strip = true
 
+# Dependencies (decoders, resamplers, SQLite) are optimized in dev builds; app code stays debug.
+[profile.dev.package."*"]
+opt-level = 3
+
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.0", features = [] }
 
 [dependencies]
-tauri = { version = "2.11.5", features = ["protocol-asset", "macos-private-api", "tray-icon", "image-png"] }
-tauri-plugin-opener = "2.5.4"
-tauri-plugin-dialog = "2.7.2"
+tauri = { version = "2.12.0", features = ["protocol-asset", "macos-private-api", "tray-icon", "image-png"] }
+tauri-plugin-opener = "2.6.0"
+tauri-plugin-dialog = "2.8.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde", "unstable-locales"] }
 cpal = "0.18"
 anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
 tracing-appender = "0.2"
-symphonia = { version = "0.6.0", default-features = false, features = ["aac", "alac", "flac", "mp3", "ogg", "pcm", "vorbis", "wav", "isomp4", "mkv"] }
+symphonia = { version = "0.6.1", default-features = false, features = ["aac", "alac", "flac", "mp3", "ogg", "pcm", "vorbis", "wav", "isomp4", "mkv"] }
 hound = "3.5.1"
 parking_lot = "0.12"
 crossbeam-channel = "0.5"
 webrtc-vad = "0.4"
 rustfft = "6"
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
-posthog-rs = { version = "0.24", default-features = false, features = ["async-client"] }
+posthog-rs = { version = "0.27", default-features = false, features = ["async-client"] }
 arboard = "3"
-glimpse-speech = { git = "https://github.com/glimpse-hq/Glimpse-Speech.git", rev = "000b8733dd5b504b187d374c86e380aa48347c79", features = ["whisper", "nvidia", "api", "cli", "remote", "cleanup-apple", "apple-speech"] }
-uuid = { version = "1.24.1", features = ["v4"] }
+glimpse-speech = { git = "https://github.com/glimpse-hq/Glimpse-Speech.git", tag = "2.0.3", features = ["whisper", "transcribe", "api", "cli", "remote", "cleanup-apple", "apple-speech"] }
+uuid = { version = "1.26.1", features = ["v4"] }
 aes-gcm = "0.11"
 pbkdf2 = "0.13"
 sha2 = "0.11"
+# Already in the tree through rustls; verifies the license server's Ed25519 tokens.
+ring = "0.17"
 base64 = { version = "0.23", default-features = false, features = ["std"] }
 rusqlite = { version = "0.40", features = ["bundled"] }
 regex = "1"
 fs2 = "0.4"
-tauri-plugin-deep-link = "2.4.9"
+tauri-plugin-deep-link = "2.5.0"
 rubato = "5.0.0"
 interprocess = "2"
 
 [target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
-tauri-plugin-process = "2.3.1"
-tauri-plugin-updater = "2.10.1"
-tauri-plugin-single-instance = "2.4.3"
-tauri-plugin-autostart = "2.5.1"
+tauri-plugin-process = "2.4.0"
+tauri-plugin-updater = "2.13.0"
+tauri-plugin-single-instance = "2.5.0"
+tauri-plugin-autostart = "2.6.0"
 tauri-plugin-window-state = "2.4.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 tokio-util = "0.7"
@@ -72,11 +83,18 @@ png = "0.18.1"
 sherpa-onnx = { version = "=1.13.1", default-features = false, features = ["static"] }
 bzip2 = "0.6"
 tar = "0.4"
-windows = { version = "0.62.2", features = ["ApplicationModel", "ApplicationModel_Activation", "Media_Control", "Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Gdi", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_System_Com", "Win32_System_Diagnostics_Debug", "Win32_System_Kernel", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_Threading", "Win32_UI_Accessibility", "Win32_UI_Controls", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62.2", features = ["ApplicationModel", "ApplicationModel_Activation", "Media_Control", "Win32_Foundation", "Win32_Globalization", "Win32_Graphics_Dxgi", "Win32_Graphics_Gdi", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_System_Diagnostics_Debug", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Kernel", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_SystemInformation", "Win32_System_Threading", "Win32_UI_Accessibility", "Win32_UI_Controls", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows-core = "0.62.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "a3122e8" }
+tauri-nspanel = "2.1"
 tauri-plugin-macos-permissions = "2.3.0"
 core-graphics = "0.25"
 core-foundation = "0.10"
 objc2-core-audio = "0.3.2"
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = "0.3.2"
+objc2-core-foundation = "0.3.2"
+objc2-core-audio-types = "0.3.2"
+objc2-app-kit = { version = "0.3.2", features = ["NSRunningApplication", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSApplication", "NSWindow", "NSView", "NSResponder", "NSControl", "NSButton", "NSFont", "NSStatusItem", "NSStatusBar", "objc2-core-graphics"] }

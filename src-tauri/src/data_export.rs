@@ -485,6 +485,7 @@ mod tests {
                 store_original: false,
                 status: LibraryItemStatus::Complete,
                 transcript: Some("library text".to_string()),
+                transcript_edited: false,
                 segments: Some(vec![TranscriptSegment {
                     start_ms: 0,
                     end_ms: 900,
@@ -504,6 +505,9 @@ mod tests {
                 detect_speakers: false,
                 kind: "import".to_string(),
                 speakers: None,
+                secondary_audio_path: None,
+                sources: None,
+                bookmarks: None,
             })
             .expect("insert library item");
 

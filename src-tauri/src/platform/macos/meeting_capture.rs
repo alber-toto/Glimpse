@@ -28,6 +28,8 @@ struct CaptureResult {
     system_level: f32,
     #[serde(default)]
     application_isolated: bool,
+    #[serde(default)]
+    capture_error: Option<String>,
 }
 
 fn take_result(value: *mut c_char) -> Result<CaptureResult> {
@@ -54,6 +56,7 @@ pub struct CaptureInfo {
 pub struct CaptureLevels {
     pub microphone: f32,
     pub system: f32,
+    pub capture_error: Option<String>,
 }
 
 pub fn start(
@@ -97,5 +100,6 @@ pub fn levels() -> Result<CaptureLevels> {
     Ok(CaptureLevels {
         microphone: result.microphone_level.clamp(0.0, 1.0),
         system: result.system_level.clamp(0.0, 1.0),
+        capture_error: result.capture_error,
     })
 }

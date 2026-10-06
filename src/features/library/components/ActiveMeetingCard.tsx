@@ -184,6 +184,20 @@ export default function ActiveMeetingCard({
           </div>
         </div>
 
+        {(meeting.capture_error || levels?.capture_error) && (
+          <p
+            role="alert"
+            className="flex items-center gap-2 ui-text-body-sm text-[var(--color-error)]"
+          >
+            <WarningCircle size={16} weight="fill" aria-hidden="true" />
+            {t({
+              id: "meeting.active.capture_failed",
+              message:
+                "Audio capture was interrupted. Stop recording to save the captured audio; retry if saving fails.",
+            })}
+          </p>
+        )}
+
         <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
           <div className="min-w-0 rounded-xl border border-border-primary bg-surface-secondary px-4 py-3">
             <div className="flex min-w-0 items-center gap-2.5">

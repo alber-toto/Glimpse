@@ -3,16 +3,21 @@ use std::path::Path;
 use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension, Row, ToSql, params};
 
-use crate::library::{
-    LibraryFilter, LibraryItem, LibraryItemPatch, LibraryItemStatus, Speaker, TranscriptSegment,
-};
+use crate::library::{LibraryFilter, LibraryItem, LibraryItemPatch, LibraryItemStatus};
+
+const LIBRARY_COLUMNS: &str = "id, name, audio_path, source_path, store_original, status, progress, \
+    error_message, transcript, segments, words, duration_seconds, file_size_bytes, original_format, \
+    created_at, transcribed_at, tags, llm_cleanup_enabled, speech_model, show_timestamps, \
+    detect_speakers, kind, speakers, secondary_audio_path, sources, bookmarks, transcript_edited";
 
 pub(crate) fn insert_library_item(conn: &Connection, item: LibraryItem) -> Result<LibraryItem> {
     let (status, progress, error_message) = item.status.as_fields();
-    let segments = serialize_segments(&item.segments)?;
-    let words = serialize_segments(&item.words)?;
+    let segments = serialize_json_column(&item.segments)?;
+    let words = serialize_json_column(&item.words)?;
     let tags = serialize_tags(&item.tags)?;
-    let speakers = serialize_speakers(&item.speakers)?;
+    let speakers = serialize_json_column(&item.speakers)?;
+    let sources = serialize_json_value(&item.sources)?;
+    let bookmarks = serialize_json_column(&item.bookmarks)?;
 
     conn.execute(
         "INSERT INTO library_items (
@@ -38,8 +43,12 @@ pub(crate) fn insert_library_item(conn: &Connection, item: LibraryItem) -> Resul
             show_timestamps,
             detect_speakers,
             kind,
-            speakers
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
+            speakers,
+            secondary_audio_path,
+            sources,
+            bookmarks,
+            transcript_edited
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)",
         params![
             item.id,
             item.name,
@@ -64,18 +73,14 @@ pub(crate) fn insert_library_item(conn: &Connection, item: LibraryItem) -> Resul
             if item.detect_speakers { 1 } else { 0 },
             item.kind,
             speakers,
+            item.secondary_audio_path,
+            sources,
+            bookmarks,
+            if item.transcript_edited { 1 } else { 0 },
         ],
     )?;
 
     Ok(item)
-}
-
-pub(crate) fn get_library_item(
-    conn: &Connection,
-    root: &Path,
-    id: &str,
-) -> Result<Option<LibraryItem>> {
-    get_library_item_by_id(conn, root, id)
 }
 
 pub(crate) fn get_library_items_page(
@@ -87,9 +92,7 @@ pub(crate) fn get_library_items_page(
 ) -> Result<(Vec<LibraryItem>, bool)> {
     let (where_clause, mut params) = build_library_filter(&filter);
     let sql = format!(
-        "SELECT id, name, audio_path, source_path, store_original, status, progress, error_message, transcript, segments, words,
-                duration_seconds, file_size_bytes, original_format, created_at, transcribed_at,
-                tags, llm_cleanup_enabled, speech_model, show_timestamps, detect_speakers, kind, speakers
+        "SELECT {LIBRARY_COLUMNS}
          FROM library_items
          {}
          ORDER BY created_at DESC
@@ -120,14 +123,12 @@ pub(crate) fn get_recoverable_library_items(
     conn: &Connection,
     root: &Path,
 ) -> Result<Vec<LibraryItem>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, audio_path, source_path, store_original, status, progress, error_message, transcript, segments, words,
-                duration_seconds, file_size_bytes, original_format, created_at, transcribed_at,
-                tags, llm_cleanup_enabled, speech_model, show_timestamps, detect_speakers, kind, speakers
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {LIBRARY_COLUMNS}
          FROM library_items
          WHERE status IN ('pending', 'importing', 'transcribing', 'cancelling')
-         ORDER BY created_at ASC",
-    )?;
+         ORDER BY created_at ASC"
+    ))?;
 
     let items = stmt
         .query_map([], |row| library_item_from_row(root, row))?
@@ -142,7 +143,7 @@ pub(crate) fn update_library_item(
     patch: LibraryItemPatch,
 ) -> Result<Option<LibraryItem>> {
     let tx = conn.transaction()?;
-    let mut item = match get_library_item_by_id(&tx, root, id)? {
+    let mut item = match get_library_item(&tx, root, id)? {
         Some(item) => item,
         None => return Ok(None),
     };
@@ -152,6 +153,9 @@ pub(crate) fn update_library_item(
     }
     if let Some(transcript) = patch.transcript {
         item.transcript = Some(transcript);
+    }
+    if let Some(edited) = patch.transcript_edited {
+        item.transcript_edited = edited;
     }
     if let Some(segments) = patch.segments {
         item.segments = Some(segments);
@@ -189,6 +193,9 @@ pub(crate) fn update_library_item(
     if let Some(speakers) = patch.speakers {
         item.speakers = speakers;
     }
+    if let Some(bookmarks) = patch.bookmarks {
+        item.bookmarks = Some(bookmarks);
+    }
 
     update_library_item_full(&tx, &item)?;
     tx.commit()?;
@@ -204,7 +211,7 @@ pub(crate) fn apply_generated_library_metadata(
     generated_tags: &[String],
 ) -> Result<Option<LibraryItem>> {
     let tx = conn.transaction()?;
-    let mut item = match get_library_item_by_id(&tx, root, id)? {
+    let mut item = match get_library_item(&tx, root, id)? {
         Some(item) => item,
         None => return Ok(None),
     };
@@ -236,7 +243,7 @@ pub(crate) fn delete_library_item(
     root: &Path,
     id: &str,
 ) -> Result<Option<String>> {
-    let item = get_library_item_by_id(conn, root, id)?;
+    let item = get_library_item(conn, root, id)?;
     if item.is_some() {
         conn.execute("DELETE FROM library_items WHERE id = ?1", params![id])?;
     }
@@ -260,12 +267,13 @@ pub(crate) fn get_library_tags(conn: &Connection) -> Result<Vec<String>> {
     Ok(set.into_iter().collect())
 }
 
-fn get_library_item_by_id(conn: &Connection, root: &Path, id: &str) -> Result<Option<LibraryItem>> {
+pub(crate) fn get_library_item(
+    conn: &Connection,
+    root: &Path,
+    id: &str,
+) -> Result<Option<LibraryItem>> {
     conn.query_row(
-        "SELECT id, name, audio_path, source_path, store_original, status, progress, error_message, transcript, segments, words,
-                duration_seconds, file_size_bytes, original_format, created_at, transcribed_at,
-                tags, llm_cleanup_enabled, speech_model, show_timestamps, detect_speakers, kind, speakers
-         FROM library_items WHERE id = ?1",
+        &format!("SELECT {LIBRARY_COLUMNS} FROM library_items WHERE id = ?1"),
         params![id],
         |row| library_item_from_row(root, row),
     )
@@ -275,10 +283,12 @@ fn get_library_item_by_id(conn: &Connection, root: &Path, id: &str) -> Result<Op
 
 fn update_library_item_full(conn: &Connection, item: &LibraryItem) -> Result<()> {
     let (status, progress, error_message) = item.status.as_fields();
-    let segments = serialize_segments(&item.segments)?;
-    let words = serialize_segments(&item.words)?;
+    let segments = serialize_json_column(&item.segments)?;
+    let words = serialize_json_column(&item.words)?;
     let tags = serialize_tags(&item.tags)?;
-    let speakers = serialize_speakers(&item.speakers)?;
+    let speakers = serialize_json_column(&item.speakers)?;
+    let sources = serialize_json_value(&item.sources)?;
+    let bookmarks = serialize_json_column(&item.bookmarks)?;
 
     conn.execute(
         "UPDATE library_items SET
@@ -303,8 +313,12 @@ fn update_library_item_full(conn: &Connection, item: &LibraryItem) -> Result<()>
             show_timestamps = ?19,
             kind = ?20,
             speakers = ?21,
-            detect_speakers = ?22
-         WHERE id = ?23",
+            detect_speakers = ?22,
+            secondary_audio_path = ?23,
+            sources = ?24,
+            bookmarks = ?25,
+            transcript_edited = ?26
+         WHERE id = ?27",
         params![
             item.name,
             item.audio_path,
@@ -328,6 +342,10 @@ fn update_library_item_full(conn: &Connection, item: &LibraryItem) -> Result<()>
             item.kind,
             speakers,
             if item.detect_speakers { 1 } else { 0 },
+            item.secondary_audio_path,
+            sources,
+            bookmarks,
+            if item.transcript_edited { 1 } else { 0 },
             item.id,
         ],
     )?;
@@ -359,11 +377,17 @@ fn library_item_from_row(root: &Path, row: &Row<'_>) -> rusqlite::Result<Library
     let words_json: Option<String> = row.get("words").ok();
     let tags_json: String = row.get("tags")?;
     let speakers_json: Option<String> = row.get("speakers").ok().flatten();
+    let sources_json: Option<String> = row.get("sources").ok().flatten();
+    let bookmarks_json: Option<String> = row.get("bookmarks").ok().flatten();
 
-    let segments = parse_segments_column(segments_json);
-    let words = parse_segments_column(words_json);
+    let segments = parse_json_column(segments_json);
+    let words = parse_json_column(words_json);
     let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-    let speakers = parse_speakers_column(speakers_json);
+    let speakers = parse_json_column(speakers_json);
+    let bookmarks = parse_json_column(bookmarks_json);
+    let sources = sources_json
+        .filter(|raw| !raw.trim().is_empty())
+        .and_then(|raw| serde_json::from_str(&raw).ok());
 
     Ok(LibraryItem {
         id: row.get("id")?,
@@ -373,6 +397,10 @@ fn library_item_from_row(root: &Path, row: &Row<'_>) -> rusqlite::Result<Library
         store_original: row.get::<_, i64>("store_original")? == 1,
         status: LibraryItemStatus::from_fields(&status_value, progress, error_message),
         transcript: row.get("transcript")?,
+        transcript_edited: row
+            .get::<_, i64>("transcript_edited")
+            .map(|value| value == 1)
+            .unwrap_or(false),
         segments,
         words,
         duration_seconds: row.get::<_, f64>("duration_seconds")? as f32,
@@ -394,40 +422,41 @@ fn library_item_from_row(root: &Path, row: &Row<'_>) -> rusqlite::Result<Library
             .flatten()
             .unwrap_or_else(crate::library::default_item_kind),
         speakers,
+        secondary_audio_path: row
+            .get::<_, Option<String>>("secondary_audio_path")
+            .ok()
+            .flatten()
+            .map(|stored| resolve_audio_path(root, stored)),
+        sources,
+        bookmarks,
     })
 }
 
-fn serialize_segments(segments: &Option<Vec<TranscriptSegment>>) -> Result<Option<String>> {
-    match segments {
+fn serialize_json_column<T: serde::Serialize>(value: &Option<Vec<T>>) -> Result<Option<String>> {
+    match value {
         Some(value) => Ok(Some(serde_json::to_string(value)?)),
         None => Ok(None),
     }
 }
 
-fn parse_segments_column(value: Option<String>) -> Option<Vec<TranscriptSegment>> {
-    value
-        .filter(|raw| !raw.trim().is_empty())
-        .and_then(|raw| serde_json::from_str::<Vec<TranscriptSegment>>(&raw).ok())
-}
-
-fn serialize_speakers(speakers: &Option<Vec<Speaker>>) -> Result<Option<String>> {
-    match speakers {
+fn serialize_json_value<T: serde::Serialize>(value: &Option<T>) -> Result<Option<String>> {
+    match value {
         Some(value) => Ok(Some(serde_json::to_string(value)?)),
         None => Ok(None),
     }
 }
 
-fn parse_speakers_column(value: Option<String>) -> Option<Vec<Speaker>> {
+fn parse_json_column<T: serde::de::DeserializeOwned>(value: Option<String>) -> Option<Vec<T>> {
     value
         .filter(|raw| !raw.trim().is_empty())
-        .and_then(|raw| serde_json::from_str::<Vec<Speaker>>(&raw).ok())
+        .and_then(|raw| serde_json::from_str(&raw).ok())
 }
 
 fn serialize_tags(tags: &[String]) -> Result<String> {
     Ok(serde_json::to_string(tags)?)
 }
 
-fn extract_search_terms(search: &str) -> (String, Vec<String>) {
+fn extract_search_terms(search: &str) -> (Vec<String>, Vec<String>) {
     let mut tag_terms = Vec::new();
     let mut text_terms = Vec::new();
 
@@ -440,10 +469,10 @@ fn extract_search_terms(search: &str) -> (String, Vec<String>) {
             continue;
         }
 
-        text_terms.push(token);
+        text_terms.push(token.to_string());
     }
 
-    (text_terms.join(" ").trim().to_string(), tag_terms)
+    (text_terms, tag_terms)
 }
 
 fn build_library_filter(filter: &LibraryFilter) -> (String, Vec<Box<dyn ToSql>>) {
@@ -453,11 +482,16 @@ fn build_library_filter(filter: &LibraryFilter) -> (String, Vec<Box<dyn ToSql>>)
     if let Some(search) = filter.search.as_ref()
         && !search.trim().is_empty()
     {
-        let (text_search, tag_terms) = extract_search_terms(search.trim());
+        let (text_terms, tag_terms) = extract_search_terms(search.trim());
 
-        if !text_search.is_empty() {
-            let like = format!("%{}%", text_search);
-            clauses.push("(name LIKE ? OR transcript LIKE ?)".to_string());
+        // Each word matches independently, so word order and gaps don't matter.
+        for term in text_terms {
+            let escaped = term
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_");
+            let like = format!("%{escaped}%");
+            clauses.push("(name LIKE ? ESCAPE '\\' OR transcript LIKE ? ESCAPE '\\')".to_string());
             params.push(Box::new(like.clone()));
             params.push(Box::new(like));
         }

@@ -158,15 +158,33 @@ fn generate_native_menu_catalog() {
     std::fs::write(&dest, out).expect("write native menu catalog");
 }
 
+/// ggml's Metal `@available` checks call `__isPlatformVersionAtLeast` when the
+/// deployment target is older than the SDK. It lives in clang's runtime, which
+/// rustc doesn't link.
+fn link_clang_runtime() {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("macos") {
+        return;
+    }
+    let output = std::process::Command::new("clang")
+        .arg("--print-resource-dir")
+        .output()
+        .expect("clang --print-resource-dir");
+    let resource_dir = String::from_utf8(output.stdout).expect("clang resource dir");
+    println!(
+        "cargo:rustc-link-search=native={}/lib/darwin",
+        resource_dir.trim()
+    );
+    println!("cargo:rustc-link-lib=static=clang_rt.osx");
+}
+
 fn main() {
     generate_native_menu_catalog();
+    link_clang_runtime();
 
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         compile_diarization_bridge();
 
-        if std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("aarch64") {
-            compile_meeting_capture_shim();
-        }
+        compile_meeting_capture_shim();
     }
 
     // Forward build-time env vars from workspace .env and the build environment.
@@ -174,12 +192,9 @@ fn main() {
         "POSTHOG_API_KEY",
         "POSTHOG_HOST",
         "GLIMPSE_FORCE_LICENSE_GATE",
-        "GLIMPSE_POLAR_API_BASE",
-        "GLIMPSE_POLAR_BENEFIT_COMMERCIAL",
-        "GLIMPSE_POLAR_BENEFIT_CONTRIBUTOR",
-        "GLIMPSE_POLAR_BENEFIT_FOUNDER",
-        "GLIMPSE_POLAR_BENEFIT_PERSONAL",
-        "GLIMPSE_POLAR_ORGANIZATION_ID",
+        "GLIMPSE_API_BASE",
+        "GLIMPSE_API_FALLBACK_BASE",
+        "GLIMPSE_GRANT_PUBLIC_KEY",
     ];
     let mut forwarded = std::collections::HashSet::new();
     let workspace_env = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../.env");
@@ -244,9 +259,9 @@ fn compile_meeting_capture_shim() {
             "-module-cache-path",
         ])
         .arg(out_dir.join("swift-module-cache"))
+        .arg("-target")
+        .arg(swift_target())
         .args([
-            "-target",
-            "arm64-apple-macosx14.0",
             "swift/meeting_capture.swift",
             "swift/keyboard_media.swift",
             "-o",
@@ -270,7 +285,8 @@ fn compile_diarization_bridge() {
     use std::process::Command;
 
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let scratch_dir = manifest_dir.join("target/swift-diarization");
+    let scratch_dir =
+        PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR")).join("swift-diarization");
     let module_cache = scratch_dir.join("module-cache");
     std::fs::create_dir_all(&module_cache).expect("create Swift module cache");
     println!("cargo:rerun-if-changed=swift-diarization/Package.swift");
@@ -283,12 +299,12 @@ fn compile_diarization_bridge() {
         .current_dir(&manifest_dir)
         .env("CLANG_MODULE_CACHE_PATH", &module_cache)
         .env("SWIFTPM_MODULECACHE_OVERRIDE", &module_cache)
+        .args(["build", "--package-path", "swift-diarization"])
+        .arg("--scratch-path")
+        .arg(&scratch_dir)
+        .arg("--triple")
+        .arg(swift_target())
         .args([
-            "build",
-            "--package-path",
-            "swift-diarization",
-            "--scratch-path",
-            "target/swift-diarization",
             "-c",
             "release",
             "--product",
@@ -313,4 +329,12 @@ fn compile_diarization_bridge() {
     println!("cargo:rustc-link-lib=framework=CoreML");
     println!("cargo:rustc-link-lib=framework=Foundation");
     println!("cargo:rustc-link-lib=framework=OSLog");
+}
+
+fn swift_target() -> &'static str {
+    match std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
+        Ok("aarch64") => "arm64-apple-macosx14.0",
+        Ok("x86_64") => "x86_64-apple-macosx14.0",
+        _ => panic!("Unsupported macOS architecture"),
+    }
 }

@@ -13,6 +13,7 @@ mod library;
 mod model;
 mod open;
 mod output;
+mod record;
 mod replacements;
 mod server;
 mod status;
@@ -38,6 +39,11 @@ const COMMANDS: &[CliCommand] = &[
     CliCommand {
         name: "library",
         help: "Import and transcribe files in the background.",
+        owned: true,
+    },
+    CliCommand {
+        name: "record",
+        help: "Control Recording Mode.",
         owned: true,
     },
     CliCommand {
@@ -165,6 +171,7 @@ fn run(identifier: &str, args: &[String], json: bool) -> Result<()> {
         "replacements" => replacements::run(identifier, rest, json),
         "model" => model::run(identifier, rest, json),
         "library" => library::run(identifier, rest, json),
+        "record" => record::run(rest, json),
         "open" => open::run(rest, json),
         "status" => status::run(rest, json),
         "api" => api::run(rest, json),
@@ -215,8 +222,9 @@ fn looks_like_flag(value: &str) -> bool {
     value.starts_with("--") || (value.starts_with('-') && value.len() > 1)
 }
 
-/// The value following `flag`, or an error if it's missing or another flag.
-fn flag_value<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>> {
+/// Parse a `--flag <value>` string option. Errors if the value is missing or is
+/// itself another flag; returns None only when the flag is absent.
+pub(crate) fn str_flag<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>> {
     let Some(idx) = args.iter().position(|arg| arg == flag) else {
         return Ok(None);
     };
@@ -231,18 +239,12 @@ fn flag_value<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>> {
 
 /// Parse a `--flag <value>` integer option. Returns the default if absent.
 pub(crate) fn usize_flag(args: &[String], flag: &str, default: usize) -> Result<usize> {
-    match flag_value(args, flag)? {
+    match str_flag(args, flag)? {
         Some(value) => value
             .parse::<usize>()
             .map_err(|_| anyhow::anyhow!("{flag} must be a non-negative integer")),
         None => Ok(default),
     }
-}
-
-/// Parse a `--flag <value>` string option. Errors if the value is missing or is
-/// itself another flag; returns None only when the flag is absent.
-pub(crate) fn str_flag<'a>(args: &'a [String], flag: &str) -> Result<Option<&'a str>> {
-    flag_value(args, flag)
 }
 
 pub(crate) fn has_flag(args: &[String], flag: &str) -> bool {

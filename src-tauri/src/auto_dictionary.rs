@@ -23,13 +23,7 @@ const MAX_CHANGED_TOKENS: usize = 4;
 const MAX_DICTIONARY_ENTRIES: usize = 64;
 const MAX_IGNORED_SUGGESTIONS: usize = 128;
 
-static PENDING_SUGGESTION: OnceLock<Mutex<Option<PendingSuggestion>>> = OnceLock::new();
 static IGNORED_SUGGESTIONS: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-
-#[derive(Clone)]
-struct PendingSuggestion {
-    value: String,
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Token {
@@ -44,6 +38,7 @@ pub(crate) fn start_after_paste(
     inserted_text: String,
     dictionary_entries: Vec<String>,
     ignored_entries: Vec<String>,
+    model: String,
 ) {
     if inserted_text.trim().is_empty() {
         return;
@@ -62,16 +57,27 @@ pub(crate) fn start_after_paste(
         let mut last_value = pre_paste.value.clone();
         let mut last_changed = Instant::now();
         let mut last_analyzed: Option<String> = None;
+        // Only a field that showed the paste can tell "no edit" from "unreadable".
+        let mut paste_seen = false;
+        let report_edit = |value: &str, paste_seen: bool| {
+            if paste_seen {
+                let edit = edit_bucket(&pre_paste.value, &inserted_text, value);
+                crate::analytics::track_paste_edited(&app, edit, &model);
+            }
+        };
 
         while started.elapsed() < HARD_CAP {
             thread::sleep(POLL_INTERVAL);
 
             let Some(snapshot) = assistive::focused_text_snapshot() else {
+                report_edit(&last_value, paste_seen);
                 return;
             };
             if !same_target(&pre_paste, &snapshot) {
+                report_edit(&last_value, paste_seen);
                 return;
             }
+            paste_seen |= snapshot.value != pre_paste.value;
 
             if snapshot.value != last_value {
                 last_value = snapshot.value.clone();
@@ -92,31 +98,58 @@ pub(crate) fn start_after_paste(
                 &last_value,
                 &dictionary_entries,
             ) {
+                report_edit(&last_value, paste_seen);
                 if is_ignored_suggestion(&candidate) {
                     return;
                 }
 
-                set_pending_suggestion(candidate.clone());
                 toast::emit_toast(
                     &app,
                     toast::Payload {
                         toast_type: "info".to_string(),
-                        title: None,
                         message: format!("Add \"{candidate}\" to dictionary?"),
                         auto_dismiss: Some(false),
-                        duration: None,
                         retry_id: Some(candidate.clone()),
-                        mode: None,
                         action: Some("accept_auto_dictionary_suggestion".to_string()),
                         action_label: Some("Add".to_string()),
                         secondary_action: Some("reject_auto_dictionary_suggestion".to_string()),
                         secondary_action_label: Some("Never".to_string()),
+                        ..Default::default()
                     },
                 );
                 return;
             }
         }
+        report_edit(&last_value, paste_seen);
     });
+}
+
+/// none, small (at most a tenth of the pasted words changed), or large.
+fn edit_bucket(pre_value: &str, inserted_text: &str, current_value: &str) -> &'static str {
+    let inserted = tokenize(inserted_text);
+    let current = changed_current_span(pre_value, current_value)
+        .map(tokenize)
+        .unwrap_or_default();
+    let prefix = inserted
+        .iter()
+        .zip(&current)
+        .take_while(|(a, b)| a.text == b.text)
+        .count();
+    let suffix = inserted[prefix..]
+        .iter()
+        .rev()
+        .zip(current[prefix..].iter().rev())
+        .take_while(|(a, b)| a.text == b.text)
+        .count();
+    // Words typed after the dictation are additions, not edits of it.
+    let changed = inserted.len() - prefix - suffix;
+    if changed == 0 {
+        "none"
+    } else if changed * 10 <= inserted.len() {
+        "small"
+    } else {
+        "large"
+    }
 }
 
 #[tauri::command]
@@ -141,7 +174,6 @@ pub(crate) fn accept_auto_dictionary_suggestion(
         .persist_settings(settings)
         .map_err(|err| err.to_string())?;
     clear_ignored_suggestion(&suggestion);
-    clear_pending_suggestion_value(&suggestion);
 
     if let Err(err) = app.emit(EVENT_SETTINGS_CHANGED, &saved) {
         tracing::error!("Failed to emit settings change: {err}");
@@ -169,17 +201,12 @@ pub(crate) fn reject_auto_dictionary_suggestion(
         .persist_settings(settings)
         .map_err(|err| err.to_string())?;
     remember_ignored_suggestion(&suggestion);
-    clear_pending_suggestion_value(&suggestion);
 
     if let Err(err) = app.emit(EVENT_SETTINGS_CHANGED, &saved) {
         tracing::error!("Failed to emit settings change: {err}");
     }
 
     Ok(saved.auto_dictionary_ignored)
-}
-
-pub(crate) fn clear_pending_suggestion() {
-    let _ = take_pending_suggestion();
 }
 
 pub(crate) fn sync_ignored_dictionary_entries(dictionary_entries: &[String]) {
@@ -224,28 +251,6 @@ fn frames_match(
                 && (initial.2 - current.2).abs() < 2.0
         }
         _ => true,
-    }
-}
-
-fn pending_suggestion() -> &'static Mutex<Option<PendingSuggestion>> {
-    PENDING_SUGGESTION.get_or_init(|| Mutex::new(None))
-}
-
-fn set_pending_suggestion(value: String) {
-    *pending_suggestion().lock() = Some(PendingSuggestion { value });
-}
-
-fn take_pending_suggestion() -> Option<PendingSuggestion> {
-    pending_suggestion().lock().take()
-}
-
-fn clear_pending_suggestion_value(value: &str) {
-    let mut pending = pending_suggestion().lock();
-    if pending
-        .as_ref()
-        .is_some_and(|suggestion| suggestion.value == value)
-    {
-        *pending = None;
     }
 }
 

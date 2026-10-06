@@ -1,14 +1,11 @@
-use glimpse_speech::models::{InstallSpec, ModelLayout, ModelStorage, RemoteFile};
+use glimpse_speech::models::{InstallSpec, ModelStorage, RemoteFile};
 use serde::Serialize;
 use tauri::AppHandle;
 
 use crate::AppRuntime;
 use crate::model_language_table::{
-    SupportedLanguageInfo, english_supported_languages, whisper_supported_languages,
-};
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-use crate::model_language_table::{
-    nemotron_35_supported_languages, nemotron_supported_languages, parakeet_v3_supported_languages,
+    SupportedLanguageInfo, english_supported_languages, nemotron_35_supported_languages,
+    parakeet_v3_supported_languages, qwen3_asr_supported_languages, whisper_supported_languages,
 };
 use crate::settings::UserSettings;
 use crate::speech::{install, remote};
@@ -18,6 +15,11 @@ pub const MODEL_CAPABILITY_TIMESTAMPS: &str = "timestamps";
 pub const MODEL_CAPABILITY_STREAMING: &str = "streaming";
 pub const MODEL_CAPABILITY_DIARIZATION: &str = "diarization";
 pub const MODEL_CATEGORY_LEGACY: &str = "legacy";
+pub const MODEL_CATEGORY_DIARIZATION: &str = "diarization";
+pub const DIARIZER_MODEL: &str = "nemotron3_diar_q8";
+/// Model directory and file of the Sortformer v2.1 diarizer that Nemotron-3 replaced.
+pub const RETIRED_DIARIZER_MODEL: &str = "sortformer_4spk_v2_1_q8";
+pub const RETIRED_DIARIZER_FILE: &str = "diar_streaming_sortformer_4spk-v2.1-Q8_0.gguf";
 
 pub fn is_legacy_category(category: &str) -> bool {
     category.eq_ignore_ascii_case(MODEL_CATEGORY_LEGACY)
@@ -28,7 +30,7 @@ pub fn is_downloadable(manifest: &LocalModelManifest) -> bool {
 }
 
 pub fn model_is_downloadable(key: &str) -> bool {
-    definition(key).is_some_and(is_downloadable)
+    installable_definition(key).is_some_and(is_downloadable)
 }
 
 pub use glimpse_speech::models::ModelEngine as LocalModelEngine;
@@ -48,6 +50,7 @@ pub struct ModelInfo {
     pub capabilities: Vec<String>,
     pub supported_languages: Vec<SupportedLanguageInfo>,
     pub ane_size_mb: Option<f32>,
+    pub ane_total_size_mb: Option<f32>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -86,122 +89,157 @@ pub struct LocalModelManifest {
     pub capabilities: &'static [&'static str],
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-const PARAKEET_TDT_INT8_FILES: &[CatalogFile] = &[
-    CatalogFile {
-        url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main/encoder-model.int8.onnx",
-        path: "encoder-model.int8.onnx",
-        size_bytes: Some(652_183_999),
-        sha256: Some("6139d2fa7e1b086097b277c7149725edbab89cc7c7ae64b23c741be4055aff09"),
+const PARAKEET_UNIFIED_GGUF_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/handy-computer/parakeet-unified-en-0.6b-gguf/resolve/main/parakeet-unified-en-0.6b-Q8_0.gguf",
+    path: "parakeet-unified-en-0.6b-Q8_0.gguf",
+    size_bytes: Some(731_357_568),
+    sha256: Some("4b50b6dd862bf6e346929aaf4f5eaacec003bfa3f56462d6c874b41ef2f38795"),
+}];
+
+const NEMOTRON_35_STREAMING_GGUF_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/main/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+    path: "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+    size_bytes: Some(751_094_240),
+    sha256: Some("b94545b313b3223fda7b2857a52681da813935c2127643d1e9ff0c23d988089c"),
+}];
+
+const NEMOTRON_STREAMING_EN_GGUF_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/handy-computer/nemotron-speech-streaming-en-0.6b-gguf/resolve/main/nemotron-speech-streaming-en-0.6b-Q8_0.gguf",
+    path: "nemotron-speech-streaming-en-0.6b-Q8_0.gguf",
+    size_bytes: Some(729_650_176),
+    sha256: Some("90d8c89714cd31efc88be62a40c6b2bea57e0cc2063af1ffe2c28f1a228ca110"),
+}];
+
+const PARAKEET_GGUF_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/handy-computer/parakeet-tdt-0.6b-v3-gguf/resolve/main/parakeet-tdt-0.6b-v3-Q8_0.gguf",
+    path: "parakeet-tdt-0.6b-v3-Q8_0.gguf",
+    size_bytes: Some(739_508_576),
+    sha256: Some("5859f77944efcd8eafa23a6350731960b2b55b2203df51f319665c807d802cc7"),
+}];
+
+const PARAKEET_DECODER_FILE: CatalogFile = CatalogFile {
+    url: "https://huggingface.co/Glimpse-Dictation/Parakeet-TDT-0.6B-V3-coreml/resolve/main/parakeet-tdt-0.6b-v3-Q8_0-decoder.gguf",
+    path: "parakeet-tdt-0.6b-v3-Q8_0-decoder.gguf",
+    size_bytes: Some(19_479_904),
+    sha256: Some("dfcf670a00df8d49474fddea707bcfc77339789f65dde115aeb79570fc813744"),
+};
+
+const DIARIZER_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/Glimpse-Dictation/Nemotron-3-Diarization-gguf/resolve/main/nemotron-3-diarization-Q8_0.gguf",
+    path: "nemotron-3-diarization-Q8_0.gguf",
+    size_bytes: Some(105_936_416),
+    sha256: Some("877ff9e77e829e30158528cfaabf56188fca11d05349e09821b3033a97d31688"),
+}];
+
+const QWEN3_ASR_0_6B_FILES: &[CatalogFile] = &[CatalogFile {
+    url: "https://huggingface.co/handy-computer/Qwen3-ASR-0.6B-gguf/resolve/main/Qwen3-ASR-0.6B-Q8_0.gguf",
+    path: "Qwen3-ASR-0.6B-Q8_0.gguf",
+    size_bytes: Some(850_423_456),
+    sha256: Some("f081b2d5e23bd669d92cc331d722a8a0681943b8e6f34b48996fd5c319b5acd8"),
+}];
+
+const QWEN3_ASR_0_6B_DECODER_FILE: CatalogFile = CatalogFile {
+    url: "https://huggingface.co/Glimpse-Dictation/Qwen3-ASR-0.6B-coreml/resolve/main/Qwen3-ASR-0.6B-Q8_0-decoder.gguf",
+    path: "Qwen3-ASR-0.6B-Q8_0-decoder.gguf",
+    size_bytes: Some(639_554_336),
+    sha256: Some("8a1bf11a571607b88ae53ae44c0e38b616c441fd64c53bce37fea9d403a9c489"),
+};
+
+/// Core ML encoder companions for transcribe.cpp models, unpacked next to the
+/// GGUF as `<gguf stem>-encoder.mlmodelc` (the name the engine looks for).
+struct TranscribeAneEncoder {
+    // Some models replace the full GGUF with smaller files when using ANE.
+    replacement_files: Option<&'static [CatalogFile]>,
+    model: &'static str,
+    // First entry for a model that this macOS can load wins.
+    min_macos: u32,
+    dir_name: &'static str,
+    url: &'static str,
+    size_bytes: u64,
+    sha256: &'static str,
+    // Tells this encoder apart from older ones in the same directory.
+    unpacked_bytes: Option<u64>,
+}
+
+// `ditto -c -k --keepParent --norsrc --noextattr <dir> <dir>.zip` of the
+// companion produced by scripts/convert-qwen3-asr-gguf-to-coreml.py from the
+// GGUF above (transcribe.cpp, docs/models/qwen3-asr.md).
+const ANE_QWEN3_ASR_0_6B_ZIP_BYTES: u64 = 340_299_234;
+const ANE_QWEN3_ASR_0_6B_ZIP_SHA256: &str =
+    "cfd2e37a30d0da1b685da0f96e82f05ef6fc208136c85efa5368ddd2ee18ad5d";
+
+const TRANSCRIBE_ANE_ENCODERS: &[TranscribeAneEncoder] = &[
+    // int8 (convert-parakeet-gguf-to-coreml.py --int8). The macOS 15 build adds
+    // 10.24 s and 5.12 s functions for short audio, which need multifunction models.
+    TranscribeAneEncoder {
+        model: "parakeet_tdt_v3_gguf",
+        replacement_files: Some(&[PARAKEET_DECODER_FILE]),
+        min_macos: 15,
+        dir_name: "parakeet-tdt-0.6b-v3-Q8_0-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Parakeet-TDT-0.6B-V3-coreml/resolve/main/parakeet-tdt-0.6b-v3-Q8_0-encoder-v3.mlmodelc.zip",
+        size_bytes: 529_136_396,
+        sha256: "74958c61a7040cfe583434c599828819ed648dea5e9a6067421732593c2e51aa",
+        unpacked_bytes: Some(605_651_354),
     },
-    CatalogFile {
-        url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main/decoder_joint-model.int8.onnx",
-        path: "decoder_joint-model.int8.onnx",
-        size_bytes: Some(18_202_004),
-        sha256: Some("eea7483ee3d1a30375daedc8ed83e3960c91b098812127a0d99d1c8977667a70"),
+    TranscribeAneEncoder {
+        model: "parakeet_tdt_v3_gguf",
+        replacement_files: Some(&[PARAKEET_DECODER_FILE]),
+        min_macos: 14,
+        dir_name: "parakeet-tdt-0.6b-v3-Q8_0-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Parakeet-TDT-0.6B-V3-coreml/resolve/main/parakeet-tdt-0.6b-v3-Q8_0-encoder-v3-macos14.mlmodelc.zip",
+        size_bytes: 523_684_020,
+        sha256: "3d530e9cc868be36c4a209c3d8e3328a3e8d03d0f68fe74388104073f5fc4fd3",
+        unpacked_bytes: Some(594_977_730),
     },
-    CatalogFile {
-        url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/main/vocab.txt",
-        path: "vocab.txt",
-        size_bytes: Some(93_939),
-        sha256: Some("d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d"),
+    TranscribeAneEncoder {
+        model: "qwen3_asr_0_6b_q8",
+        replacement_files: Some(&[QWEN3_ASR_0_6B_DECODER_FILE]),
+        min_macos: 14,
+        dir_name: "Qwen3-ASR-0.6B-Q8_0-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Qwen3-ASR-0.6B-coreml/resolve/main/Qwen3-ASR-0.6B-Q8_0-encoder.mlmodelc.zip",
+        size_bytes: ANE_QWEN3_ASR_0_6B_ZIP_BYTES,
+        sha256: ANE_QWEN3_ASR_0_6B_ZIP_SHA256,
+        unpacked_bytes: None,
+    },
+    // Keeps the full GGUF: live streaming still runs its ggml encoder.
+    TranscribeAneEncoder {
+        model: "parakeet_unified_en_int8",
+        replacement_files: None,
+        min_macos: 14,
+        dir_name: "parakeet-unified-en-0.6b-Q8_0-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Parakeet-Unified-EN-0.6B-coreml/resolve/main/parakeet-unified-en-0.6b-Q8_0-encoder.mlmodelc.zip",
+        size_bytes: 1_091_102_158,
+        sha256: "0f0db7464c605de1a129a9919da00f5b984274d6ff8d13214db63145ca76b089",
+        unpacked_bytes: None,
     },
 ];
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-const PARAKEET_UNIFIED_INT8_FILES: &[CatalogFile] = &[
-    CatalogFile {
-        url: "https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx/resolve/main/encoder.int8.onnx",
-        path: "encoder.int8.onnx",
-        size_bytes: Some(42_606_669),
-        sha256: Some("c81adfab77634e00c1668a221a14f244c5fb3409e7c14eeebaf6ac963425910f"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx/resolve/main/encoder.int8.onnx.data",
-        path: "encoder.int8.onnx.data",
-        size_bytes: Some(611_491_584),
-        sha256: Some("3d54dd04646c15677bd2844a84df3770b12cc1ce183481f7b6e0def31c92114a"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx/resolve/main/decoder_joint.int8.onnx",
-        path: "decoder_joint.int8.onnx",
-        size_bytes: Some(8_995_064),
-        sha256: Some("7f76ad5f35035f25630075699c6c942a2c0c05ff42cb398f966f3c256d148e1e"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/bobNight/parakeet-unified-en-0.6b-onnx/resolve/main/tokenizer.model",
-        path: "tokenizer.model",
-        size_bytes: Some(251_056),
-        sha256: Some("07d4e5a63840a53ab2d4d106d2874768143fb3fbdd47938b3910d2da05bfb0a9"),
-    },
-];
-
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-const NEMOTRON_STREAMING_FILES: &[CatalogFile] = &[
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-speech-streaming-en-0.6b/encoder.onnx",
-        path: "encoder.onnx",
-        size_bytes: Some(42_159_995),
-        sha256: Some("5c5110ca2e961c3ff5edc2b0ff49f29888b5213287624f7865c60f7384ac02f0"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-speech-streaming-en-0.6b/encoder.onnx.data",
-        path: "encoder.onnx.data",
-        size_bytes: Some(2_436_567_040),
-        sha256: Some("44f65771e1570546f61106b3d0c604a60b398d061476fda8042bb05432601bd4"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-speech-streaming-en-0.6b/decoder_joint.onnx",
-        path: "decoder_joint.onnx",
-        size_bytes: Some(35_779_240),
-        sha256: Some("8bcfde85fa9039a70caeb90204273f837923d63a706c186bd33e2ada25a91700"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-speech-streaming-en-0.6b/tokenizer.model",
-        path: "tokenizer.model",
-        size_bytes: Some(251_056),
-        sha256: Some("07d4e5a63840a53ab2d4d106d2874768143fb3fbdd47938b3910d2da05bfb0a9"),
-    },
-];
-
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-const NEMOTRON_35_STREAMING_FILES: &[CatalogFile] = &[
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-3.5-asr-streaming-0.6b-onnx/encoder.onnx",
-        path: "encoder.onnx",
-        size_bytes: Some(42_164_972),
-        sha256: Some("d569fbe78b48fbb04e169d324f5d25463838ceed7b5fc3bfe209872441979bd9"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-3.5-asr-streaming-0.6b-onnx/encoder.onnx.data",
-        path: "encoder.onnx.data",
-        size_bytes: Some(2_454_405_120),
-        sha256: Some("7584f85df76bc9ae6fbdfa53aa8d97b07a842525d1c501d536d77fd9e4f57ac7"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-3.5-asr-streaming-0.6b-onnx/decoder_joint.onnx",
-        path: "decoder_joint.onnx",
-        size_bytes: Some(97_590_054),
-        sha256: Some("634dfadf24cb4f73c2fae170b36611d68db48186426882cbc8f7e02ed9f2bb29"),
-    },
-    CatalogFile {
-        url: "https://huggingface.co/altunenes/parakeet-rs/resolve/main/nemotron-3.5-asr-streaming-0.6b-onnx/tokenizer.model",
-        path: "tokenizer.model",
-        size_bytes: Some(406_554),
-        sha256: Some("ce3895e40806f02a26c3a225161b96ef682d6c0054bae32a245dec4258d7d291"),
-    },
-];
+fn transcribe_ane_encoder(model: &str) -> Option<&'static TranscribeAneEncoder> {
+    if !ANE_SUPPORTED {
+        return None;
+    }
+    // Glimpse needs macOS 14, so an unreadable version counts as 14.
+    let macos = crate::macos_major_version().max(14);
+    TRANSCRIBE_ANE_ENCODERS
+        .iter()
+        .find(|encoder| encoder.model == model && encoder.min_macos <= macos)
+}
 
 macro_rules! whisper_files {
-    ($path:literal, $size_bytes:literal, $sha256:expr_2021) => {
+    ($family:literal, $quant:literal, $size_bytes:literal, $sha256:literal) => {
         &[CatalogFile {
             url: concat!(
-                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/",
-                $path
+                "https://huggingface.co/handy-computer/whisper-",
+                $family,
+                "-gguf/resolve/main/whisper-",
+                $family,
+                "-",
+                $quant,
+                ".gguf"
             ),
-            path: $path,
+            path: concat!("whisper-", $family, "-", $quant, ".gguf"),
             size_bytes: Some($size_bytes),
-            sha256: $sha256,
+            sha256: Some($sha256),
         }]
     };
 }
@@ -217,54 +255,154 @@ macro_rules! distil_whisper_files {
     };
 }
 
-const ANE_SUPPORTED: bool = cfg!(all(target_os = "macos", target_arch = "aarch64"));
+macro_rules! whisper_bin {
+    ($model:literal, $path:literal, $size_bytes:literal) => {
+        whisper_bin!($model, "ggerganov/whisper.cpp", $path, $size_bytes)
+    };
+    ($model:literal, $repo:literal, $path:literal, $size_bytes:literal) => {
+        (
+            $model,
+            CatalogFile {
+                url: concat!("https://huggingface.co/", $repo, "/resolve/main/", $path),
+                path: $path,
+                size_bytes: Some($size_bytes),
+                sha256: None,
+            },
+        )
+    };
+}
+
+// whisper.cpp files earlier versions downloaded and verified. transcribe.cpp
+// loads them, so they still count as installed.
+const WHISPER_BIN_FILES: &[(&str, CatalogFile)] = &[
+    whisper_bin!(
+        "whisper_large_v3_turbo_q8",
+        "ggml-large-v3-turbo-q8_0.bin",
+        874_188_075
+    ),
+    whisper_bin!("whisper_small_q5", "ggml-small-q5_1.bin", 190_085_487),
+    whisper_bin!(
+        "distil_whisper_large_v35",
+        "Pomni/distil-large-v3.5-ggml-allquants",
+        "ggml-distil-large-v3.5-q8_0.bin",
+        818_305_955
+    ),
+    whisper_bin!(
+        "distil_whisper_medium_en",
+        "Pomni/distil-medium.en-ggml-allquants",
+        "ggml-distil-medium.en-q8_0.bin",
+        429_655_940
+    ),
+    whisper_bin!(
+        "distil_whisper_small_en",
+        "Pomni/distil-small.en-ggml-allquants",
+        "ggml-distil-small.en-q8_0.bin",
+        183_833_897
+    ),
+    whisper_bin!("whisper_tiny_q5", "ggml-tiny-q5_1.bin", 32_152_673),
+    whisper_bin!("whisper_tiny_q8", "ggml-tiny-q8_0.bin", 43_537_433),
+    whisper_bin!("whisper_tiny", "ggml-tiny.bin", 77_691_713),
+    whisper_bin!("whisper_base_q5", "ggml-base-q5_1.bin", 59_707_625),
+    whisper_bin!("whisper_base_q8", "ggml-base-q8_0.bin", 81_768_585),
+    whisper_bin!("whisper_base", "ggml-base.bin", 147_951_465),
+    whisper_bin!("whisper_small_q8", "ggml-small-q8_0.bin", 264_464_607),
+    whisper_bin!("whisper_small", "ggml-small.bin", 487_601_967),
+    whisper_bin!("whisper_medium_q5", "ggml-medium-q5_0.bin", 539_212_467),
+    whisper_bin!("whisper_medium_q8", "ggml-medium-q8_0.bin", 823_369_779),
+    whisper_bin!("whisper_medium", "ggml-medium.bin", 1_533_763_059),
+    whisper_bin!(
+        "whisper_large_v3_q5",
+        "ggml-large-v3-q5_0.bin",
+        1_081_140_203
+    ),
+    whisper_bin!("whisper_large_v3", "ggml-large-v3.bin", 3_095_033_483),
+    whisper_bin!(
+        "whisper_large_v3_turbo_q5",
+        "ggml-large-v3-turbo-q5_0.bin",
+        574_041_195
+    ),
+    whisper_bin!(
+        "whisper_large_v3_turbo",
+        "ggml-large-v3-turbo.bin",
+        1_624_555_275
+    ),
+];
+
+pub(super) const ANE_SUPPORTED: bool = cfg!(all(target_os = "macos", target_arch = "aarch64"));
 
 struct AneEncoder {
-    family: &'static str,
+    // Catalog families it serves. Distil-Whisper keeps its teacher's encoder.
+    families: &'static [&'static str],
+    dir_name: &'static str,
+    url: &'static str,
     size_bytes: u64,
     sha256: &'static str,
 }
 
-impl AneEncoder {
-    fn dir_name(&self) -> String {
-        format!("ggml-{}-encoder.mlmodelc", self.family)
-    }
+/// A downloadable Core ML encoder for one catalog entry: the zip to fetch and
+/// the directory it unpacks to inside the model directory.
+struct AneCompanion {
+    dir_name: String,
+    url: String,
+    size_bytes: u64,
+    sha256: &'static str,
 }
 
-const ANE_ENCODERS: &[AneEncoder] = &[
+// None for Distil-Whisper Medium.en: with it, a test recording fell into a
+// repetition loop.
+const WHISPER_ANE_ENCODERS: &[AneEncoder] = &[
     AneEncoder {
-        family: "tiny",
-        size_bytes: 15_037_446,
-        sha256: "c88cbd2648e1f5415092bcf5256add463a0f19943e6938f46e8d4ffdebd47739",
+        families: &["whisper-tiny"],
+        dir_name: "whisper-tiny-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Tiny-coreml/resolve/main/whisper-tiny-encoder.mlmodelc.zip",
+        size_bytes: 14_955_833,
+        sha256: "35041e7f9f9c3e016bf1ff23819109c9dbd60cb387f97526fd44ba26c916bf52",
     },
     AneEncoder {
-        family: "base",
-        size_bytes: 37_922_638,
-        sha256: "7e6ab77041942572f239b5b602f8aaa1c3ed29d73e3d8f20abea03a773541089",
+        families: &["whisper-base"],
+        dir_name: "whisper-base-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Base-coreml/resolve/main/whisper-base-encoder.mlmodelc.zip",
+        size_bytes: 37_850_456,
+        sha256: "f38ea79465a06476d59a7e60bba129df6fa0823264f22242c093b604f4c3e533",
     },
     AneEncoder {
-        family: "small",
-        size_bytes: 163_083_239,
-        sha256: "de43fb9fed471e95c19e60ae67575c2bf09e8fb607016da171b06ddad313988b",
+        families: &["whisper-small"],
+        dir_name: "whisper-small-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Small-coreml/resolve/main/whisper-small-encoder.mlmodelc.zip",
+        size_bytes: 163_115_581,
+        sha256: "8a7eff95acc7a237731d778d2269ea7aa7338cd1190fd6ab4266be506886a625",
     },
     AneEncoder {
-        family: "medium",
-        size_bytes: 567_829_413,
-        sha256: "79b0b8d436d47d3f24dd3afc91f19447dd686a4f37521b2f6d9c30a642133fbd",
+        families: &["distil-small"],
+        dir_name: "whisper-small.en-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Small.en-coreml/resolve/main/whisper-small.en-encoder.mlmodelc.zip",
+        size_bytes: 162_989_269,
+        sha256: "70d001bfa2cde210330796e602a95bee5e5a564f8cef28337210781f63f4b28a",
     },
     AneEncoder {
-        family: "large-v3",
-        size_bytes: 1_175_711_232,
-        sha256: "47837be7594a29429ec08620043390c4d6d467f8bd362df09e9390ace76a55a4",
+        families: &["whisper-medium"],
+        dir_name: "whisper-medium-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Medium-coreml/resolve/main/whisper-medium-encoder.mlmodelc.zip",
+        size_bytes: 568_607_692,
+        sha256: "59782b3aa871f498673266ae64990ee0d0a61adc59321656b9a266f5a3f7650b",
     },
     AneEncoder {
-        family: "large-v3-turbo",
-        size_bytes: 1_173_393_014,
-        sha256: "84bedfe895bd7b5de6e8e89a0803dfc5addf8c0c5bc4c937451716bf7cf7988a",
+        families: &["whisper-large-v3", "distil-large"],
+        dir_name: "whisper-large-v3-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Large-V3-coreml/resolve/main/whisper-large-v3-encoder.mlmodelc.zip",
+        size_bytes: 1_175_779_792,
+        sha256: "504d9b03b34c689e91d61fb97d4c97eca979fc4d21e65d9c2963b7481cbc66dc",
+    },
+    AneEncoder {
+        families: &["whisper-large-v3-turbo"],
+        dir_name: "whisper-large-v3-turbo-encoder.mlmodelc",
+        url: "https://huggingface.co/Glimpse-Dictation/Whisper-Large-V3-Turbo-coreml/resolve/main/whisper-large-v3-turbo-encoder.mlmodelc.zip",
+        size_bytes: 1_174_156_358,
+        sha256: "9a313371eb6927d446b8aa0081816979d46e08470b5262d72e1c22b81d104706",
     },
 ];
 
-// whisper.cpp strips "-qX_X" too, so one fp16 encoder serves every quant.
+// whisper.cpp encoder names drop the `-qX_Y` quantization.
 fn strip_quant_suffix(stem: &str) -> &str {
     if let Some(pos) = stem.rfind('-') {
         let suffix = &stem.as_bytes()[pos..];
@@ -275,21 +413,65 @@ fn strip_quant_suffix(stem: &str) -> &str {
     stem
 }
 
-fn ane_encoder(manifest: &LocalModelManifest) -> Option<&'static AneEncoder> {
-    if !ANE_SUPPORTED || manifest.engine != LocalModelEngine::Whisper {
+fn whisper_bin_file(model: &str) -> Option<&'static CatalogFile> {
+    WHISPER_BIN_FILES
+        .iter()
+        .find(|(id, _)| *id == model)
+        .map(|(_, file)| file)
+}
+
+/// The whisper.cpp Core ML encoder earlier versions unpacked for this model.
+/// transcribe.cpp can't load it.
+pub(super) fn whisper_cpp_encoder_dir(manifest: &LocalModelManifest) -> Option<String> {
+    let stem = whisper_bin_file(manifest.id)?
+        .path
+        .strip_prefix("ggml-")?
+        .strip_suffix(".bin")?;
+    let family = strip_quant_suffix(stem);
+    Some(format!("ggml-{family}-encoder.mlmodelc"))
+}
+
+/// The partial file an interrupted download of the earlier `.bin` left, unless
+/// this version still downloads that `.bin`.
+pub(super) fn whisper_bin_partial(manifest: &LocalModelManifest) -> Option<String> {
+    let bin = whisper_bin_file(manifest.id)?;
+    (!manifest.files.iter().any(|file| file.path == bin.path)).then(|| format!("{}.part", bin.path))
+}
+
+fn ane_companion(manifest: &LocalModelManifest) -> Option<AneCompanion> {
+    if !ANE_SUPPORTED {
         return None;
     }
-    let [file] = manifest.files else {
-        return None;
-    };
-    let family = strip_quant_suffix(file.path.strip_prefix("ggml-")?.strip_suffix(".bin")?);
-    ANE_ENCODERS.iter().find(|encoder| encoder.family == family)
+    match manifest.engine {
+        LocalModelEngine::Whisper => WHISPER_ANE_ENCODERS
+            .iter()
+            .find(|encoder| encoder.families.contains(&manifest.family))
+            .map(|encoder| AneCompanion {
+                dir_name: encoder.dir_name.to_string(),
+                url: encoder.url.to_string(),
+                size_bytes: encoder.size_bytes,
+                sha256: encoder.sha256,
+            }),
+        LocalModelEngine::Transcribe => {
+            transcribe_ane_encoder(manifest.id).map(|encoder| AneCompanion {
+                dir_name: encoder.dir_name.to_string(),
+                url: encoder.url.to_string(),
+                size_bytes: encoder.size_bytes,
+                sha256: encoder.sha256,
+            })
+        }
+        _ => None,
+    }
+}
+
+pub(super) fn ane_encoder_unpacked_bytes(model: &str) -> Option<u64> {
+    transcribe_ane_encoder(model)?.unpacked_bytes
 }
 
 pub fn ane_encoder_dir(model: &str) -> Option<String> {
     definition(model)
-        .and_then(ane_encoder)
-        .map(AneEncoder::dir_name)
+        .and_then(ane_companion)
+        .map(|companion| companion.dir_name)
 }
 
 const WHISPER_DESCRIPTION: &str =
@@ -299,6 +481,18 @@ const DISTIL_WHISPER_DESCRIPTION: &str =
 const WHISPER_CAPABILITIES: &[&str] = &[MODEL_CAPABILITY_DICTIONARY, MODEL_CAPABILITY_TIMESTAMPS];
 
 const MODEL_MANIFESTS: &[LocalModelManifest] = &[
+    LocalModelManifest {
+        id: "parakeet_tdt_v3_gguf",
+        family: "parakeet-tdt-0.6b-v3",
+        label: "Parakeet TDT V3",
+        description: "Multilingual Parakeet TDT V3 on CPU or GPU, with optional Neural Engine acceleration on Apple Silicon.",
+        tags: &["Multilingual", "Fast"],
+        category: "standard",
+        engine: LocalModelEngine::Transcribe,
+        variant: "Q8_0",
+        files: PARAKEET_GGUF_FILES,
+        capabilities: &[MODEL_CAPABILITY_DICTIONARY, MODEL_CAPABILITY_TIMESTAMPS],
+    },
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     LocalModelManifest {
         id: "apple_speech",
@@ -322,26 +516,25 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-large-v3-turbo-q8_0.bin",
-            874_188_075,
-            Some("317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1")
+            "large-v3-turbo",
+            "Q8_0",
+            886_381_760,
+            "b2e30cc286bc9f3aba4db9099fc7403543497c05ce7100d0d83091ddfd25a183"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
     LocalModelManifest {
-        id: "parakeet_tdt_int8",
-        family: "parakeet-tdt",
-        label: "Parakeet TDT V3",
-        description: "Fast, multilingual and accurate. Based on ONNX for everyday local transcription.",
+        id: "qwen3_asr_0_6b_q8",
+        family: "qwen3-asr-0.6b",
+        label: "Qwen3-ASR 0.6B",
+        description: "Multilingual Qwen3-ASR with optional Neural Engine acceleration on Apple Silicon.",
         tags: &["Multilingual", "Fast"],
         category: "experimental",
-        engine: LocalModelEngine::Parakeet,
-        variant: "Int8",
-        files: PARAKEET_TDT_INT8_FILES,
-        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS],
+        engine: LocalModelEngine::Transcribe,
+        variant: "Q8_0",
+        files: QWEN3_ASR_0_6B_FILES,
+        capabilities: &[MODEL_CAPABILITY_DICTIONARY],
     },
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
     LocalModelManifest {
         id: "parakeet_unified_en_int8",
         family: "parakeet-unified",
@@ -349,25 +542,15 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         description: "Fast English local transcription with streaming support.",
         tags: &["English", "Fast", "Streaming"],
         category: "experimental",
-        engine: LocalModelEngine::Parakeet,
-        variant: "Int8",
-        files: PARAKEET_UNIFIED_INT8_FILES,
-        capabilities: &[MODEL_CAPABILITY_TIMESTAMPS, MODEL_CAPABILITY_STREAMING],
+        engine: LocalModelEngine::Transcribe,
+        variant: "Q8_0",
+        files: PARAKEET_UNIFIED_GGUF_FILES,
+        capabilities: &[
+            MODEL_CAPABILITY_DICTIONARY,
+            MODEL_CAPABILITY_TIMESTAMPS,
+            MODEL_CAPABILITY_STREAMING,
+        ],
     },
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-    LocalModelManifest {
-        id: "nemotron_streaming_en",
-        family: "nemotron-streaming",
-        label: "Nemotron Streaming",
-        description: "Real-time streaming transcription. Text appears as you speak.",
-        tags: &["English", "Streaming"],
-        category: "legacy",
-        engine: LocalModelEngine::Nemotron,
-        variant: "Full",
-        files: NEMOTRON_STREAMING_FILES,
-        capabilities: &[MODEL_CAPABILITY_STREAMING],
-    },
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
     LocalModelManifest {
         id: "nemotron_35_streaming_multilingual",
         family: "nemotron-35-streaming",
@@ -375,10 +558,30 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         description: "Multilingual streaming transcription with punctuation and capitalization.",
         tags: &["Multilingual", "Streaming"],
         category: "experimental",
-        engine: LocalModelEngine::Nemotron,
-        variant: "Full",
-        files: NEMOTRON_35_STREAMING_FILES,
-        capabilities: &[MODEL_CAPABILITY_STREAMING],
+        engine: LocalModelEngine::Transcribe,
+        variant: "Q8_0",
+        files: NEMOTRON_35_STREAMING_GGUF_FILES,
+        capabilities: &[
+            MODEL_CAPABILITY_DICTIONARY,
+            MODEL_CAPABILITY_TIMESTAMPS,
+            MODEL_CAPABILITY_STREAMING,
+        ],
+    },
+    LocalModelManifest {
+        id: "nemotron_streaming_en",
+        family: "nemotron-streaming",
+        label: "Nemotron Streaming",
+        description: "Real-time streaming transcription. Text appears as you speak.",
+        tags: &["English", "Streaming"],
+        category: "legacy",
+        engine: LocalModelEngine::Transcribe,
+        variant: "Q8_0",
+        files: NEMOTRON_STREAMING_EN_GGUF_FILES,
+        capabilities: &[
+            MODEL_CAPABILITY_DICTIONARY,
+            MODEL_CAPABILITY_TIMESTAMPS,
+            MODEL_CAPABILITY_STREAMING,
+        ],
     },
     LocalModelManifest {
         id: "whisper_small_q5",
@@ -386,13 +589,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Small",
         description: "Small & fast with dictionary support.",
         tags: &["Multilingual", "Dictionary", "Compute Friendly"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q5_1",
         files: whisper_files!(
-            "ggml-small-q5_1.bin",
-            190_085_487,
-            Some("ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb")
+            "small",
+            "Q5_K_M",
+            193_749_056,
+            "326cd00c3e7217c751667c7c1600eaf7e0de174e186ca2c16b4bf590251c3c3b"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -402,14 +606,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Distil-Whisper Large V3.5",
         description: DISTIL_WHISPER_DESCRIPTION,
         tags: &["English", "Fast"],
-        category: "experimental",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: distil_whisper_files!(
-            "Pomni/distil-large-v3.5-ggml-allquants",
-            "ggml-distil-large-v3.5-q8_0.bin",
-            818_305_955,
-            Some("7e570abdf13b681354a2ecc93802e25bf204dd6f8c0dd9f6ecb9478b71b231d7")
+            "Glimpse-Dictation/Distil-Whisper-Large-V3.5-gguf",
+            "distil-large-v3.5-Q8_0.gguf",
+            830_499_360,
+            Some("a6f012fa357e28fdc4c4a5108341571add35e77d576c87c3eda7b41033d8cfe2")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -419,14 +623,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Distil-Whisper Medium",
         description: DISTIL_WHISPER_DESCRIPTION,
         tags: &["English", "Fast"],
-        category: "experimental",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: distil_whisper_files!(
-            "Pomni/distil-medium.en-ggml-allquants",
-            "ggml-distil-medium.en-q8_0.bin",
-            429_655_940,
-            Some("8dff90cdf0124169e906aa05a208ba2bfc94e60d09b983ba87a60b9ea3aca42a")
+            "Glimpse-Dictation/Distil-Whisper-Medium.en-gguf",
+            "distil-medium.en-Q8_0.gguf",
+            437_727_104,
+            Some("bf726a0d84dd911d4fe3a36413bf7d10b8b065d70ff86eef3f81b15326297fce")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -436,14 +640,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Distil-Whisper Small",
         description: DISTIL_WHISPER_DESCRIPTION,
         tags: &["English", "Fast", "Compute Friendly"],
-        category: "experimental",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: distil_whisper_files!(
-            "Pomni/distil-small.en-ggml-allquants",
-            "ggml-distil-small.en-q8_0.bin",
-            183_833_897,
-            Some("8564c3a318d354992fc4654044f48908514783209b4f09ff043ecb8a0c1ebe8e")
+            "Glimpse-Dictation/Distil-Whisper-Small.en-gguf",
+            "distil-small.en-Q8_0.gguf",
+            189_027_904,
+            Some("552869c2c9ac97f03da6497e5ffabdb81b2dee50a81b7bcfb67344c41cadeaa6")
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -453,13 +657,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Tiny",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary", "Compute Friendly"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q5_1",
         files: whisper_files!(
-            "ggml-tiny-q5_1.bin",
-            32_152_673,
-            Some("818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7")
+            "tiny",
+            "Q8_0",
+            45_981_088,
+            "325b9c7997cd1eff81ef709d55766565e71be696130cc3a3d444713798706834"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -469,13 +674,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Tiny",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary", "Compute Friendly"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-tiny-q8_0.bin",
-            43_537_433,
-            Some("c2085835d3f50733e2ff6e4b41ae8a2b8d8110461e18821b09a15c40c42d1cca")
+            "tiny",
+            "Q8_0",
+            45_981_088,
+            "325b9c7997cd1eff81ef709d55766565e71be696130cc3a3d444713798706834"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -485,13 +691,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Tiny",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary", "Compute Friendly"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-tiny.bin",
-            77_691_713,
-            Some("be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21")
+            "tiny",
+            "F16",
+            80_135_360,
+            "5b44043278b47d3b6e56fb16c6bc5bb0aa16f2e69086f4d67175ed0a30d6a987"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -501,13 +708,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Base",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary", "Compute Friendly"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q5_1",
         files: whisper_files!(
-            "ggml-base-q5_1.bin",
-            59_707_625,
-            Some("422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898")
+            "base",
+            "Q5_K_M",
+            63_786_048,
+            "8e0feb7bc35780353cf31821018e601bb7b7cff6c9a0e17ada5a5db23f4db867"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -517,13 +725,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Base",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary", "Compute Friendly"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-base-q8_0.bin",
-            81_768_585,
-            Some("c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9")
+            "base",
+            "Q8_0",
+            84_962_880,
+            "81c069428bc8a24551a8169cf31cf09bcfd9d4cf50389ae281323c9aa9648c81"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -533,13 +742,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Base",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary", "Compute Friendly"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-base.bin",
-            147_951_465,
-            Some("60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe")
+            "base",
+            "F16",
+            151_145_760,
+            "38ab6b0ed742e9eded4d5a2ba7fc34d44fc28cdb71d6360f6321d4b306ef8039"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -553,9 +763,10 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-small-q8_0.bin",
-            264_464_607,
-            Some("49c8fb02b65e6049d5fa6c04f81f53b867b5ec9540406812c643f177317f779f")
+            "small",
+            "Q8_0",
+            269_751_136,
+            "9b9c8811bbcc82a7766f0fb0925614bdacb0923b2cc630daeac17108b655b860"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -565,13 +776,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Small",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-small.bin",
-            487_601_967,
-            Some("1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b")
+            "small",
+            "F16",
+            492_888_480,
+            "bef65e1ac9d012269453243243aac0d0f67792693ba6c99b584a124e0ee326fc"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -581,13 +793,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Medium",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q5_0",
         files: whisper_files!(
-            "ggml-medium-q5_0.bin",
-            539_212_467,
-            Some("19fea4b380c3a618ec4723c3eef2eb785ffba0d0538cf43f8f235e7b3b34220f")
+            "medium",
+            "Q5_K_M",
+            582_746_048,
+            "4e2a8904a866b3aa7ef70d7640ec6abc5f0a05524cd950ea4b66ace12122bf53"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -597,13 +810,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Medium",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q8_0",
         files: whisper_files!(
-            "ggml-medium-q8_0.bin",
-            823_369_779,
-            Some("42a1ffcbe4167d224232443396968db4d02d4e8e87e213d3ee2e03095dea6502")
+            "medium",
+            "Q8_0",
+            831_538_144,
+            "09e6a65e7de377aa5b10bae24608bc6f8ca2ed04b3993ef10d4a02bcd9a82adf"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -613,13 +827,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Medium",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-medium.bin",
-            1_533_763_059,
-            Some("6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208")
+            "medium",
+            "F16",
+            1_541_931_424,
+            "62338e5194cb9ccc6734adf6f42694805a98a158028b2022e39ec060559bd517"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -632,11 +847,13 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         category: "standard",
         engine: LocalModelEngine::Whisper,
         variant: "Q5_0",
-        files: whisper_files!(
-            "ggml-large-v3-q5_0.bin",
-            1_081_140_203,
-            Some("d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1")
-        ),
+        // Measured more accurate and smaller than the Q5_K_M GGUF.
+        files: &[CatalogFile {
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-q5_0.bin",
+            path: "ggml-large-v3-q5_0.bin",
+            size_bytes: Some(1_081_140_203),
+            sha256: Some("d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1"),
+        }],
         capabilities: WHISPER_CAPABILITIES,
     },
     LocalModelManifest {
@@ -645,13 +862,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Large V3",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-large-v3.bin",
-            3_095_033_483,
-            Some("64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2")
+            "large-v3",
+            "F16",
+            3_107_236_640,
+            "e633ab1d74b0e98f4f57daedaee34291297dbbf01389bda3d890766600c1c584"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -661,13 +879,14 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Large V3 Turbo",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Q5_0",
         files: whisper_files!(
-            "ggml-large-v3-turbo-q5_0.bin",
-            574_041_195,
-            Some("394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2")
+            "large-v3-turbo",
+            "Q5_K_M",
+            619_628_128,
+            "977b5db4e004349dffd1ab9caa10ba5aaba3fc3edd3ba72cadb84328a3203e36"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
@@ -677,36 +896,84 @@ const MODEL_MANIFESTS: &[LocalModelManifest] = &[
         label: "Whisper Large V3 Turbo",
         description: WHISPER_DESCRIPTION,
         tags: &["Multilingual", "Dictionary"],
-        category: "standard",
+        category: "legacy",
         engine: LocalModelEngine::Whisper,
         variant: "Full",
         files: whisper_files!(
-            "ggml-large-v3-turbo.bin",
-            1_624_555_275,
-            Some("1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69")
+            "large-v3-turbo",
+            "F16",
+            1_625_935_520,
+            "e1d0144e9afc9f479d9e51fc92c7dea9dc36059655eeb3819f16ad2de779046a"
         ),
         capabilities: WHISPER_CAPABILITIES,
     },
 ];
 
+// Speaker detection for Library items. Kept out of MODEL_MANIFESTS so it never
+// shows up where a transcription model is expected.
+const DIARIZER_MANIFEST: LocalModelManifest = LocalModelManifest {
+    id: DIARIZER_MODEL,
+    family: "nemotron-3-diarization",
+    label: "Nemotron-3 Diarization",
+    description: "Labels who is speaking in Library transcripts.",
+    tags: &[],
+    category: MODEL_CATEGORY_DIARIZATION,
+    engine: LocalModelEngine::Transcribe,
+    variant: "Q8_0",
+    files: DIARIZER_FILES,
+    capabilities: &[],
+};
+
 pub fn local_manifests() -> &'static [LocalModelManifest] {
     MODEL_MANIFESTS
 }
 
+/// Transcription models only. [`installable_definition`] also covers the diarizer.
 pub fn definition(key: &str) -> Option<&'static LocalModelManifest> {
     MODEL_MANIFESTS.iter().find(|manifest| manifest.id == key)
 }
 
+pub(crate) fn installable_definition(key: &str) -> Option<&'static LocalModelManifest> {
+    definition(key).or_else(|| (key == DIARIZER_MODEL).then_some(&DIARIZER_MANIFEST))
+}
+
+fn ane_replacement_files(model: &str) -> Option<&'static [CatalogFile]> {
+    transcribe_ane_encoder(model).and_then(|encoder| encoder.replacement_files)
+}
+
+pub fn ane_replaces_model_files(model: &str) -> bool {
+    ane_replacement_files(model).is_some()
+}
+
 pub fn install_spec(model: &str, ane: bool) -> Option<InstallSpec> {
+    let manifest = installable_definition(model)?;
+    let model_files = if ane {
+        ane_replacement_files(model).unwrap_or(manifest.files)
+    } else {
+        manifest.files
+    };
+    Some(spec_from_files(manifest, model_files, ane))
+}
+
+/// The spec for the whisper.cpp `.bin` an earlier version installed.
+pub fn whisper_bin_install_spec(model: &str, ane: bool) -> Option<InstallSpec> {
     let manifest = definition(model)?;
-    let storage = match manifest.files {
+    let file = whisper_bin_file(model)?;
+    Some(spec_from_files(manifest, std::slice::from_ref(file), ane))
+}
+
+fn spec_from_files(
+    manifest: &LocalModelManifest,
+    model_files: &[CatalogFile],
+    ane: bool,
+) -> InstallSpec {
+    let storage = match model_files {
         [single] => ModelStorage::File {
             artifact: single.path.to_string(),
         },
         _ => ModelStorage::Directory,
     };
-    let mut files: Vec<RemoteFile> = manifest
-        .files
+    let mut files: Vec<RemoteFile> = model_files
         .iter()
         .map(|file| RemoteFile {
             url: file.url.to_string(),
@@ -716,26 +983,22 @@ pub fn install_spec(model: &str, ane: bool) -> Option<InstallSpec> {
             extract: false,
         })
         .collect();
-    if ane && let Some(encoder) = ane_encoder(manifest) {
-        let dir_name = encoder.dir_name();
+    if ane && let Some(companion) = ane_companion(manifest) {
         files.push(RemoteFile {
-            url: format!(
-                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{dir_name}.zip"
-            ),
-            path: dir_name,
-            size_bytes: Some(encoder.size_bytes),
-            sha256: Some(encoder.sha256.to_string()),
+            url: companion.url,
+            path: companion.dir_name,
+            size_bytes: Some(companion.size_bytes),
+            sha256: Some(companion.sha256.to_string()),
             extract: true,
         });
     }
-    Some(InstallSpec {
+    InstallSpec {
         id: manifest.id.to_string(),
         engine: manifest.engine,
-        layout: Some(model_layout(manifest)),
         storage,
         files,
         variant: Some(manifest.family.to_string()),
-    })
+    }
 }
 
 pub fn model_label(key: &str) -> String {
@@ -774,39 +1037,23 @@ fn supports_only_english(manifest: &LocalModelManifest) -> bool {
 }
 
 fn supported_languages(manifest: &LocalModelManifest) -> Vec<SupportedLanguageInfo> {
+    if manifest.id == DIARIZER_MODEL {
+        return Vec::new();
+    }
     if supports_only_english(manifest) {
         return english_supported_languages();
     }
 
     match manifest.engine {
         LocalModelEngine::Whisper => whisper_supported_languages(),
-        LocalModelEngine::Nemotron => {
-            #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-            {
-                if manifest.id == "nemotron_35_streaming_multilingual" {
-                    nemotron_35_supported_languages()
-                } else {
-                    nemotron_supported_languages()
-                }
-            }
-
-            #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-            {
-                Vec::new()
-            }
-        }
-        LocalModelEngine::Parakeet => {
-            #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-            {
-                parakeet_v3_supported_languages()
-            }
-
-            #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-            {
-                Vec::new()
-            }
-        }
         LocalModelEngine::Apple => apple_supported_languages(),
+        LocalModelEngine::Transcribe if manifest.id == "parakeet_tdt_v3_gguf" => {
+            parakeet_v3_supported_languages()
+        }
+        LocalModelEngine::Transcribe if manifest.id == "nemotron_35_streaming_multilingual" => {
+            nemotron_35_supported_languages()
+        }
+        LocalModelEngine::Transcribe => qwen3_asr_supported_languages(),
     }
 }
 
@@ -845,22 +1092,20 @@ pub(crate) fn apple_engine_available() -> bool {
     }
 }
 
-fn engine_id(engine: &LocalModelEngine) -> &'static str {
-    match engine {
-        LocalModelEngine::Nemotron | LocalModelEngine::Parakeet => "nvidia",
-        LocalModelEngine::Whisper => "whisper",
-        LocalModelEngine::Apple => "apple",
+/// Engine name for analytics. Models that ran on the NVIDIA ONNX runtimes
+/// before 1.3.0 keep theirs so dashboards stay continuous.
+pub fn engine_name(manifest: &LocalModelManifest) -> &'static str {
+    match manifest.family {
+        "parakeet-unified" => "parakeet",
+        "nemotron-streaming" | "nemotron-35-streaming" => "nemotron",
+        _ => manifest.engine.as_str(),
     }
 }
 
-fn model_layout(manifest: &LocalModelManifest) -> ModelLayout {
-    match manifest.engine {
-        LocalModelEngine::Whisper | LocalModelEngine::Apple => ModelLayout::Whisper,
-        LocalModelEngine::Nemotron => ModelLayout::Nemotron,
-        LocalModelEngine::Parakeet if manifest.family == "parakeet-unified" => {
-            ModelLayout::ParakeetUnified
-        }
-        LocalModelEngine::Parakeet => ModelLayout::ParakeetTdt,
+fn engine_id(manifest: &LocalModelManifest) -> &'static str {
+    match engine_name(manifest) {
+        "nemotron" | "parakeet" => "nvidia",
+        name => name,
     }
 }
 
@@ -869,6 +1114,7 @@ fn capability_strings(capabilities: &[&str]) -> Vec<String> {
 }
 
 fn manifest_to_model_info(manifest: &LocalModelManifest) -> ModelInfo {
+    let companion = ane_companion(manifest);
     ModelInfo {
         key: manifest.id.to_string(),
         label: manifest.label.to_string(),
@@ -879,7 +1125,7 @@ fn manifest_to_model_info(manifest: &LocalModelManifest) -> ModelInfo {
             .map(|file| file.size_bytes.unwrap_or(0))
             .sum::<u64>() as f32
             / 1_000_000.0,
-        engine_id: engine_id(&manifest.engine).to_string(),
+        engine_id: engine_id(manifest).to_string(),
         family: manifest.family.to_string(),
         variant: manifest.variant.to_string(),
         category: manifest.category.to_string(),
@@ -887,7 +1133,15 @@ fn manifest_to_model_info(manifest: &LocalModelManifest) -> ModelInfo {
         tags: manifest.tags.iter().map(|tag| tag.to_string()).collect(),
         capabilities: capability_strings(manifest.capabilities),
         supported_languages: supported_languages(manifest),
-        ane_size_mb: ane_encoder(manifest).map(|encoder| encoder.size_bytes as f32 / 1_000_000.0),
+        ane_size_mb: companion
+            .as_ref()
+            .map(|c| c.size_bytes as f32 / 1_000_000.0),
+        ane_total_size_mb: companion.and_then(|c| {
+            ane_replacement_files(manifest.id).map(|files| {
+                (c.size_bytes + files.iter().map(|f| f.size_bytes.unwrap_or(0)).sum::<u64>()) as f32
+                    / 1_000_000.0
+            })
+        }),
     }
 }
 
@@ -912,6 +1166,10 @@ pub fn list_local_models() -> Vec<ModelInfo> {
         .filter(|manifest| manifest.engine != LocalModelEngine::Apple || apple_engine_available())
         .map(manifest_to_model_info)
         .collect()
+}
+
+pub fn diarizer_model_info() -> ModelInfo {
+    manifest_to_model_info(&DIARIZER_MANIFEST)
 }
 
 pub fn list_models(app: &AppHandle<AppRuntime>, settings: &UserSettings) -> Vec<SpeechModel> {
@@ -1012,7 +1270,10 @@ fn remote_entry(settings: &UserSettings) -> SpeechModel {
                 MODEL_CAPABILITY_TIMESTAMPS.to_string(),
                 MODEL_CAPABILITY_DICTIONARY.to_string(),
             ];
-            if glimpse_speech::remote::supports_diarization(&remote::resolved_endpoint(settings)) {
+            if glimpse_speech::remote::supports_diarization(
+                &remote::resolved_endpoint(settings),
+                &remote::resolved_model_name(settings).unwrap_or_default(),
+            ) {
                 caps.push(MODEL_CAPABILITY_DIARIZATION.to_string());
             }
             caps
@@ -1050,6 +1311,7 @@ fn provider_display(provider: &str) -> String {
     match provider.trim().to_ascii_lowercase().as_str() {
         "openai" => "OpenAI".to_string(),
         "groq" => "Groq".to_string(),
+        "xai" => "xAI (Grok)".to_string(),
         "mistral" => "Mistral".to_string(),
         "fireworks" => "Fireworks".to_string(),
         "openrouter" => "OpenRouter".to_string(),
@@ -1071,6 +1333,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn parakeet_gguf_has_platform_appropriate_packages() {
+        let full = install_spec("parakeet_tdt_v3_gguf", false).unwrap();
+        let ane = install_spec("parakeet_tdt_v3_gguf", true).unwrap();
+        assert_eq!(full.files.len(), 1);
+        assert_eq!(full.engine, LocalModelEngine::Transcribe);
+        let info = manifest_to_model_info(definition("parakeet_tdt_v3_gguf").unwrap());
+        assert_eq!(info.supported_languages.len(), 25);
+        assert_eq!(
+            info.capabilities,
+            [MODEL_CAPABILITY_DICTIONARY, MODEL_CAPABILITY_TIMESTAMPS]
+        );
+        assert!(info.size_mb < 740.0);
+        if ANE_SUPPORTED {
+            assert_eq!(ane.files.len(), 2);
+            assert!(ane.files[0].path.ends_with("-decoder.gguf"));
+            assert!(ane.files[1].extract);
+            assert!(info.ane_total_size_mb.unwrap() < 1113.0);
+        } else {
+            assert_eq!(ane.files[0].path, full.files[0].path);
+            assert_eq!(ane.files.len(), 1);
+            assert!(info.ane_total_size_mb.is_none());
+        }
+    }
+
+    #[test]
     fn legacy_models_are_not_downloadable() {
         let legacy = LocalModelManifest {
             id: "legacy_test",
@@ -1082,9 +1369,10 @@ mod tests {
             family: "whisper-tiny",
             variant: "Full",
             files: whisper_files!(
-                "ggml-tiny.bin",
-                77_691_713,
-                Some("be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21")
+                "tiny",
+                "F16",
+                80_135_360,
+                "5b44043278b47d3b6e56fb16c6bc5bb0aa16f2e69086f4d67175ed0a30d6a987"
             ),
             capabilities: WHISPER_CAPABILITIES,
         };
@@ -1095,9 +1383,9 @@ mod tests {
 
     #[test]
     fn active_models_remain_downloadable() {
-        let manifest = definition("whisper_tiny").expect("fixture model");
+        let manifest = definition("whisper_large_v3_turbo_q8").expect("fixture model");
         assert!(is_downloadable(manifest));
-        assert!(model_is_downloadable("whisper_tiny"));
+        assert!(model_is_downloadable("whisper_large_v3_turbo_q8"));
     }
 
     #[test]

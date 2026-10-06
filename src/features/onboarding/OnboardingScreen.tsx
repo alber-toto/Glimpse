@@ -14,7 +14,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useModelDownloadEvents } from "../../shared/hooks/useModelDownloadEvents";
 import { isBuiltInModel } from "../../shared/lib/modelStats";
 import { requestMacAccessibilityPermission } from "../../shared/lib/macosPermissions";
-import { checkoutUrlFor, type PurchaseTier } from "../license/purchaseConfig";
+import { pricingUrlFor } from "../license/purchaseConfig";
 import { useSettings } from "../settings/queries";
 import { getSettings } from "../settings/api";
 import {
@@ -30,21 +30,27 @@ import { WelcomeStep } from "./steps/WelcomeStep";
 import { ModelStep } from "./steps/ModelStep";
 import { PermissionsStep } from "./steps/PermissionsStep";
 import { ReadyStep } from "./steps/ReadyStep";
+import { LicenseStep } from "./steps/LicenseStep";
+import { SourceStep, type OnboardingSource } from "./steps/SourceStep";
+import { ModelDownloadStatus } from "./ModelDownloadStatus";
 import FirstDictationGuide from "./FirstDictationGuide";
-import { LicenseModal } from "./steps/LicenseModal";
 import { StepIndicator } from "./steps/shared";
 import { useActivateLicense, useLicenseState } from "../license/queries";
 import FAQModal from "../../shared/ui/FAQModal";
 import ModelPickerModal from "../../shared/ui/ModelPickerModal";
 import WindowControls from "../../shared/ui/WindowControls";
+import { showErrorToast } from "../../shared/lib/errorToast";
 import type { DownloadEvent, ModelInfo, ModelStatus } from "../../types";
 
-const ONBOARDING_MODEL_KEYS = [
-  "whisper_large_v3_turbo_q8",
-  "parakeet_tdt_int8",
+// The stock default; Parakeet first, Whisper for languages it doesn't cover.
+const DEFAULT_MODEL_KEY = "parakeet_tdt_v3_gguf";
+
+const ONBOARDING_MODEL_SLOTS = [
+  [DEFAULT_MODEL_KEY],
+  ["whisper_large_v3_turbo_q8"],
 ] as const;
 
-const ONBOARDING_COMPACT_MODEL_KEY = "whisper_small_q5";
+const ONBOARDING_COMPACT_MODEL_KEY = "whisper_small_q8";
 
 const onboardingPermissionKeys = {
   all: ["onboarding", "permissions"] as const,
@@ -62,23 +68,55 @@ const pickOnboardingModels = (models: ModelInfo[]) => {
     available.find((model) => model.key === key) ?? null;
 
   return [
-    ...ONBOARDING_MODEL_KEYS.map(byKey),
+    ...ONBOARDING_MODEL_SLOTS.map(
+      (keys) => keys.map(byKey).find(Boolean) ?? null,
+    ),
     available.find(isBuiltInModel) ?? byKey(ONBOARDING_COMPACT_MODEL_KEY),
   ].filter((model): model is ModelInfo => Boolean(model));
 };
 
+const baseLanguage = (locale: string) => locale.split(/[-_]/)[0].toLowerCase();
+
+// The system's first language, plus the app's language when set by hand.
+const userLanguages = (appLocale: string) => {
+  const system = navigator.languages?.[0] ?? navigator.language;
+  const locales = [system, appLocale === "system" ? null : appLocale];
+  return [
+    ...new Set(
+      locales.filter((locale): locale is string => !!locale).map(baseLanguage),
+    ),
+  ];
+};
+
+const supportsLanguages = (model: ModelInfo, languages: string[]) =>
+  languages.every((language) =>
+    model.supported_languages.some(
+      (supported) => baseLanguage(supported.code) === language,
+    ),
+  );
+
 const pickDefaultOnboardingModel = (
   models: ModelInfo[],
   persistedModel: string,
+  languages: string[],
 ) => {
   const available = downloadableModels(models);
+  // Anything but the stock default was picked on purpose.
   if (
     persistedModel &&
+    persistedModel !== DEFAULT_MODEL_KEY &&
     available.some((model) => model.key === persistedModel)
   ) {
     return persistedModel;
   }
-  return pickOnboardingModels(models)[0]?.key ?? persistedModel;
+  const picked = pickOnboardingModels(models);
+  // A language no model lists goes to the one with the widest coverage.
+  const fitting =
+    picked.find((model) => supportsLanguages(model, languages)) ??
+    [...picked].sort(
+      (a, b) => b.supported_languages.length - a.supported_languages.length,
+    )[0];
+  return fitting?.key ?? persistedModel;
 };
 
 const checkMicrophonePermission = () =>
@@ -159,10 +197,31 @@ interface OnboardingScreenProps {
   onComplete: () => void;
 }
 
+// Direction 0 is the zoom out of the welcome intro; 1 and -1 slide.
 const stepTransitionVariants = {
-  enter: (direction: 1 | -1) => ({ opacity: 0, x: direction > 0 ? 28 : -28 }),
-  center: { opacity: 1, x: 0 },
-  exit: (direction: 1 | -1) => ({ opacity: 0, x: direction > 0 ? -28 : 28 }),
+  enter: (direction: number) =>
+    direction === 0
+      ? { opacity: 0, scale: 0.94, x: 0, filter: "blur(8px)" }
+      : {
+          opacity: 0,
+          scale: 1,
+          x: direction > 0 ? 28 : -28,
+          filter: "blur(0px)",
+        },
+  center: (direction: number) => ({
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    filter: "blur(0px)",
+    transition:
+      direction === 0
+        ? { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const }
+        : { duration: 0.22, ease: "easeOut" as const },
+  }),
+  exit: (direction: number) =>
+    direction === 0
+      ? { opacity: 0, transition: { duration: 0 } }
+      : { opacity: 0, x: direction > 0 ? -28 : 28 },
 };
 
 export default function OnboardingScreen({
@@ -173,11 +232,10 @@ export default function OnboardingScreen({
   const [downloadStatus, setDownloadStatus] = useState<
     Record<string, DownloadEvent>
   >({});
-  const [openingLicenseTarget, setOpeningLicenseTarget] =
-    useState<PurchaseTier | null>(null);
+  const [openingLicenseCheckout, setOpeningLicenseCheckout] = useState(false);
   const [licenseOpenError, setLicenseOpenError] = useState<string | null>(null);
-  const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const [source, setSource] = useState<OnboardingSource | null>(null);
   const ctx = state.context;
   const queryClient = useQueryClient();
 
@@ -239,6 +297,7 @@ export default function OnboardingScreen({
     pickDefaultOnboardingModel(
       modelCatalogQuery.data ?? [],
       persistedLocalModel,
+      userLanguages(persistedSettings?.app_locale ?? "system"),
     );
   const selectedModelInfo = useMemo(
     () =>
@@ -338,11 +397,14 @@ export default function OnboardingScreen({
               : undefined;
         const verifyingOf = (event: DownloadEvent | undefined) =>
           event && "verifying" in event ? event.verifying : undefined;
+        const fileIndexOf = (event: DownloadEvent | undefined) =>
+          event && "fileIndex" in event ? event.fileIndex : undefined;
         if (
           current?.status === status.status &&
           current?.percent === status.percent &&
           detail(current) === detail(status) &&
-          verifyingOf(current) === verifyingOf(status)
+          verifyingOf(current) === verifyingOf(status) &&
+          fileIndexOf(current) === fileIndexOf(status)
         ) {
           return prev;
         }
@@ -360,17 +422,20 @@ export default function OnboardingScreen({
         percent: Math.min(100, Math.max(0, Math.round(payload.percent))),
         file: payload.file,
         verifying: payload.verifying,
+        fileIndex: payload.file_index,
+        fileCount: payload.file_count,
       });
     },
     onComplete: ({ model }) => {
       updateDownloadStatus(model, { status: "complete", percent: 100 });
       void refreshModelStatus(queryClient, model);
     },
-    onError: ({ model, error }) => {
+    onError: ({ model, error, reason }) => {
       updateDownloadStatus(model, {
         status: "error",
         percent: 0,
         message: error,
+        reason,
       });
     },
     onCancelled: ({ model }) => {
@@ -400,15 +465,21 @@ export default function OnboardingScreen({
           );
         await invoke("download_model", { model: modelKey, ane: includeAne });
         void refreshModelStatus(queryClient, modelKey);
-      } catch {
-        updateDownloadStatus(modelKey, {
-          status: "error",
-          percent: 0,
-          message: t({
-            id: "onboarding.download.failed",
-            message: "Download failed",
-          }),
-        });
+      } catch (err) {
+        // download:error usually lands first and carries the reason.
+        setDownloadStatus((prev) =>
+          prev[modelKey]?.status === "error"
+            ? prev
+            : {
+                ...prev,
+                [modelKey]: {
+                  status: "error",
+                  percent: 0,
+                  message: String(err),
+                  reason: "failed",
+                },
+              },
+        );
       }
     },
     [modelCatalogQuery.data, queryClient, t, updateDownloadStatus],
@@ -442,7 +513,12 @@ export default function OnboardingScreen({
         await invoke("cancel_download", { model: modelKey });
         updateDownloadStatus(modelKey, { status: "cancelled", percent: 0 });
         setTimeout(() => {
-          updateDownloadStatus(modelKey, { status: "idle", percent: 0 });
+          // A download started again in the meantime keeps its status.
+          setDownloadStatus((prev) =>
+            prev[modelKey]?.status === "cancelled"
+              ? { ...prev, [modelKey]: { status: "idle", percent: 0 } }
+              : prev,
+          );
         }, 1500);
       } catch {
         return;
@@ -459,21 +535,18 @@ export default function OnboardingScreen({
     requestAccessibilityPermission();
   }, [requestAccessibilityPermission]);
 
-  const openLicenseCheckout = useCallback(async (tier: PurchaseTier) => {
+  const openLicenseCheckout = useCallback(async () => {
     setLicenseOpenError(null);
-    setOpeningLicenseTarget(tier);
+    setOpeningLicenseCheckout(true);
+    void invoke("track_paywall_clicked", { source: "onboarding" }).catch(
+      () => {},
+    );
     try {
-      const checkoutUrl = checkoutUrlFor(tier, "onboarding");
-      if (!checkoutUrl) {
-        throw new Error(
-          `${tier === "commercial" ? "Commercial" : "Personal"} checkout link is not configured for this build.`,
-        );
-      }
-      await openUrl(checkoutUrl);
+      await openUrl(pricingUrlFor("onboarding"));
     } catch (err) {
       setLicenseOpenError(err instanceof Error ? err.message : String(err));
     } finally {
-      setOpeningLicenseTarget(null);
+      setOpeningLicenseCheckout(false);
     }
   }, []);
 
@@ -582,6 +655,7 @@ export default function OnboardingScreen({
     }
   }, [
     ctx.autoLaunch,
+    ctx.microphoneDevice,
     ctx.selectedMode,
     ctx.smartShortcut,
     persistedSettings,
@@ -632,8 +706,14 @@ export default function OnboardingScreen({
           ),
         });
         send({ type: "SET_SHORTCUT", shortcut });
-      } catch {
-        return;
+      } catch (err) {
+        console.error("Failed to set shortcut", err);
+        showErrorToast(
+          t({
+            id: "onboarding.shortcut.failed",
+            message: "Couldn't use that shortcut. Try another one.",
+          }),
+        );
       }
     },
     [
@@ -642,19 +722,69 @@ export default function OnboardingScreen({
       ctx.selectedMode,
       selectedModel,
       send,
+      t,
     ],
   );
 
+  const zoomingFromWelcome = useRef(false);
+
   const goNext = useCallback(() => {
+    zoomingFromWelcome.current = state.matches("welcome");
     send({ type: "NEXT" });
-  }, [send]);
+  }, [send, state]);
 
   const goBack = useCallback(() => {
+    zoomingFromWelcome.current = false;
     send({ type: "BACK" });
   }, [send]);
 
+  // A short beat on the picked option, then move on without a Continue.
+  const sourceAdvanceTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (sourceAdvanceTimer.current !== null) {
+        window.clearTimeout(sourceAdvanceTimer.current);
+        sourceAdvanceTimer.current = null;
+      }
+    },
+    [currentStep],
+  );
+
+  const handleSelectSource = useCallback(
+    (picked: OnboardingSource) => {
+      if (sourceAdvanceTimer.current !== null) return;
+      if (picked !== source) {
+        void invoke("track_onboarding_source", { source: picked }).catch(
+          () => {},
+        );
+      }
+      setSource(picked);
+      sourceAdvanceTimer.current = window.setTimeout(() => {
+        sourceAdvanceTimer.current = null;
+        goNext();
+      }, 220);
+    },
+    [goNext, source],
+  );
+
+  const selectedModelState = displayStateByModel[selectedModel] ?? null;
+  const showDownloadStatus =
+    Boolean(downloadStatus[selectedModel]) &&
+    currentStep !== "welcome" &&
+    currentStep !== "import" &&
+    currentStep !== "model";
+  const practiceModelState = selectedModelReady
+    ? "ready"
+    : selectedModelState?.status === "error"
+      ? "failed"
+      : "downloading";
+
+  const stepDirection = zoomingFromWelcome.current
+    ? 0
+    : ctx.transitionDirection;
+
   const stepMotionProps = {
-    custom: ctx.transitionDirection,
+    custom: stepDirection,
     variants: stepTransitionVariants,
     animate: "center" as const,
     exit: "exit" as const,
@@ -696,8 +826,6 @@ export default function OnboardingScreen({
               }
             }
             selectedModelReady={selectedModelReady}
-            showLocalConfirm={ctx.showLocalConfirm}
-            onShowConfirm={(show) => send({ type: "SHOW_LOCAL_CONFIRM", show })}
             onDownload={handleDownload}
             onDelete={handleDelete}
             onCancelDownload={handleCancelDownload}
@@ -728,6 +856,17 @@ export default function OnboardingScreen({
             onNext={goNext}
           />
         );
+      case "source":
+        return (
+          <SourceStep
+            key="source"
+            stepMotionProps={stepMotionProps}
+            isWindows={ctx.platform.id === "windows"}
+            selected={source}
+            onSelect={handleSelectSource}
+            onSkip={goNext}
+          />
+        );
       case "permissions":
         return (
           <PermissionsStep
@@ -741,6 +880,27 @@ export default function OnboardingScreen({
             isCheckingAccessibility={isCheckingAccessibility}
             onRequestMic={handleRequestMic}
             onRequestAccessibility={handleRequestAccessibility}
+            onNext={goNext}
+          />
+        );
+      case "license":
+        return (
+          <LicenseStep
+            key="license"
+            stepMotionProps={stepMotionProps}
+            licenseState={licenseQuery.data ?? null}
+            opening={openingLicenseCheckout}
+            openError={licenseOpenError}
+            activating={activateLicense.isPending}
+            activationError={
+              activateLicense.error instanceof Error
+                ? activateLicense.error.message
+                : activateLicense.error
+                  ? String(activateLicense.error)
+                  : null
+            }
+            onOpenCheckout={openLicenseCheckout}
+            onActivate={(key) => activateLicense.mutate(key)}
             onNext={goNext}
           />
         );
@@ -761,12 +921,6 @@ export default function OnboardingScreen({
             onSetAutoLaunch={(value) =>
               send({ type: "SET_AUTO_LAUNCH", value })
             }
-            licenseActive={licenseQuery.data?.status === "active"}
-            onOpenLicense={() => {
-              activateLicense.reset();
-              setLicenseOpenError(null);
-              setShowLicenseModal(true);
-            }}
             isCompleting={ctx.isCompleting}
             completionError={ctx.completionError}
             onComplete={handleStartPractice}
@@ -779,6 +933,7 @@ export default function OnboardingScreen({
             stepMotionProps={stepMotionProps}
             smartShortcut={ctx.smartShortcut}
             onSetShortcut={applySmartShortcut}
+            modelState={practiceModelState}
             onFinish={handleFinishOnboarding}
             isFinishing={ctx.isCompleting}
             completionError={ctx.completionError}
@@ -811,24 +966,34 @@ export default function OnboardingScreen({
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col items-center overflow-y-auto px-10 pb-6">
-          <AnimatePresence mode="wait" custom={ctx.transitionDirection}>
+        <div
+          className={`flex-1 flex flex-col items-center px-10 pb-6 ${currentStep === "welcome" ? "overflow-hidden" : "overflow-y-auto"}`}
+        >
+          <AnimatePresence mode="wait" custom={stepDirection}>
             {renderStep()}
           </AnimatePresence>
         </div>
 
-        {currentStep !== "welcome" && (
-          <button
-            onClick={goBack}
-            className="absolute left-6 bottom-6 flex items-center gap-1 ui-text-body-sm text-content-muted hover:text-content-primary transition-colors"
-          >
-            <ChevronLeft size={14} />
-            {t({
-              id: "onboarding.back",
-              message: "Back",
-            })}
-          </button>
-        )}
+        {currentStep !== "welcome" &&
+          steps.indexOf(currentStep as (typeof steps)[number]) !== 0 && (
+            <button
+              onClick={goBack}
+              className="absolute left-6 bottom-6 flex items-center gap-1 ui-text-body-sm text-content-muted hover:text-content-primary transition-colors"
+            >
+              <ChevronLeft size={14} />
+              {t({
+                id: "onboarding.back",
+                message: "Back",
+              })}
+            </button>
+          )}
+
+        {showDownloadStatus ? (
+          <ModelDownloadStatus
+            state={selectedModelState}
+            onRetry={() => void handleDownload(selectedModel)}
+          />
+        ) : null}
 
         <FAQModal
           isOpen={ctx.showFAQModal}
@@ -854,28 +1019,6 @@ export default function OnboardingScreen({
           onDelete={handleDelete}
           onCancel={handleCancelDownload}
         />
-
-        <AnimatePresence>
-          {showLicenseModal && (
-            <LicenseModal
-              licenseState={licenseQuery.data ?? null}
-              licenseLoading={licenseQuery.isLoading && !licenseQuery.data}
-              activating={activateLicense.isPending}
-              openingTarget={openingLicenseTarget}
-              openError={licenseOpenError}
-              activationError={
-                activateLicense.error instanceof Error
-                  ? activateLicense.error.message
-                  : activateLicense.error
-                    ? String(activateLicense.error)
-                    : null
-              }
-              onOpenCheckout={openLicenseCheckout}
-              onActivateLicense={(key) => activateLicense.mutate(key)}
-              onClose={() => setShowLicenseModal(false)}
-            />
-          )}
-        </AnimatePresence>
       </div>
     </MotionConfig>
   );

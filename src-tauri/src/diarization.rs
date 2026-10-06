@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
 use glimpse_speech::models::{
-    InstallSpec, ModelEngine, ModelInstallManager, ModelLayout, ModelStorage, RemoteFile,
+    InstallSpec, ModelEngine, ModelInstallManager, ModelStorage, RemoteFile,
 };
 #[cfg(target_os = "macos")]
 use serde::Deserialize;
@@ -41,12 +41,13 @@ pub fn model_info() -> ModelInfo {
         engine_id: "diarization".to_string(),
         family: family.to_string(),
         variant: String::new(),
-        category: "auxiliary".to_string(),
+        category: "diarization".to_string(),
         downloadable: cfg!(any(target_os = "macos", target_os = "windows")),
         tags: vec!["Local".to_string(), "Private".to_string()],
         capabilities: vec!["diarization".to_string()],
         supported_languages: Vec::new(),
         ane_size_mb: None,
+        ane_total_size_mb: None,
     }
 }
 
@@ -60,7 +61,6 @@ fn platform_install_spec() -> InstallSpec {
         // The shared installer only uses this to select special built-in handling.
         // Diarization has its own runtime and never reaches ASR model resolution.
         engine: ModelEngine::Whisper,
-        layout: Some(ModelLayout::Whisper),
         storage: ModelStorage::Directory,
         files: platform_files(),
         variant: Some("speaker-diarization".to_string()),

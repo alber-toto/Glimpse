@@ -18,8 +18,9 @@ use super::queue::{release_library_slot, schedule_library_job};
 #[cfg(target_os = "macos")]
 use super::types::EVENT_LIBRARY_OPEN_IMPORT;
 use super::types::{
-    EVENT_LIBRARY_ERROR, ExportFormat, LibraryErrorPayload, LibraryFilter, LibraryImportOptions,
-    LibraryItem, LibraryItemPatch, LibraryItemStatus, LibraryItemsPage,
+    EVENT_LIBRARY_COMPLETE, EVENT_LIBRARY_ERROR, ExportFormat, JobSource, LibraryCompletePayload,
+    LibraryErrorPayload, LibraryFilter, LibraryImportOptions, LibraryItem, LibraryItemPatch,
+    LibraryItemStatus, LibraryItemsPage,
 };
 
 #[cfg(target_os = "macos")]
@@ -71,21 +72,34 @@ pub fn create_library_item(
     app: AppHandle<AppRuntime>,
     state: tauri::State<'_, AppState>,
 ) -> Result<LibraryItem, String> {
-    require_library_license(&state)?;
+    let item = import_library_file(path, options, JobSource::Upload, &app, &state)?;
+    crate::analytics::track_feature_used(&app, "library");
+    Ok(item)
+}
+
+pub(crate) fn import_library_file(
+    path: String,
+    options: LibraryImportOptions,
+    source: JobSource,
+    app: &AppHandle<AppRuntime>,
+    state: &tauri::State<'_, AppState>,
+) -> Result<LibraryItem, String> {
+    require_library_license(state)?;
 
     let source_path = PathBuf::from(path);
     let storage = state.storage();
-    let item = create_item_from_path(&app, storage, &source_path, &options)
+    let item = create_item_from_path(app, storage, &source_path, &options)
         .map_err(|err| err.to_string())?;
     schedule_library_job(
-        &app,
-        &state,
+        app,
+        state,
         LibraryJob {
             id: item.id.clone(),
             kind: LibraryJobKind::Import {
                 source_path,
                 store_original: options.store_original,
             },
+            source,
         },
     );
     Ok(item)
@@ -106,6 +120,17 @@ pub fn get_library_items_page(
         .get_library_items_page(filter, limit, offset)
         .map(|(items, has_more)| LibraryItemsPage { items, has_more })
         .map_err(|err| format!("Failed to load library items page: {err}"))
+}
+
+#[tauri::command]
+pub fn get_library_item(
+    id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<LibraryItem>, String> {
+    state
+        .storage()
+        .get_library_item(&id)
+        .map_err(|err| format!("Failed to load library item: {err}"))
 }
 
 #[tauri::command]
@@ -148,7 +173,7 @@ pub async fn generate_library_item_title(
     let available_tags = storage
         .get_library_tags()
         .map_err(|err| format!("Failed to load tags: {err}"))?;
-    let app_locale = crate::native_i18n::resolved_app_locale(&settings);
+    let app_locale = crate::native_i18n::ui_locale(&settings);
     let metadata = crate::llm_cleanup::generate_library_metadata(
         &state.http(),
         transcript,
@@ -160,9 +185,9 @@ pub async fn generate_library_item_title(
     .map_err(|err| crate::llm_cleanup::title_generation_error_code(&err).to_string())?;
 
     storage
-        .apply_generated_library_metadata(&id, None, &metadata.title, &metadata.tags)
+        .apply_generated_library_metadata(&id, Some(&item.name), &metadata.title, &metadata.tags)
         .map_err(|err| format!("Failed to save generated title and tags: {err}"))?
-        .ok_or_else(|| "Library item not found".to_string())
+        .ok_or_else(|| "The item was renamed or deleted while generating its title".to_string())
 }
 
 #[tauri::command]
@@ -171,7 +196,7 @@ pub fn delete_library_item(
     app: AppHandle<AppRuntime>,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    state.remove_library_job(&id);
+    let was_queued = state.remove_library_job(&id);
     state.cancel_library_transcription(&id);
     release_library_slot(&app, &state, &id);
 
@@ -183,24 +208,40 @@ pub fn delete_library_item(
         return Ok(());
     };
 
-    match determine_delete_scope(&app, &item.audio_path) {
-        LibraryDeleteScope::DeleteFile(path) => {
-            if path.exists() {
-                fs::remove_file(&path)
-                    .map_err(|err| format!("Failed to delete library file: {err}"))?;
-            }
+    let trashed = match determine_delete_scope(&app, &item.audio_path) {
+        LibraryDeleteScope::DeleteFile(path) if path.exists() => move_to_trash(&path),
+        LibraryDeleteScope::DeleteDirectory(path) => move_to_trash(&path),
+        _ => Ok(()),
+    };
+    if let Err(err) = trashed {
+        // The item stays; a job it lost from the queue shows as cancelled, like
+        // the Cancel button, unless a retry has queued it again meanwhile. An
+        // active job reports its own cancellation.
+        if was_queued && !state.library_job_pending(&id) {
+            set_library_status(&storage, &id, LibraryItemStatus::Cancelled);
+            let _ = app.emit(
+                EVENT_LIBRARY_ERROR,
+                LibraryErrorPayload {
+                    id: id.clone(),
+                    message: "Transcription cancelled".to_string(),
+                    cancelled: true,
+                },
+            );
         }
-        LibraryDeleteScope::DeleteDirectory(path) => {
-            crate::platform::remove_dir_all_compat(&path)
-                .map_err(|err| format!("Failed to delete library files: {err}"))?;
-        }
-        LibraryDeleteScope::SkipFilesystemDeletion => {}
+        return Err(err);
     }
 
     storage
         .delete_library_item(&id)
         .map_err(|err| format!("Failed to delete library item: {err}"))?;
     Ok(())
+}
+
+// Never deletes for good: deleting promises the files can be restored, so a
+// failed move keeps the item and its files.
+fn move_to_trash(path: &Path) -> Result<(), String> {
+    crate::platform::move_to_trash(path)
+        .map_err(|err| format!("Couldn't move the audio to the Trash: {err}"))
 }
 
 #[tauri::command]
@@ -210,13 +251,7 @@ pub fn cancel_library_transcription(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     if state.remove_library_job(&id) {
-        let _ = state.storage().update_library_item(
-            &id,
-            LibraryItemPatch {
-                status: Some(LibraryItemStatus::Cancelled),
-                ..Default::default()
-            },
-        );
+        set_library_status(&state.storage(), &id, LibraryItemStatus::Cancelled);
         let _ = app.emit(
             EVENT_LIBRARY_ERROR,
             LibraryErrorPayload {
@@ -228,13 +263,7 @@ pub fn cancel_library_transcription(
         return Ok(());
     }
     state.cancel_library_transcription(&id);
-    let _ = state.storage().update_library_item(
-        &id,
-        LibraryItemPatch {
-            status: Some(LibraryItemStatus::Cancelling),
-            ..Default::default()
-        },
-    );
+    set_library_status(&state.storage(), &id, LibraryItemStatus::Cancelling);
     Ok(())
 }
 
@@ -268,15 +297,69 @@ pub fn retry_library_transcription(
         }
     };
 
-    let _ = storage.update_library_item(
-        &id,
-        LibraryItemPatch {
-            status: Some(LibraryItemStatus::Pending),
-            ..Default::default()
+    set_library_status(&storage, &id, LibraryItemStatus::Pending);
+    schedule_library_job(
+        &app,
+        &state,
+        LibraryJob {
+            id,
+            kind: job,
+            source: JobSource::of_item(&item),
         },
     );
-    schedule_library_job(&app, &state, LibraryJob { id, kind: job });
     Ok(())
+}
+
+/// Re-runs speaker detection on a finished item without transcribing it again.
+#[tauri::command]
+pub async fn rediarize_library_item(
+    id: String,
+    app: AppHandle<AppRuntime>,
+    state: tauri::State<'_, AppState>,
+) -> Result<LibraryItem, String> {
+    require_library_license(&state)?;
+
+    let storage = state.storage();
+    let task_app = app.clone();
+    let task_id = id.clone();
+    let updated = tauri::async_runtime::spawn_blocking(move || {
+        let model_path = crate::speech::installed_diarizer_path(&task_app)
+            .ok_or_else(|| "The speaker detection model isn't downloaded".to_string())?;
+        let item = storage
+            .get_library_item(&task_id)
+            .map_err(|err| format!("Failed to load library item: {err}"))?
+            .filter(|item| matches!(item.status, LibraryItemStatus::Complete))
+            .ok_or_else(|| "Library item isn't finished transcribing".to_string())?;
+        let labeled = super::speakers::rediarize(&item, &model_path).map_err(|err| {
+            tracing::warn!("[library] speaker detection failed: {err}");
+            err.to_string()
+        })?;
+        // A transcription or a speaker edit made meanwhile must not be overwritten.
+        storage
+            .update_library_item_if(
+                &task_id,
+                LibraryItemPatch {
+                    segments: Some(labeled.segments),
+                    words: labeled.words,
+                    speakers: Some(labeled.speakers),
+                    detect_speakers: Some(true),
+                    ..Default::default()
+                },
+                |current| {
+                    matches!(current.status, LibraryItemStatus::Complete)
+                        && current.segments == item.segments
+                        && current.words == item.words
+                        && current.speakers == item.speakers
+                },
+            )
+            .map_err(|err| format!("Failed to update library item: {err}"))?
+            .ok_or_else(|| "Library item changed while detecting speakers".to_string())
+    })
+    .await
+    .map_err(|err| format!("Speaker detection task failed: {err}"))??;
+
+    let _ = app.emit(EVENT_LIBRARY_COMPLETE, LibraryCompletePayload { id });
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -284,6 +367,7 @@ pub fn export_library_item_to_path(
     id: String,
     format: ExportFormat,
     output_path: String,
+    app: AppHandle<AppRuntime>,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     require_library_license(&state)?;
@@ -320,6 +404,7 @@ pub fn export_library_item_to_path(
         .with_context(|| "Failed to write export file".to_string())
         .map_err(|err| err.to_string())?;
 
+    crate::analytics::track_feature_used(&app, "library");
     Ok(())
 }
 
@@ -375,13 +460,7 @@ pub(crate) fn recover_interrupted_library_items(app: &AppHandle<AppRuntime>) {
     for item in items {
         match item.status {
             LibraryItemStatus::Cancelling => {
-                let _ = storage.update_library_item(
-                    &item.id,
-                    LibraryItemPatch {
-                        status: Some(LibraryItemStatus::Cancelled),
-                        ..Default::default()
-                    },
-                );
+                set_library_status(&storage, &item.id, LibraryItemStatus::Cancelled);
                 let _ = app.emit(
                     EVENT_LIBRARY_ERROR,
                     LibraryErrorPayload {
@@ -395,19 +474,14 @@ pub(crate) fn recover_interrupted_library_items(app: &AppHandle<AppRuntime>) {
             | LibraryItemStatus::Importing { .. }
             | LibraryItemStatus::Transcribing { .. } => match build_recovery_job(&item) {
                 Ok(kind) => {
-                    let _ = storage.update_library_item(
-                        &item.id,
-                        LibraryItemPatch {
-                            status: Some(LibraryItemStatus::Pending),
-                            ..Default::default()
-                        },
-                    );
+                    set_library_status(&storage, &item.id, LibraryItemStatus::Pending);
                     schedule_library_job(
                         app,
                         &state,
                         LibraryJob {
                             id: item.id.clone(),
                             kind,
+                            source: JobSource::of_item(&item),
                         },
                     );
                 }
@@ -572,12 +646,24 @@ fn set_library_item_error(
     id: &str,
     message: &str,
 ) {
+    set_library_status(
+        storage,
+        id,
+        LibraryItemStatus::Error {
+            message: message.to_string(),
+        },
+    );
+}
+
+fn set_library_status(
+    storage: &std::sync::Arc<crate::storage::StorageManager>,
+    id: &str,
+    status: LibraryItemStatus,
+) {
     let _ = storage.update_library_item(
         id,
         LibraryItemPatch {
-            status: Some(LibraryItemStatus::Error {
-                message: message.to_string(),
-            }),
+            status: Some(status),
             ..Default::default()
         },
     );

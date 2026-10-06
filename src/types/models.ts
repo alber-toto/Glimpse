@@ -15,6 +15,7 @@ export type ModelInfo = {
     name: string;
   }[];
   ane_size_mb: number | null;
+  ane_total_size_mb: number | null;
 };
 
 export type SpeechModel = {
@@ -51,12 +52,17 @@ export type DownloadProgressPayload = {
   total: number;
   percent: number;
   verifying: boolean;
+  file_index: number;
+  file_count: number;
 };
 
-export type AneCompileEvent = {
+export type DownloadFailureReason =
+  "unavailable" | "network" | "blocked" | "disk_full" | "damaged" | "failed";
+
+export type DownloadErrorPayload = {
   model: string;
-  label: string;
-  status: "start" | "done" | "error";
+  error: string;
+  reason: DownloadFailureReason;
 };
 
 export type DownloadEvent =
@@ -66,10 +72,17 @@ export type DownloadEvent =
       percent: number;
       file: string;
       verifying?: boolean;
+      fileIndex?: number;
+      fileCount?: number;
     }
   | { status: "complete"; percent: number }
   | { status: "cancelled"; percent: number }
-  | { status: "error"; percent: number; message: string };
+  | {
+      status: "error";
+      percent: number;
+      message: string;
+      reason?: DownloadFailureReason;
+    };
 
 export type LocalApiLogEntry = {
   id: number;

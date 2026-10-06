@@ -32,7 +32,7 @@ private final class ResultBox<T>: @unchecked Sendable {
     var value: T?
 }
 
-private func runBlocking<T: Sendable>(_ operation: @escaping @Sendable () async -> T) -> T {
+private func runBlocking<T>(_ operation: @escaping @Sendable () async -> T) -> T {
     let semaphore = DispatchSemaphore(value: 0)
     let box = ResultBox<T>()
     Task.detached {
@@ -200,6 +200,9 @@ private final class MeetingCapture: NSObject, SCStreamOutput, SCStreamDelegate, 
     private let audioQueue = DispatchQueue(label: "cc.tryglimpse.meeting.system-audio")
     private let microphoneLock = NSLock()
     private let levelsLock = NSLock()
+    private let statusLock = NSLock()
+    private var captureError: String?
+    private var startedAtSeconds: Double = 0
     private let engine = AVAudioEngine()
     private var stream: SCStream?
     private var systemFile: AVAudioFile?
@@ -284,6 +287,7 @@ private final class MeetingCapture: NSObject, SCStreamOutput, SCStreamDelegate, 
 
             let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
             try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: audioQueue)
+            startedAtSeconds = CMTimeGetSeconds(CMClockGetTime(CMClockGetHostTimeClock()))
             try await stream.startCapture()
             self.stream = stream
             try startMicrophone()
@@ -342,7 +346,7 @@ private final class MeetingCapture: NSObject, SCStreamOutput, SCStreamDelegate, 
             commonFormat: microphoneFormat.commonFormat,
             interleaved: microphoneFormat.isInterleaved
         )
-        input.installTap(onBus: 0, bufferSize: 1024, format: microphoneFormat) { [weak self] buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 1024, format: microphoneFormat) { [weak self] buffer, time in
             guard let self else { return }
             let level = normalizedAudioLevel(buffer)
             self.levelsLock.withLock {
@@ -350,7 +354,16 @@ private final class MeetingCapture: NSObject, SCStreamOutput, SCStreamDelegate, 
                 self.microphoneLevelUpdatedAt = ProcessInfo.processInfo.systemUptime
             }
             self.microphoneLock.withLock {
-                try? self.microphoneFile?.write(from: buffer)
+                do {
+                    if let file = self.microphoneFile {
+                        let seconds = time.isHostTimeValid
+                            ? AVAudioTime.seconds(forHostTime: time.hostTime)
+                            : ProcessInfo.processInfo.systemUptime
+                        try self.writeAligned(buffer, to: file, seconds: seconds)
+                    }
+                } catch {
+                    self.recordFailure("Microphone audio could not be saved.")
+                }
             }
         }
         microphoneTapInstalled = true
@@ -359,14 +372,55 @@ private final class MeetingCapture: NSObject, SCStreamOutput, SCStreamDelegate, 
     }
 
     func stop() async throws {
+        var stopError: Error?
         if let stream {
-            try await stream.stopCapture()
+            do {
+                try await stream.stopCapture()
+            } catch {
+                stopError = error
+            }
             try? stream.removeStreamOutput(self, type: .audio)
         }
         stream = nil
         stopMicrophone()
-        audioQueue.sync {}
-        systemFile = nil
+        audioQueue.sync { systemFile = nil }
+        if let stopError { throw stopError }
+    }
+
+    var failure: String? {
+        statusLock.withLock { captureError }
+    }
+
+    private func recordFailure(_ message: String) {
+        statusLock.withLock {
+            if captureError == nil { captureError = message }
+        }
+    }
+
+    private func writeAligned(
+        _ buffer: AVAudioPCMBuffer,
+        to file: AVAudioFile,
+        seconds: Double
+    ) throws {
+        if seconds.isFinite && startedAtSeconds > 0 {
+            let elapsed = max(0, seconds - startedAtSeconds)
+            let expectedFrame = AVAudioFramePosition((elapsed * buffer.format.sampleRate).rounded())
+            var gap = expectedFrame - file.framePosition
+            if file.framePosition == 0 || gap > AVAudioFramePosition(buffer.format.sampleRate * 0.005) {
+                while gap > 0 {
+                    let frames = AVAudioFrameCount(min(gap, 8_192))
+                    guard let silence = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: frames)
+                    else { throw NSError(domain: "GlimpseMeeting", code: 5) }
+                    silence.frameLength = frames
+                    for audio in UnsafeMutableAudioBufferListPointer(silence.mutableAudioBufferList) {
+                        audio.mData?.initializeMemory(as: UInt8.self, repeating: 0, count: Int(audio.mDataByteSize))
+                    }
+                    try file.write(from: silence)
+                    gap -= AVAudioFramePosition(frames)
+                }
+            }
+        }
+        try file.write(from: buffer)
     }
 
     private func stopMicrophone() {
@@ -407,7 +461,7 @@ private final class MeetingCapture: NSObject, SCStreamOutput, SCStreamDelegate, 
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        NSLog("[glimpse-meeting] ScreenCaptureKit stopped: %@", "\(error)")
+        recordFailure("Meeting audio stopped unexpectedly. Stop recording to save the captured audio.")
     }
 
     private func writeSystemAudio(_ sampleBuffer: CMSampleBuffer) {
@@ -469,9 +523,11 @@ private final class MeetingCapture: NSObject, SCStreamOutput, SCStreamDelegate, 
                     interleaved: format.isInterleaved
                 )
             }
-            try systemFile?.write(from: buffer)
+            if let file = systemFile {
+                try writeAligned(buffer, to: file, seconds: CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer)))
+            }
         } catch {
-            NSLog("[glimpse-meeting] Failed to write system audio: %@", "\(error)")
+            recordFailure("Meeting audio could not be saved. Stop recording to save the captured audio.")
         }
     }
 }
@@ -534,10 +590,12 @@ public func gmMeetingLevels() -> UnsafeMutablePointer<CChar> {
             return resultString(values: ["microphone_level": 0, "system_level": 0])
         }
         let levels = capture.currentLevels()
-        return resultString(values: [
+        var values: [String: Any] = [
             "microphone_level": levels.microphone,
             "system_level": levels.system,
-        ])
+        ]
+        if let failure = capture.failure { values["capture_error"] = failure }
+        return resultString(values: values)
     }
     return resultString(values: ["microphone_level": 0, "system_level": 0])
 }

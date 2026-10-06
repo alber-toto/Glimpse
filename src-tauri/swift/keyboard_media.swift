@@ -37,9 +37,13 @@ private final class DictationKeyTap {
             place: .headInsertEventTap,
             options: blocksSystemDictation ? .defaultTap : .listenOnly,
             eventsOfInterest: mask,
-            callback: { _, _, event, context in
+            callback: { _, type, event, context in
                 guard let context else { return Unmanaged.passUnretained(event) }
                 let owner = Unmanaged<DictationKeyTap>.fromOpaque(context).takeUnretainedValue()
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    if let port = owner.port { CGEvent.tapEnable(tap: port, enable: true) }
+                    return Unmanaged.passUnretained(event)
+                }
                 guard
                     let appKitEvent = NSEvent(cgEvent: event),
                     appKitEvent.type == .systemDefined,

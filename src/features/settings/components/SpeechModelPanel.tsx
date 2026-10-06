@@ -6,6 +6,7 @@ import {
   supportsSpeechProviderModelDiscovery,
 } from "../../../shared/lib/speechProviders";
 import { Dropdown } from "../../../shared/ui/Dropdown";
+import ApiKeyField from "../../../shared/ui/ApiKeyField";
 import type { RemoteSpeechProvider } from "../../../types";
 
 type SpeechModelPanelProps = {
@@ -41,23 +42,22 @@ const SpeechModelPanel = ({
     new Set(availableModels.map((model) => model.trim()).filter(Boolean)),
   );
   const modelValue = model || "auto";
+  const defaultModel =
+    providerPreset?.defaultModel ||
+    t({
+      id: "settings.speech_model.model.provider_default",
+      message: "provider default",
+    });
 
   return (
     <div className="grid row-span-4 [grid-template-rows:subgrid] gap-3 rounded-lg bg-surface-surface p-2.5">
       <div className="px-2 py-1.5">
         <h3 className="ui-text-label-strong ui-color-primary">
           {t({
-            id: "settings.speech_model.title",
-            message: "Remote Speech Provider",
+            id: "settings.speech_model.title_provider",
+            message: "Speech Provider",
           })}
         </h3>
-        <p className="mt-0.5 ui-text-meta ui-color-muted">
-          {t({
-            id: "settings.speech_model.subtitle",
-            message:
-              "Connection details for cloud transcription. Select it in Models.",
-          })}
-        </p>
       </div>
 
       <div className="px-2">
@@ -152,20 +152,11 @@ const SpeechModelPanel = ({
           {t({
             id: "settings.speech_model.api_key",
             message: "API Key",
-          })}{" "}
-          {!providerPreset?.apiKeyRequired && (
-            <span className="ui-color-disabled">
-              {t({
-                id: "settings.speech_model.api_key.optional_hint",
-                message: "(if required)",
-              })}
-            </span>
-          )}
+          })}
         </span>
-        <input
-          type="password"
+        <ApiKeyField
           value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
+          onChange={setApiKey}
           placeholder={
             providerPreset?.apiKeyRequired
               ? t({
@@ -177,11 +168,10 @@ const SpeechModelPanel = ({
                   message: "Optional",
                 })
           }
-          aria-label={t({
+          ariaLabel={t({
             id: "settings.speech_model.api_key.aria",
             message: "Remote speech API key",
           })}
-          className="mt-2 w-full border-b border-border-secondary bg-transparent px-0.5 py-1 ui-text-body-sm ui-color-primary placeholder-content-disabled focus:outline-none focus:border-content-primary transition-colors"
         />
       </div>
 
@@ -204,8 +194,8 @@ const SpeechModelPanel = ({
             {
               value: "auto",
               label: t({
-                id: "settings.speech_model.model.automatic",
-                message: `Automatic (${providerPreset?.defaultModel || "provider default"})`,
+                id: "settings.speech_model.model.automatic_default",
+                message: `Automatic (${defaultModel})`,
               }),
             },
             ...uniqueModels.map((model) => ({
@@ -217,8 +207,8 @@ const SpeechModelPanel = ({
               : []),
           ]}
           placeholder={t({
-            id: "settings.speech_model.model.placeholder",
-            message: `Model (default: ${providerPreset?.defaultModel || "auto"})`,
+            id: "settings.speech_model.model.placeholder_default",
+            message: `Model (default: ${defaultModel})`,
           })}
           searchable
           searchPlaceholder={t({

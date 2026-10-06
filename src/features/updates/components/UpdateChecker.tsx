@@ -58,6 +58,7 @@ export function UpdateChecker({
   const queryClient = useQueryClient();
   const { data: updateStatus } = useUpdateStatus();
   const [checking, setChecking] = useState(false);
+  const [checked, setChecked] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -92,8 +93,11 @@ export function UpdateChecker({
       setError(formatError(err));
     } finally {
       setChecking(false);
+      setChecked(true);
     }
   }, [queryClient]);
+  // Not "up to date" until a first check has said so.
+  const awaitingCheck = storeBuild === undefined || (autoCheck && !checked);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,7 +251,7 @@ export function UpdateChecker({
         </div>
         <motion.button
           onClick={handleRelaunch}
-          className="rounded-lg bg-green-500 px-2.5 py-1.5 ui-text-button ui-color-on-solid hover:bg-green-400 transition-colors shrink-0"
+          className="rounded-md bg-green-500 px-2.5 py-1.5 ui-text-button ui-color-on-solid hover:bg-green-400 transition-colors shrink-0"
           whileTap={{ scale: 0.97 }}
         >
           {t({
@@ -324,7 +328,7 @@ export function UpdateChecker({
             <motion.button
               key="update-btn"
               onClick={handleDownloadAndInstall}
-              className="rounded-lg bg-amber-400 px-2.5 py-1.5 ui-text-button ui-color-on-warning hover:bg-amber-300 transition-colors shrink-0"
+              className="rounded-md bg-amber-400 px-2.5 py-1.5 ui-text-button ui-color-on-warning hover:bg-amber-300 transition-colors shrink-0"
               whileTap={{ scale: 0.97 }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -363,7 +367,7 @@ export function UpdateChecker({
         </div>
         <motion.button
           onClick={() => checkForUpdates()}
-          className="flex items-center gap-1.5 rounded-lg border border-red-500/20 px-2.5 py-1.5 ui-text-button ui-color-error-strong hover:bg-red-500/10 transition-colors shrink-0"
+          className="flex items-center gap-1.5 rounded-md border border-red-500/20 px-2.5 py-1.5 ui-text-button ui-color-error-strong hover:bg-red-500/10 transition-colors shrink-0"
           whileTap={{ scale: 0.97 }}
         >
           <RefreshCw size={12} />
@@ -379,7 +383,7 @@ export function UpdateChecker({
   return (
     <>
       <div className={`${UPDATE_BOX_CLASS} bg-surface-surface`}>
-        {checking ? (
+        {checking || awaitingCheck ? (
           <>
             <Loader2
               size={16}

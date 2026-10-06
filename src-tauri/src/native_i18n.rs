@@ -92,9 +92,28 @@ fn system_locales() -> Vec<String> {
         .collect()
 }
 
+/// The shipped app locale the UI is shown in.
+pub(crate) fn ui_locale(settings: &UserSettings) -> &'static str {
+    if settings.app_locale == "system" {
+        system_locales()
+            .iter()
+            .find_map(|candidate| match_locale(candidate))
+            .unwrap_or(DEFAULT_LOCALE)
+    } else {
+        match_locale(&settings.app_locale).unwrap_or(DEFAULT_LOCALE)
+    }
+}
+
+/// The two-letter language of the preferred OS display language, if it has one.
+pub(crate) fn system_language() -> Option<String> {
+    let first = system_locales().into_iter().next()?;
+    let base = first.split(['-', '_']).next()?.to_ascii_lowercase();
+    (base.len() == 2 && base.bytes().all(|b| b.is_ascii_lowercase())).then_some(base)
+}
+
 impl MenuStrings {
     pub fn resolve(settings: &UserSettings) -> Self {
-        let locale = resolved_app_locale(settings);
+        let locale = ui_locale(settings);
 
         Self {
             entries: catalog(locale).unwrap_or(&[]),
@@ -122,18 +141,5 @@ impl MenuStrings {
             text = text.replace(&format!("{{{name}}}"), value);
         }
         text
-    }
-}
-
-/// Resolve the locale exactly as the frontend and native menus do, including
-/// the user's preferred display language when the app setting is "system".
-pub fn resolved_app_locale(settings: &UserSettings) -> &'static str {
-    if settings.app_locale == "system" {
-        system_locales()
-            .iter()
-            .find_map(|candidate| match_locale(candidate))
-            .unwrap_or(DEFAULT_LOCALE)
-    } else {
-        match_locale(&settings.app_locale).unwrap_or(DEFAULT_LOCALE)
     }
 }

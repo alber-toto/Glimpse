@@ -14,9 +14,378 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/tabs/ModelsTab.tsx
-#~ msgid "settings.models.card.active"
-#~ msgstr "सक्रिय"
+#: src/features/library/components/LibraryDetail.tsx
+#~ msgid "library.modal.copy.copied"
+#~ msgstr "कॉपी हो गया"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#~ msgid "library.modal.follow_timestamp"
+#~ msgstr "टाइमस्टैम्प के साथ फ़ॉलो करें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#~ msgid "library.modal.timestamps"
+#~ msgstr "टाइमस्टैम्प"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+#~ msgid "onboarding.license_step.buy_team"
+#~ msgstr "क्या टीम के लिए खरीद रहे हैं?"
+
+#. js-lingui-explicit-id
+#: src/features/license/components/MemberCard.tsx
+#~ msgid "member_card.edition_blurb_personal"
+#~ msgstr "आपके लिए। अधिकतम 5 डिवाइस।"
+
+#. js-lingui-explicit-id
+#: src/features/license/components/MemberCard.tsx
+#~ msgid "member_card.edition_blurb_founder"
+#~ msgstr "लॉन्च के संस्थापक सदस्य। अधिकतम 5 डिवाइस।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AccountView.tsx
+#~ msgid "settings.account.activate.checkout_return_hint"
+#~ msgstr "Polar ने आपके लाइसेंस कुंजी को ई‑मेल किया है। उसे यहाँ पेस्ट करें, या पूरा ई‑मेल पेस्ट कर दें।"
+
+#. js-lingui-explicit-id
+#: src/features/license/components/MemberCard.tsx
+#~ msgid "member_card.tier_purchase_aria"
+#~ msgstr "{label} को {price} में ख़रीदें"
+
+#. js-lingui-explicit-id
+#: src/features/license/components/MemberCard.tsx
+#~ msgid "member_card.edition_blurb_contributor"
+#~ msgstr "योगदान देने के लिए धन्यवाद। अधिकतम 5 डिवाइस।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AccountView.tsx
+#~ msgid "settings.account.activate.masked_key_error"
+#~ msgstr "यह संक्षिप्त कुंजी है। पूरी कुंजी अपनी Polar खरीद पेज से कॉपी करें।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AccountView.tsx
+#~ msgid "settings.account.activate.order_id_error"
+#~ msgstr "यह आपका ऑर्डर नंबर है। लाइसेंस कुंजी उसी Polar ई‑मेल में है और GLIMPSE_ से शुरू होती है।"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/FAQModal.tsx
+#~ msgid "faq.free.answer.v3"
+#~ msgstr "मूल श्रुतलेखन निःशुल्क है: स्थानीय ट्रांसक्रिप्शन, शब्दकोश, प्रतिस्थापन और इतिहास। इसके लिए प्रति-मिनट शुल्क या सदस्यता नहीं है। लाइब्रेरी, क्लीनअप और LLM के साथ वैयक्तिकरण Glimpse Personal का हिस्सा हैं, और आप इन्हें 14 दिनों तक निःशुल्क आज़मा सकते हैं। स्थानीय API सर्वर और CLI के लिए लाइसेंस आवश्यक है और ये परीक्षण का हिस्सा नहीं हैं। सेटिंग्स → खाता में Personal लाइसेंस (एकमुश्त खरीद) या Commercial लाइसेंस (वार्षिक बिलिंग) सक्रिय करें।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+#~ msgid "onboarding.license_step.tile_devices"
+#~ msgstr "एक लाइसेंस, 5 डिवाइस"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/FAQModal.tsx
+#~ msgid "faq.free.question"
+#~ msgstr "Glimpse मुफ़्त कैसे है?"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#~ msgid "library.modal.transcribing"
+#~ msgstr "ट्रांसक्राइब हो रहा है..."
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalityModal.tsx
+#~ msgid "personalization.modal.custom_instructions.drag"
+#~ msgstr "आकार बदलने के लिए ड्रैग करें"
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalityModal.tsx
+#~ msgid "personalization.modal.custom_instructions.resize"
+#~ msgstr "कस्टम निर्देशों का आकार बदलें"
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalizationView.tsx
+#~ msgid "personalization.apps"
+#~ msgstr "ऐप्स"
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalizationView.tsx
+#~ msgid "personalization.no_apps"
+#~ msgstr "अभी कोई ऐप नहीं"
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalizationView.tsx
+#~ msgid "personalization.no_sites"
+#~ msgstr "अभी तक कोई साइट नहीं"
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalizationView.tsx
+#~ msgid "personalization.notes"
+#~ msgstr "टिप्पणियाँ:"
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalizationView.tsx
+#~ msgid "personalization.websites"
+#~ msgstr "वेबसाइटें"
+
+#. placeholder {0}: entries.length
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.entry_count.multiple"
+#~ msgstr "{0} प्रविष्टियाँ"
+
+#. placeholder {0}: replacements.length
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.replacements.count.multiple"
+#~ msgstr "{0} प्रतिस्थापन"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.entry_count.single"
+#~ msgstr "1 प्रविष्टि"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.replacements.count.single"
+#~ msgstr "1 प्रतिस्थापन"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.section.dictionary_description"
+#~ msgstr "वे अपने शब्द जोड़ें जिन्‍हें Glimpse पहचान सके।"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.combined.description"
+#~ msgstr "वे अपने शब्द जोड़ें जिन्‍हें सिस्टम पहचान सके, और स्वचालित शब्द प्रतिस्थापन सेट करें।"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.replacements.none_description"
+#~ msgstr "ट्रांसक्रिप्शनों में अपने आप बदलने के लिए शब्दों की युग्म जोड़ें। मिलान में छोटे-बड़े अक्षरों का फ़र्क नहीं माना जाएगा।"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.no_entries.description"
+#~ msgstr "ऐसे शब्द, वाक्यांश या नाम जोड़ें जो डिफ़ॉल्ट शब्दकोश में नहीं हैं।"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.delete"
+#~ msgstr "हटाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.full_hint"
+#~ msgstr "शब्दकोश भरा हुआ है"
+
+#. placeholder {0}: currentModel?.label ?? settings?.local_model
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.warning"
+#~ msgstr "शब्दकोश केवल उन्हीं मॉडलों के लिए काम करता है जिनमें शब्दकोश समर्थन हो। मौजूदा मॉडल {0} इन प्रविष्टियों को तब तक नज़रअंदाज़ करेगा, जब तक आप किसी संगत मॉडल पर स्विच नहीं करते।"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.no_entries"
+#~ msgstr "अभी तक कोई प्रविष्टि नहीं"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.no_matches"
+#~ msgstr "कोई मेल नहीं मिला"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.replacements.none"
+#~ msgstr "अभी तक कोई प्रतिस्थापन नहीं"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.replacements.press_enter_to_add"
+#~ msgstr "जोड़ने के लिए किसी भी फ़ील्ड में Enter दबाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.press_enter_to_add"
+#~ msgstr "जोड़ने के लिए Enter दबाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.press_enter_to_add_match"
+#~ msgstr "यह शब्द जोड़ने के लिए Enter दबाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.edit_hint"
+#~ msgstr "सहेजने के लिए Enter दबाएँ · रद्द करने के लिए Esc दबाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.section.replacements_description"
+#~ msgstr "ट्रांसक्रिप्शन के बाद सामान्य वाक्यांशों को अपने‑आप बदलें।"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.warning_aria"
+#~ msgstr "चेतावनी: मॉडल अनुकूलता समस्या"
+
+#. placeholder {0}: currentModel?.label ?? settings?.local_model
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+#~ msgid "dictionary.warning.inline"
+#~ msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#~ msgid "library.detail.filter.all"
+#~ msgstr "सभी वक्ता"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#~ msgid "library.detail.speaker.rename"
+#~ msgstr "नाम बदलने के लिए क्लिक करें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#~ msgid "library.detail.filter.aria"
+#~ msgstr "वक्ता के अनुसार फ़िल्टर करें"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AneCompileOverlay.tsx
+#~ msgid "ane_compile.body"
+#~ msgstr "macOS Apple Neural Engine के लिए {label} कम्पाइल कर रहा है। यह प्रक्रिया केवल एक बार होती है और इसमें कुछ मिनट लग सकते हैं।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AneCompileOverlay.tsx
+#~ msgid "ane_compile.title"
+#~ msgstr "Neural Engine के लिए अनुकूलन हो रहा है"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/OnboardingScreen.tsx
+#~ msgid "onboarding.download.failed"
+#~ msgstr "डाउनलोड विफल हुआ"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/LanguageModelPanel.tsx
+#~ msgid "settings.language_model.api_key.optional_hint"
+#~ msgstr "(यदि आवश्यक हो)"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/SpeechModelPanel.tsx
+#~ msgid "settings.speech_model.api_key.optional_hint"
+#~ msgstr "(यदि आवश्यक हो)"
+
+#. placeholder {0}: state.bookmarks.length
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+#~ msgid "record.name.bookmarks"
+#~ msgstr "{0} बुकमार्क"
+
+#. placeholder {0}: unsupported.length
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+#~ msgid "library.view.unsupported_files"
+#~ msgstr "{0} फ़ाइलें असमर्थित फ़ॉर्मेट होने के कारण छोड़ दी गईं।"
+
+#. placeholder {0}: importPaths.length
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryImportModal.tsx
+#~ msgid "library.import.summary.multiple"
+#~ msgstr "{0} फ़ाइलें"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+#~ msgid "record.name.bookmark_one"
+#~ msgstr "1 बुकमार्क"
+
+#. placeholder {0}: providerPreset?.defaultModel || "provider default"
+#. js-lingui-explicit-id
+#: src/features/settings/components/SpeechModelPanel.tsx
+#~ msgid "settings.speech_model.model.automatic"
+#~ msgstr "स्वचालित ({0})"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/SpeechModelPanel.tsx
+#~ msgid "settings.speech_model.subtitle"
+#~ msgstr "क्लाउड ट्रांसक्रिप्शन के लिए कनेक्शन विवरण। इसे मॉडल्स में चुनें।"
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalizationView.tsx
+#~ msgid "personalization.empty.description"
+#~ msgstr "अपनी ऐप्स और वेबसाइटों को अनुकूलित करना शुरू करने के लिए एक मोड बनाएं।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryImportModal.tsx
+#~ msgid "library.import.timestamps_supported"
+#~ msgstr "समर्थित मॉडलों के लिए सक्रिय"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryRetranscribeModal.tsx
+#~ msgid "library.retranscribe.timestamps_supported"
+#~ msgstr "समर्थित मॉडलों के लिए सक्रिय"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryImportModal.tsx
+#~ msgid "library.import.detect_speakers.description"
+#~ msgstr "वक्ता के अनुसार खंडों को स्वचालित रूप से लेबल करें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryRetranscribeModal.tsx
+#~ msgid "library.retranscribe.detect_speakers.description"
+#~ msgstr "खंडों पर वक्ता के अनुसार अपने‑आप लेबल लगाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ProvidersTab.tsx
+#~ msgid "settings.providers.language_label"
+#~ msgstr "भाषा"
+
+#. placeholder {0}: providerPreset?.defaultModel || "auto"
+#. js-lingui-explicit-id
+#: src/features/settings/components/SpeechModelPanel.tsx
+#~ msgid "settings.speech_model.model.placeholder"
+#~ msgstr "मॉडल (डिफ़ॉल्ट: {0})"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryImportModal.tsx
+#~ msgid "library.import.no_models"
+#~ msgstr "कोई मॉडल उपलब्ध नहीं। इंपोर्ट करने से पहले सेटिंग्स -> मॉडल में कोई रिमोट प्रोवाइडर सेट करें या लोकल मॉडल डाउनलोड करें।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryRetranscribeModal.tsx
+#~ msgid "library.retranscribe.no_models"
+#~ msgstr "कोई मॉडल उपलब्ध नहीं। दोबारा ट्रांसक्राइब करने से पहले सेटिंग्स -> मॉडल में कोई रिमोट प्रोवाइडर सेट करें या लोकल मॉडल डाउनलोड करें।"
+
+#. js-lingui-explicit-id
+#: src/features/import/components/ImportStep.tsx
+#~ msgid "import.cat.personalities"
+#~ msgstr "व्यक्तित्व"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/SpeechModelPanel.tsx
+#~ msgid "settings.speech_model.title"
+#~ msgstr "दूरस्थ वाक् सेवा"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/library-utils.ts
+#~ msgid "library.import_error.model_not_installed"
+#~ msgstr "चयनित मॉडल इंस्टॉल नहीं है। सेटिंग्स -> Models में जाकर कोई मॉडल डाउनलोड करें।"
+
+#. js-lingui-explicit-id
+#: src/features/import/components/ImportStep.tsx
+#~ msgid "import.cat.replacements"
+#~ msgstr "पाठ प्रतिस्थापन"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#~ msgid "library.modal.delete_confirm.description"
+#~ msgstr "यह आपके संग्रह से ट्रांसक्रिप्ट और ऑडियो हटा देगा।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/LanguageModelPanel.tsx
+#~ msgid "settings.language_model.subtitle"
+#~ msgstr "उन शॉर्टकट्स द्वारा उपयोग किया जाता है जिनमें writing मॉडल चालू है, और Personalization द्वारा भी।"
+
+#. js-lingui-explicit-id
+#: src/Home.tsx
+#~ msgid "home.sidebar.collapse_label"
+#~ msgstr "संकुचित करें"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
@@ -174,19 +543,255 @@ msgstr ""
 #~ msgstr "स्मार्ट शॉर्टकट"
 
 #. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+#~ msgid "model_picker.ane.info_aria"
+#~ msgstr "Apple Neural Engine एन्कोडर के बारे में"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+#~ msgid "settings.models.installed.active"
+#~ msgstr "सक्रिय"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+#~ msgid "settings.models.cloud.unconfigured"
+#~ msgstr "पहले प्रदाताओं में एक एंडपॉइंट और मॉडल जोड़ें"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+#~ msgid "model_picker.ane.info"
+#~ msgstr "एक Core ML एन्कोडर जोड़ता है जो तेज़ और ज़्यादा ऊर्जा-कुशल ट्रांसक्रिप्शन के लिए Apple Neural Engine पर चलता है। पहली बार लोड होने में ज़्यादा समय लगेगा, जब तक macOS इसे आपके चिप के लिए अनुकूलित करता है।"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+#~ msgid "model_picker.filter.all"
+#~ msgstr "सभी मॉडल"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseModal.tsx
+#~ msgid "onboarding.license.already_bought"
+#~ msgstr "पहले ही ख़रीद लिया है?"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseModal.tsx
+#~ msgid "onboarding.license.close"
+#~ msgstr "बंद करें"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+#~ msgid "settings.models.cloud"
+#~ msgstr "क्लाउड"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+#~ msgid "onboarding.model.confirm.title"
+#~ msgstr "क्या बिना किसी मॉडल के जारी रखें?"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/FAQModal.tsx
+#~ msgid "faq.free.answer.v2"
+#~ msgstr "कोर डिक्टेशन मुफ़्त है: लोकल ट्रांसक्रिप्शन, शब्दकोश, प्रतिस्थापन और हिस्ट्री। इसके लिए कोई प्रति‑मिनट शुल्क या सदस्यता नहीं है। लाइब्रेरी, Cleanup, LLM के साथ personalization, लोकल API सर्वर और CLI, Glimpse Personal का हिस्सा हैं। पहले आपको 14‑दिन का परीक्षण मिलता है; उसके बाद सेटिंग्स → खाता में Personal लाइसेंस (एक बार की ख़रीद) या Commercial लाइसेंस (सालाना बिलिंग) सक्रिय करें।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+#~ msgid "onboarding.model.capability.dictionary"
+#~ msgstr "कस्टम शब्द"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseModal.tsx
+#~ msgid "onboarding.license.free_title"
+#~ msgstr "डिक्टेशन हमेशा के लिए निःशुल्क है"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ReadyStep.tsx
+#~ msgid "onboarding.done.free_title"
+#~ msgstr "डिक्टेशन हमेशा के लिए मुफ़्त है"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+#~ msgid "settings.models.cloud.disable"
+#~ msgstr "क्लाउड निष्क्रिय करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+#~ msgid "onboarding.model.confirm.download"
+#~ msgstr "डाउनलोड करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ReadyStep.tsx
+#~ msgid "onboarding.done.license_active.v2"
+#~ msgstr "हर फ़ीचर अनलॉक है। अब कुछ नया बनाएँ!"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+#~ msgid "model_picker.filter.aria"
+#~ msgstr "श्रेणी के अनुसार मॉडल फ़िल्टर करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ReadyStep.tsx
+#~ msgid "onboarding.done.get_license"
+#~ msgstr "लाइसेंस प्राप्त करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/WelcomeStep.tsx
+#~ msgid "onboarding.welcome.cta"
+#~ msgstr "शुरू करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+#~ msgid "onboarding.model.confirm.body"
+#~ msgstr "ट्रांसक्राइब करने के लिए Glimpse को एक मॉडल चाहिए। सुझाया गया मॉडल आप सेटअप पूरा करते समय पृष्ठभूमि में डाउनलोड हो सकता है।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseModal.tsx
+#~ msgid "onboarding.license.placeholder"
+#~ msgstr "GLIMPSE_…"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseModal.tsx
+#~ msgid "onboarding.license.dialog_aria"
+#~ msgstr "लाइसेंस"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+#~ msgid "model_picker.capability.streaming"
+#~ msgstr "लाइव स्ट्रीमिंग"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+#~ msgid "settings.models.capability.streaming"
+#~ msgstr "लाइव स्ट्रीमिंग"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/GeneralTab.tsx
+#~ msgid "settings.general.microphone_test.unsupported"
+#~ msgstr "इस विंडो में माइक्रोफ़ोन परीक्षण उपलब्ध नहीं है।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/GeneralTab.tsx
+#~ msgid "settings.general.shortcuts.info_aria"
+#~ msgstr "शॉर्टकट विकल्पों के बारे में अधिक जानकारी"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+#~ msgid "model_picker.no_results"
+#~ msgstr "आपकी खोज से कोई मॉडल मेल नहीं खाता।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/PermissionsStep.tsx
+#~ msgid "onboarding.permissions.skip"
+#~ msgstr "छोड़ें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+#~ msgid "onboarding.model.confirm.continue"
+#~ msgstr "अभी के लिए छोड़ें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ReadyStep.tsx
+#~ msgid "onboarding.done.license_active_title.v2"
+#~ msgstr "Glimpse को समर्थन देने के लिए धन्यवाद"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseModal.tsx
+#~ msgid "onboarding.license.discount_code_error"
+#~ msgstr "यह किसी डिस्काउंट कोड जैसा लग रहा है। इसे चेकआउट पर दर्ज करें, फिर अपनी रसीद से लाइसेंस कुंजी पेस्ट करें।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+#~ msgid "onboarding.model.capability.timestamps"
+#~ msgstr "टाइमस्टैम्प"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseModal.tsx
+#~ msgid "onboarding.license.free_body"
+#~ msgstr "AI क्लीनअप, वॉइस एडिटिंग, प्रति‑ऐप पर्सनैलिटी, ऑडियो और वीडियो ट्रांसक्रिप्शन आदि अनलॉक करें।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ReadyStep.tsx
+#~ msgid "onboarding.done.license_adds.v2"
+#~ msgstr "Cleanup, Personalities, File Transcription और अन्य सुविधाएँ अनलॉक करें।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseModal.tsx
+#~ msgid "onboarding.license.why_paid"
+#~ msgstr "भुगतान वाली चीज़ें क्यों हैं?"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+#~ msgid "model_picker.capability.timestamps"
+#~ msgstr "शब्द‑स्तरीय टाइमस्टैम्प"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+#~ msgid "settings.models.capability.timestamps"
+#~ msgstr "शब्द‑स्तर टाइमस्टैम्प"
+
+#. js-lingui-explicit-id
+#~ msgid "library.card.origin.meeting"
+#~ msgstr "मीटिंग"
+
+#. js-lingui-explicit-id
+#~ msgid "library.card.origin.recording"
+#~ msgstr "रिकॉर्डिंग"
+
+#. js-lingui-explicit-id
+#~ msgid "library.card.origin.recovered_meeting"
+#~ msgstr "रिकवर की गई मीटिंग"
+
+#. js-lingui-explicit-id
+#~ msgid "library.filter.files"
+#~ msgstr "फ़ाइलें"
+
+#. js-lingui-explicit-id
+#~ msgid "library.filter.meetings"
+#~ msgstr "मीटिंग्स"
+
+#. js-lingui-explicit-id
+#~ msgid "library.filter.origin_aria_label"
+#~ msgstr "स्रोत के अनुसार लाइब्रेरी फ़िल्टर करें"
+
+#. js-lingui-explicit-id
+#~ msgid "meeting.view.description"
+#~ msgstr "ऑनलाइन मीटिंग रिकॉर्ड और ट्रांसक्राइब करें।"
+
+#. js-lingui-explicit-id
+#~ msgid "meeting.view.search_placeholder"
+#~ msgstr "मीटिंग्स खोजें..."
+
+#. js-lingui-explicit-id
+#~ msgid "settings.models.diarization.description"
+#~ msgstr "ऑडियो अपलोड किए बिना आवाज़ों को अलग करता है"
+
+#. js-lingui-explicit-id
+#~ msgid "settings.models.diarization.download"
+#~ msgstr "स्थानीय व्यक्ति पहचान डाउनलोड करें"
+
+#. js-lingui-explicit-id
+#~ msgid "settings.models.local_intelligence"
+#~ msgstr "ऐड-ऑन"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.prompt"
 msgstr "\"Glimpse मेरी आवाज़ को टेक्स्ट में बदल देता है।\""
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/LanguageModelPanel.tsx
-msgid "settings.language_model.api_key.optional_hint"
-msgstr "(यदि आवश्यक हो)"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_edit_command"
+msgstr "“इसे अधिक औपचारिक बनाएँ”"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/SpeechModelPanel.tsx
-msgid "settings.speech_model.api_key.optional_hint"
-msgstr "(यदि आवश्यक हो)"
+#. placeholder {0}: selectedApps.length
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.apps.count"
+msgstr "{0, plural, one {# ऐप} other {# ऐप्स}}"
+
+#. js-lingui-explicit-id
+#. placeholder {0}: state.bookmarks.length
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.name.bookmark_count"
+msgstr "{0, plural, one {# बुकमार्क} other {# बुकमार्क}}"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: stats.llmCleanedCount
@@ -202,9 +807,21 @@ msgid "home.today.stats.dictations_words"
 msgstr "{0, plural, one {# डिक्टेशन} other {# डिक्टेशन}} · {1, plural, one {# शब्द} other {# शब्द}} आज"
 
 #. js-lingui-explicit-id
+#. placeholder {0}: importPaths.length
+#: src/features/library/components/LibraryImportModal.tsx
+msgid "library.import.summary.file_count"
+msgstr "{0, plural, one {# फ़ाइल} other {# फ़ाइलें}}"
+
+#. js-lingui-explicit-id
 #. placeholder {0}: stats.langCount
 #: src/features/settings/components/ModelStatCard.tsx
 msgid "models.card.languages"
+msgstr "{0, plural, one {# भाषा} other {# भाषाएँ}}"
+
+#. js-lingui-explicit-id
+#. placeholder {0}: stats.langCount
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.supports.languages"
 msgstr "{0, plural, one {# भाषा} other {# भाषाएँ}}"
 
 #. js-lingui-explicit-id
@@ -218,6 +835,12 @@ msgstr "{0, plural, one {# नियम} other {# नियम}}"
 #: src/features/import/components/ImportStep.tsx
 msgid "import.cat.personalities.detail"
 msgstr "{0} सहेजे गए"
+
+#. js-lingui-explicit-id
+#. placeholder {0}: closedApps.length
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.apps.closed_many"
+msgstr "{0, plural, one {# चयनित ऐप चल नहीं रहा है, इसलिए उसे रिकॉर्ड नहीं किया जाएगा।} other {# चयनित ऐप्स चल नहीं रहे हैं, इसलिए उन्हें रिकॉर्ड नहीं किया जाएगा।}}"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: previewForApp.transcriptCount
@@ -253,6 +876,12 @@ msgid "home.today.stats.longest_words"
 msgstr "{0, plural, one {आज की सबसे लंबी डिक्टेशन: # शब्द} other {आज की सबसे लंबी डिक्टेशन: # शब्द}}"
 
 #. js-lingui-explicit-id
+#. placeholder {0}: unsupported.length
+#: src/features/library/components/LibraryView.tsx
+msgid "library.view.unsupported_files_skipped"
+msgstr "{0, plural, one {असमर्थित प्रारूप में # फ़ाइल छोड़ दी गई।} other {असमर्थित प्रारूप में # फ़ाइलें छोड़ दी गईं।}}"
+
+#. js-lingui-explicit-id
 #. placeholder {0}: apps.length
 #: src/features/import/components/ImportStep.tsx
 msgid "import.subtitle"
@@ -265,28 +894,22 @@ msgid "personalization.mode.copy_name"
 msgstr "{0} प्रति"
 
 #. js-lingui-explicit-id
-#. placeholder {0}: entries.length
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.entry_count.multiple"
-msgstr "{0} प्रविष्टियाँ"
-
-#. js-lingui-explicit-id
-#. placeholder {0}: unsupported.length
-#: src/features/library/components/LibraryView.tsx
-msgid "library.view.unsupported_files"
-msgstr "{0} फ़ाइलें असमर्थित फ़ॉर्मेट होने के कारण छोड़ दी गईं।"
-
-#. js-lingui-explicit-id
-#. placeholder {0}: importPaths.length
-#: src/features/library/components/LibraryImportModal.tsx
-msgid "library.import.summary.multiple"
-msgstr "{0} फ़ाइलें"
+#. placeholder {0}: formatModelSize(modelSizeMb(model, true))
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.status.download"
+msgstr "{0} डाउनलोड"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: formatDuration(minutesSaved(totalWords, totalDurationMs))
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.post.8.v2"
 msgstr "{0} जो मैंने कभी टाइप करने में नहीं लगाया। @try_glimpse_app"
+
+#. js-lingui-explicit-id
+#. placeholder {0}: closedApps[0].name
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.apps.closed_one"
+msgstr "{0} चल नहीं रहा है, इसलिए इसे रिकॉर्ड नहीं किया जाएगा।"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: model.label
@@ -302,10 +925,10 @@ msgid "dictionary.search_matches"
 msgstr "{0}/{1} मेल"
 
 #. js-lingui-explicit-id
-#. placeholder {0}: replacements.length
+#. placeholder {0}: entries.length
 #: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.replacements.count.multiple"
-msgstr "{0} प्रतिस्थापन"
+msgid "dictionary.entry_count.of_limit"
+msgstr "{0} / {DICTIONARY_ENTRY_LIMIT}"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: formatCompact(totalWords)
@@ -317,6 +940,16 @@ msgstr "{0} शब्द बोले गए, एक भी टाइप नह�
 #: src/features/transcriptions/homeHeaderStats.ts
 msgid "home.today.stats.avg_words"
 msgstr "{avg, plural, one {आज प्रति डिक्टेशन लगभग # शब्द} other {आज प्रति डिक्टेशन लगभग # शब्द}}"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.recovered_message_many"
+msgstr "{count} बाधित रिकॉर्डिंग लाइब्रेरी में सेव कर दी गई हैं और उनका ट्रांसक्रिप्शन किया जाएगा।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.milestone"
+msgstr "{count} शब्द Glimpse के साथ डिक्टेट किए गए!"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
@@ -400,14 +1033,9 @@ msgid "settings.about.data.count_one"
 msgstr "1 ऑडियो और टेक्स्ट जोड़ा"
 
 #. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.entry_count.single"
-msgstr "1 प्रविष्टि"
-
-#. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.replacements.count.single"
-msgstr "1 प्रतिस्थापन"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_files_duration"
+msgstr "42 मि॰"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -420,6 +1048,11 @@ msgid "settings.app.prune.day"
 msgstr "1 दिन"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_modes"
+msgstr "हर ऐप के लिए एक मोड"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.prune.threshold.month"
 msgstr "एक माह"
@@ -428,6 +1061,11 @@ msgstr "एक माह"
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.prune.month"
 msgstr "1 माह"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.error.already_recording"
+msgstr "एक रिकॉर्डिंग पहले से चल रही है।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -460,11 +1098,6 @@ msgid "settings.modal.tab.about"
 msgstr "जानकारी"
 
 #. js-lingui-explicit-id
-#: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.ane.info_aria"
-msgstr "Apple Neural Engine एन्कोडर के बारे में"
-
-#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.accessibility"
 msgstr "सुलभता"
@@ -490,12 +1123,17 @@ msgid "home.account.fallback"
 msgstr "खाता"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.tier.accurate"
+msgstr "सटीक"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/AccountView.tsx
 msgid "settings.account.activate.submit"
 msgstr "सक्रिय करें"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
+#: src/features/onboarding/steps/LicenseStep.tsx
 msgid "onboarding.license.activate"
 msgstr "सक्रिय करें"
 
@@ -511,7 +1149,7 @@ msgstr "सक्रिय"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ModelsTab.tsx
-msgid "settings.models.installed.active"
+msgid "settings.models.card.active"
 msgstr "सक्रिय"
 
 #. js-lingui-explicit-id
@@ -525,14 +1163,20 @@ msgid "personalization.modal.add"
 msgstr "जोड़ें"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.bookmark.note"
+msgstr "नोट जोड़ें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.bookmark.label_placeholder"
+msgstr "नोट जोड़ें"
+
+#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
 msgid "personalization.modal.websites.placeholder"
 msgstr "gmail.com जैसा साइट जोड़ें"
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/tabs/ModelsTab.tsx
-msgid "settings.models.cloud.unconfigured"
-msgstr "पहले प्रदाताओं में एक एंडपॉइंट और मॉडल जोड़ें"
 
 #. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
@@ -540,19 +1184,14 @@ msgid "personalization.modal.applications.add"
 msgstr "अनुप्रयोग जोड़ें"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.menu.recording_bookmark"
+msgstr "बुकमार्क जोड़ें"
+
+#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
 msgid "personalization.modal.custom_instructions.placeholder"
 msgstr "कस्टम निर्देश जोड़ें"
-
-#. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.section.dictionary_description"
-msgstr "वे अपने शब्द जोड़ें जिन्‍हें Glimpse पहचान सके।"
-
-#. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.combined.description"
-msgstr "वे अपने शब्द जोड़ें जिन्‍हें सिस्टम पहचान सके, और स्वचालित शब्द प्रतिस्थापन सेट करें।"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
@@ -567,7 +1206,12 @@ msgstr "शब्दकोश प्रविष्टि जोड़ें य
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.add_speaker"
-msgstr "व्यक्ति जोड़ें"
+msgstr "वक्ता जोड़ें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.add_tag"
+msgstr "टैग जोड़ें"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -581,18 +1225,13 @@ msgstr "वेबसाइट डोमेन जोड़ें"
 
 #. js-lingui-explicit-id
 #: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.replacements.none_description"
-msgstr "ट्रांसक्रिप्शनों में अपने आप बदलने के लिए शब्दों की युग्म जोड़ें। मिलान में छोटे-बड़े अक्षरों का फ़र्क नहीं माना जाएगा।"
+msgid "dictionary.header.description"
+msgstr "वे शब्द जोड़ें जिन्हें Glimpse को पहचानना चाहिए और ट्रांसक्रिप्शन के बाद बदलने वाले वाक्यांश जोड़ें।"
 
 #. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.no_entries.description"
-msgstr "ऐसे शब्द, वाक्यांश या नाम जोड़ें जो डिफ़ॉल्ट शब्दकोश में नहीं हैं।"
-
-#. js-lingui-explicit-id
-#: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.ane.info"
-msgstr "एक Core ML एन्कोडर जोड़ता है जो तेज़ और ज़्यादा ऊर्जा-कुशल ट्रांसक्रिप्शन के लिए Apple Neural Engine पर चलता है। पहली बार लोड होने में ज़्यादा समय लगेगा, जब तक macOS इसे आपके चिप के लिए अनुकूलित करता है।"
+#: src/features/settings/components/DiarizationModelCard.tsx
+msgid "settings.models.diarization.addon"
+msgstr "ऐड-ऑन"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -600,24 +1239,24 @@ msgid "settings.app.auto_delete.after"
 msgstr "के बाद"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/SourceStep.tsx
+msgid "onboarding.source.ai"
+msgstr "AI सहायक"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_cleanup"
+msgstr "AI क्लीनअप"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
 msgid "library.filter.all"
 msgstr "सभी"
 
 #. js-lingui-explicit-id
-#: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.filter.all"
-msgstr "सभी मॉडल"
-
-#. js-lingui-explicit-id
 #: src/features/news/components/NewsMenu.tsx
 msgid "news.all_posts"
 msgstr "सभी पोस्ट"
-
-#. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.filter.all"
-msgstr "सभी व्यक्ति"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -635,9 +1274,9 @@ msgid "settings.account.section.activate"
 msgstr "पहले ही ख़रीद लिया?"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
-msgid "onboarding.license.already_bought"
-msgstr "पहले ही ख़रीद लिया है?"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.have_license"
+msgstr "क्या आपके पास पहले से लाइसेंस है?"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ModelsTab.tsx
@@ -675,6 +1314,11 @@ msgid "settings.speech_model.api_key"
 msgstr "API कुंजी"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_api"
+msgstr "API सर्वर"
+
+#. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
 msgid "settings.modal.tab.api_server"
 msgstr "API सर्वर"
@@ -685,9 +1329,24 @@ msgid "settings.modal.tab.app"
 msgstr "ऐप"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.system.scope.application"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.appearance"
 msgstr "रूप"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.ane.title"
+msgstr "Apple Neural Engine"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.apps.section"
+msgstr "ऐप्लिकेशन"
 
 #. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
@@ -700,19 +1359,20 @@ msgid "settings.app.auto_delete.confirm.apply"
 msgstr "फिर भी लागू करें"
 
 #. js-lingui-explicit-id
-#: src/features/personalization/components/PersonalizationView.tsx
-msgid "personalization.apps"
-msgstr "ऐप्स"
-
-#. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker.unassigned"
 msgstr "असाइन करें"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
 msgid "library.detail.assign_new_speaker"
-msgstr "नया व्यक्ति असाइन करें"
+msgstr "नए वक्ता को असाइन करें"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/GeneralTab.tsx
+msgid "settings.general.shortcuts.dictation_key.description"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -724,6 +1384,11 @@ msgstr "ऑडियो"
 #: src/features/library/components/LibraryView.tsx
 msgid "library.view.file_filter"
 msgstr "ऑडियो और वीडियो"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.capture_failed"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -776,10 +1441,14 @@ msgid "settings.app.auto_update"
 msgstr "स्वतः अपडेट"
 
 #. js-lingui-explicit-id
-#. placeholder {0}: providerPreset?.defaultModel || "provider default"
 #: src/features/settings/components/SpeechModelPanel.tsx
-msgid "settings.speech_model.model.automatic"
-msgstr "स्वचालित ({0})"
+msgid "settings.speech_model.model.automatic_default"
+msgstr "स्वचालित ({defaultModel})"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.detection.section"
+msgstr "स्वचालित पहचान"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -807,9 +1476,14 @@ msgid "onboarding.back"
 msgstr "पीछे"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/LibraryView.tsx
 msgid "library.detail.back"
 msgstr "लाइब्रेरी पर वापस जाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "meeting.detail.back"
+msgstr "मीटिंग्स पर वापस जाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/pill/PillOverlay.tsx
@@ -825,6 +1499,27 @@ msgstr "व्यवहार"
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.best_streak"
 msgstr "सबसे लंबी श्रृंखला"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.blocked"
+msgstr "आपके नेटवर्क द्वारा अवरुद्ध"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.active.bookmark"
+msgstr "बुकमार्क"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.bookmark.unnamed"
+msgstr "बुकमार्क"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.subtitle"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ModelsTab.tsx
@@ -847,6 +1542,11 @@ msgid "settings.models.installed.built_in"
 msgstr "अंतर्निहित"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.tier.built_in"
+msgstr "अंतर्निहित"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/ModelStatCard.tsx
 msgid "models.card.built_in"
 msgstr "Mac में अंतर्निर्मित"
@@ -857,13 +1557,35 @@ msgid "settings.language_model.apple.ready"
 msgstr "इस Mac में अंतर्निर्मित।"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.status.built_in"
+msgstr "आपके Mac में अंतर्निहित"
+
+#. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
 msgid "member_card.draft_idle"
 msgstr "लाइसेंस खरीदें"
 
 #. js-lingui-explicit-id
+#: src/features/license/components/MemberCard.tsx
+msgid "member_card.buy_glimpse"
+msgstr "Glimpse खरीदें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.buy"
+msgstr "लाइसेंस खरीदें"
+
+#. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.cancel"
+msgstr "रद्द करें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDeleteDialog.tsx
+#: src/features/library/components/LibraryDetail.tsx
+#: src/features/transcriptions/components/TranscriptionList.tsx
+msgid "library.modal.cancel"
 msgstr "रद्द करें"
 
 #. js-lingui-explicit-id
@@ -882,18 +1604,23 @@ msgid "settings.app.cancel"
 msgstr "रद्द करें"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.name.cancel"
+msgstr "रद्द करें"
+
+#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalizationView.tsx
 msgid "personalization.cancel"
 msgstr "रद्द करें"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryCard.tsx
-msgid "library.card.cancel"
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.status.cancel"
 msgstr "रद्द करें"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.modal.cancel"
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.cancel"
 msgstr "रद्द करें"
 
 #. js-lingui-explicit-id
@@ -915,7 +1642,7 @@ msgstr "डाउनलोड रद्द करें"
 #: src/features/onboarding/FirstDictationGuide.tsx
 #: src/features/onboarding/steps/ReadyStep.tsx
 msgid "onboarding.first_dictation.cancel_shortcut_aria"
-msgstr ""
+msgstr "शॉर्टकट बदलाव रद्द करें"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
@@ -923,10 +1650,45 @@ msgid "model_picker.cancelled"
 msgstr "रद्द किया गया"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.status.cancelled"
+msgstr "रद्द किया गया"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.status.cancelling"
+msgstr "रद्द किया जा रहा है"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.filter.capabilities"
+msgstr "क्षमताएँ"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_modes_casual"
+msgstr "अनौपचारिक"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.status.catching_up"
+msgstr "अपडेट हो रहा है"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.filter.category"
+msgstr "श्रेणी"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 #: src/features/onboarding/steps/ReadyStep.tsx
 msgid "onboarding.first_dictation.edit_shortcut_aria"
-msgstr ""
+msgstr "शॉर्टकट बदलें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/SpeakerContextMenu.tsx
+msgid "library.detail.speaker_menu.change_line"
+msgstr "इस पंक्ति के लिए वक्ता बदलें"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -979,6 +1741,11 @@ msgid "updates.checking"
 msgstr "अपडेट की जाँच की जा रही है..."
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/ModelDownloadStatus.tsx
+msgid "onboarding.download_status.verifying"
+msgstr "मॉडल जाँचा जा रहा है"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.permission.checking"
 msgstr "अनुमति की जाँच की जा रही है"
@@ -997,6 +1764,11 @@ msgstr "कोई मॉडल चुनें"
 #: src/features/onboarding/steps/ModelStep.tsx
 msgid "onboarding.model.title"
 msgstr "किसी मॉडल का चयन करें"
+
+#. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+msgid "dictionary.warning.switch_model"
+msgstr "इन शब्दों का उपयोग करने के लिए शब्दकोश समर्थन वाला मॉडल चुनें।"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
@@ -1029,6 +1801,11 @@ msgid "settings.general.shortcuts.cleanup_locked.provider_prefix"
 msgstr "Cleanup के लिए राइटिंग मॉडल ज़रूरी है। इसे सेट करें यहाँ:"
 
 #. js-lingui-explicit-id
+#: src/shared/ui/FilterMenu.tsx
+msgid "filter_menu.clear"
+msgstr "साफ़ करें"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
 msgid "settings.local_api.logs.clear"
 msgstr "साफ़ करें"
@@ -1044,14 +1821,19 @@ msgid "library.modal.search.clear"
 msgstr "खोज मिटाएँ"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.speaker.clear"
-msgstr "व्यक्ति हटाएँ"
+#: src/features/library/components/LibraryView.tsx
+msgid "library.view.search_clear"
+msgstr "खोज साफ़ करें"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.speaker.rename"
-msgstr "नाम बदलने के लिए क्लिक करें"
+#: src/features/library/components/LibraryView.tsx
+msgid "library.view.layout.to_grid"
+msgstr "कार्ड दिखाने के लिए क्लिक करें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.view.layout.to_list"
+msgstr "पंक्तियाँ दिखाने के लिए क्लिक करें"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
@@ -1061,11 +1843,6 @@ msgstr "बंद करें"
 #. js-lingui-explicit-id
 #: src/shared/ui/WindowControls.tsx
 msgid "window.controls.close"
-msgstr "बंद करें"
-
-#. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
-msgid "onboarding.license.close"
 msgstr "बंद करें"
 
 #. js-lingui-explicit-id
@@ -1089,6 +1866,11 @@ msgid "faq.close_aria"
 msgstr "FAQ बंद करें"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.close"
+msgstr "लाइव दृश्य बंद करें"
+
+#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
 msgid "personalization.modal.close"
 msgstr "मोडल बंद करें"
@@ -1104,8 +1886,8 @@ msgid "native.menu.close_window"
 msgstr "विंडो बंद करें"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/tabs/ModelsTab.tsx
-msgid "settings.models.cloud"
+#: src/features/settings/components/tabs/ProvidersTab.tsx
+msgid "settings.providers.guide.speech.provider"
 msgstr "क्लाउड"
 
 #. js-lingui-explicit-id
@@ -1125,17 +1907,22 @@ msgstr "क्लाउड ट्रांसक्रिप्शन"
 
 #. js-lingui-explicit-id
 #: src/Home.tsx
-msgid "home.sidebar.collapse_label"
-msgstr "संकुचित करें"
-
-#. js-lingui-explicit-id
-#: src/Home.tsx
 msgid "home.sidebar.collapse"
 msgstr "साइडबार समेटें"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/SpeakerContextMenu.tsx
+msgid "library.detail.speaker_menu.color"
+msgstr "रंग"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.command_line"
+msgstr "कमांड लाइन"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_cli"
 msgstr "कमांड लाइन"
 
 #. js-lingui-explicit-id
@@ -1159,9 +1946,14 @@ msgid "settings.local_api.configuration"
 msgstr "कॉन्फ़िगरेशन"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/SpeechModelPanel.tsx
-msgid "settings.speech_model.subtitle"
-msgstr "क्लाउड ट्रांसक्रिप्शन के लिए कनेक्शन विवरण। इसे मॉडल्स में चुनें।"
+#: src/features/library/components/LibraryView.tsx
+msgid "library.card.title.error.not_configured"
+msgstr "शीर्षक बनाने से पहले कोई लेखन मॉडल कॉन्फ़िगर करें।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.continue"
+msgstr "जारी रखें"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ModelStep.tsx
@@ -1174,14 +1966,14 @@ msgid "onboarding.permissions.continue"
 msgstr "जारी रखें"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.continue_trial"
+msgstr "निःशुल्क परीक्षण जारी रखें"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.continue"
 msgstr "Glimpse पर जारी रखें"
-
-#. js-lingui-explicit-id
-#: src/features/onboarding/steps/ModelStep.tsx
-msgid "onboarding.model.confirm.title"
-msgstr "क्या बिना किसी मॉडल के जारी रखें?"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
@@ -1206,6 +1998,11 @@ msgid "library.modal.import_status.converting_progress"
 msgstr "ऑडियो कनवर्ट किया जा रहा है... {0}%"
 
 #. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.error.copied"
+msgstr "कॉपी किया गया"
+
+#. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.copied"
 msgstr "कॉपी हो गया"
@@ -1224,11 +2021,6 @@ msgstr "कॉपी किया गया"
 #: src/features/settings/components/tabs/LocalApiTab.tsx
 msgid "settings.local_api.logs.copied"
 msgstr "कॉपी किया गया"
-
-#. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.modal.copy.copied"
-msgstr "कॉपी हो गया"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -1276,6 +2068,16 @@ msgid "settings.error.copy"
 msgstr "कॉपी त्रुटि"
 
 #. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.error.copy"
+msgstr "त्रुटि संदेश कॉपी करें"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.menu.copy_last"
+msgstr "पिछला ट्रांसक्रिप्शन कॉपी करें"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
 msgid "settings.local_api.logs.copy_aria"
 msgstr "लॉग्स कॉपी करें"
@@ -1289,6 +2091,11 @@ msgstr "संदेश कॉपी करें"
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.copy_selection"
 msgstr "चयन कॉपी करें"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.copy"
+msgstr "ट्रांसक्रिप्ट कॉपी करें"
 
 #. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionItem.tsx
@@ -1307,13 +2114,18 @@ msgstr "कोर"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/FAQModal.tsx
-msgid "faq.free.answer.v2"
-msgstr "कोर डिक्टेशन मुफ़्त है: लोकल ट्रांसक्रिप्शन, शब्दकोश, प्रतिस्थापन और हिस्ट्री। इसके लिए कोई प्रति‑मिनट शुल्क या सदस्यता नहीं है। लाइब्रेरी, Cleanup, LLM के साथ personalization, लोकल API सर्वर और CLI, Glimpse Personal का हिस्सा हैं। पहले आपको 14‑दिन का परीक्षण मिलता है; उसके बाद सेटिंग्स → खाता में Personal लाइसेंस (एक बार की ख़रीद) या Commercial लाइसेंस (सालाना बिलिंग) सक्रिय करें।"
+msgid "faq.free.answer.v4"
+msgstr "मुख्य श्रुतिलेख निःशुल्क है: स्थानीय ट्रांसक्रिप्शन, शब्दकोश, प्रतिस्थापन और इतिहास। इसके लिए प्रति-मिनट शुल्क या सदस्यता नहीं है। लाइब्रेरी, क्लीनअप और LLM के साथ वैयक्तिकरण हर सशुल्क प्लान का हिस्सा हैं, और आप उन्हें 14 दिनों तक निःशुल्क आज़मा सकते हैं। स्थानीय API सर्वर और CLI के लिए लाइसेंस आवश्यक है और वे परीक्षण का हिस्सा नहीं हैं। Settings → Account में लाइसेंस सक्रिय करें।"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/OnboardingScreen.tsx
 msgid "onboarding.complete.failed"
 msgstr "सेटअप पूरा नहीं हो सका। अपनी सेटिंग्स जाँचें और फिर से प्रयास करें।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.card.title.error"
+msgstr "शीर्षक और टैग नहीं बनाए जा सके। फिर कोशिश करें।"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/OnboardingScreen.tsx
@@ -1324,6 +2136,17 @@ msgstr "स्थानीय मॉडल चयन लोड नहीं ह�
 #: src/features/library/components/LibraryView.tsx
 msgid "library.view.import_dialog_error"
 msgstr "आयात संवाद खोला नहीं जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.card.title.error.unreachable"
+msgstr "लेखन प्रदाता से संपर्क नहीं हो सका। अपना कनेक्शन जाँचें और फिर कोशिश करें।"
+
+#. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionItem.tsx
+#: src/features/transcriptions/queries.ts
+msgid "transcriptions.cleanup_retry_failed"
+msgstr "प्रतिलेखन साफ़ नहीं किया जा सका।"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/library-utils.ts
@@ -1361,6 +2184,16 @@ msgid "library.delete_error.delete_files_failed"
 msgstr "लाइब्रेरी फ़ाइलें हटाई नहीं जा सकीं। अनुमतियाँ जाँचें और फिर से प्रयास करें।"
 
 #. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionItem.tsx
+msgid "transcriptions.item.delete_failed"
+msgstr "प्रतिलेखन हटाया नहीं जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionList.tsx
+msgid "transcriptions.group.delete_confirm.error"
+msgstr "ट्रांसक्रिप्शन नहीं हटाई जा सकीं। फिर से कोशिश करें।"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/library-utils.ts
 msgid "library.delete_error.outside_folder"
 msgstr "यह आइटम हटाया नहीं जा सका क्योंकि इसकी फ़ाइलें लाइब्रेरी फ़ोल्डर के बाहर हैं।"
@@ -1376,6 +2209,16 @@ msgid "library.delete_error.storage_missing"
 msgstr "यह आइटम हटाया नहीं जा सका। लाइब्रेरी संग्रहण नहीं मिला।"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.view.rediarize_error"
+msgstr "वक्ताओं का पता नहीं लगाया जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.discard_failed"
+msgstr "रिकॉर्डिंग छोड़ी नहीं जा सकी।"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.modal.export.item_not_found"
 msgstr "यह लाइब्रेरी आइटम नहीं मिल सका। इसे दोबारा खोलने की कोशिश करें।"
@@ -1386,14 +2229,105 @@ msgid "updates.whats_new.couldnt_load"
 msgstr "रिलीज़ लोड नहीं हो सकीं"
 
 #. js-lingui-explicit-id
+#: src/features/settings/useSettingsForm.ts
+msgid "settings.error.load_failed"
+msgstr "सेटिंग्ज़ लोड नहीं की जा सकीं।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/useSettingsForm.ts
+msgid "settings.error.speech_models_failed"
+msgstr "वाक् मॉडल लोड नहीं किए जा सके: {detail}"
+
+#. js-lingui-explicit-id
+#: src/features/settings/useSettingsForm.ts
+msgid "settings.error.writing_models_failed"
+msgstr "लेखन मॉडल लोड नहीं किए जा सके: {detail}"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/library-utils.ts
+msgid "library.delete_error.trash_failed"
+msgstr "ऑडियो को ट्रैश या रीसायकल बिन में नहीं ले जाया जा सका, इसलिए कुछ भी हटाया नहीं गया।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.live_failed"
+msgstr "लाइव दृश्य नहीं खोला जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.pause_failed"
+msgstr "रिकॉर्डिंग रोकी नहीं जा सकी।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.network"
+msgstr "सर्वर से संपर्क नहीं हो सका"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.count_error"
 msgstr "आपकी रिकॉर्डिंग पढ़ी नहीं जा सकीं"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/LibraryView.tsx
+msgid "library.detail.rename_failed"
+msgstr "इस आइटम का नाम बदला नहीं जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionItem.tsx
+msgid "transcriptions.item.restore_failed"
+msgstr "मूल प्रतिलेख पुनर्स्थापित नहीं किया जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.resume_failed"
+msgstr "रिकॉर्डिंग फिर से शुरू नहीं की जा सकी।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryRetranscribeModal.tsx
+msgid "library.retranscribe.failed"
+msgstr "इस आइटम का फिर से प्रतिलेखन नहीं किया जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionItem.tsx
+msgid "transcriptions.item.retry_failed"
+msgstr "प्रतिलेखन का पुनः प्रयास नहीं किया जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.bookmark_failed"
+msgstr "बुकमार्क सहेजा नहीं जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.bookmarks_failed"
+msgstr "बुकमार्क सहेजा नहीं जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#: src/features/recording/components/LiveView.tsx
+msgid "library.detail.speakers_failed"
+msgstr "वक्ताओं को सहेजा नहीं जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/LibraryView.tsx
+msgid "library.detail.tags_failed"
+msgstr "टैग सहेजे नहीं जा सके।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.transcript.save_failed"
 msgstr "यह ट्रांसक्रिप्ट सहेज नहीं सके। आपके बदलाव अब भी यहाँ हैं।"
+
+#. js-lingui-explicit-id
+#: src/features/personalization/components/PersonalizationView.tsx
+msgid "personalization.save_failed"
+msgstr "आपके मोड सहेजे नहीं जा सके।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
@@ -1406,6 +2340,32 @@ msgid "settings.general.microphone_test.start_error"
 msgstr "माइक्रोफ़ोन परीक्षण शुरू नहीं हो सका।"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.retry_failed"
+msgstr "प्रतिलेखन फिर से शुरू नहीं किया जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "record.stop_failed"
+msgstr "रिकॉर्डिंग बंद नहीं की जा सकी।"
+
+#. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionItem.tsx
+msgid "transcriptions.item.stop_failed"
+msgstr "प्रतिलेखन बंद नहीं किया जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.cancel_failed"
+msgstr "प्रतिलेखन बंद नहीं किया जा सका।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/OnboardingScreen.tsx
+msgid "onboarding.shortcut.failed"
+msgstr "उस शॉर्टकट का उपयोग नहीं किया जा सका। कोई दूसरा आज़माएँ।"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.modal.export.write_failed"
 msgstr "एक्सपोर्ट फ़ाइल लिखी नहीं जा सकी। कोई दूसरा स्थान आज़माएँ।"
@@ -1416,9 +2376,9 @@ msgid "settings.about.data.count_loading"
 msgstr "रिकॉर्डिंग गिनी जा रही हैं…"
 
 #. js-lingui-explicit-id
-#: src/features/personalization/components/PersonalizationView.tsx
-msgid "personalization.empty.description"
-msgstr "अपनी ऐप्स और वेबसाइटों को अनुकूलित करना शुरू करने के लिए एक मोड बनाएं।"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_devices.v2"
+msgstr "आपके डिवाइस कवर करता है"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
@@ -1451,8 +2411,13 @@ msgid "personalization.modal.custom_instructions"
 msgstr "कस्टम निर्देश"
 
 #. js-lingui-explicit-id
+#: src/shared/ui/ModelCapabilityIcon.tsx
+msgid "model_capability.dictionary"
+msgstr "कस्टम शब्द"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/steps/ModelStep.tsx
-msgid "onboarding.model.capability.dictionary"
+msgid "onboarding.model.supports.words"
 msgstr "कस्टम शब्द"
 
 #. js-lingui-explicit-id
@@ -1516,6 +2481,11 @@ msgid "settings.app.text_size.default"
 msgstr "डिफ़ॉल्ट"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.microphone.default"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.delete"
 msgstr "हटाएँ"
@@ -1526,6 +2496,7 @@ msgid "transcriptions.item.delete"
 msgstr "हटाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/DiarizationModelCard.tsx
 #: src/features/settings/components/ModelStatCard.tsx
 msgid "models.card.delete"
 msgstr "हटाएँ"
@@ -1551,13 +2522,9 @@ msgid "library.card.delete"
 msgstr "हटाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryDeleteDialog.tsx
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.modal.delete"
-msgstr "हटाएँ"
-
-#. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.delete"
 msgstr "हटाएँ"
 
 #. js-lingui-explicit-id
@@ -1572,6 +2539,11 @@ msgid "dictionary.delete_entry"
 msgstr "{entry} हटाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionList.tsx
+msgid "transcriptions.group.delete_confirm.action"
+msgstr "सभी हटाएँ"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.delete_all"
 msgstr "सारा डेटा हटाएँ"
@@ -1580,6 +2552,11 @@ msgstr "सारा डेटा हटाएँ"
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.delete_all_aria"
 msgstr "सारा डेटा हटाएँ। पुष्टि करने के लिए दस सेकंड तक दबाए रखें।"
+
+#. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionList.tsx
+msgid "transcriptions.group.delete_day_aria"
+msgstr "इस दिन की सभी ट्रांसक्रिप्शन हटाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/dictionary/components/DictionaryView.tsx
@@ -1595,6 +2572,11 @@ msgstr "हटाना विफल हुआ"
 #: src/features/onboarding/OnboardingScreen.tsx
 msgid "onboarding.delete.failed"
 msgstr "हटाना असफल रहा"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/DiarizationModelCard.tsx
+msgid "settings.models.diarization.delete"
+msgstr "स्थानीय व्यक्ति पहचान हटाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
@@ -1633,7 +2615,12 @@ msgid "dictionary.replacements.delete"
 msgstr "{0} के लिए प्रतिस्थापन हटाएँ"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
+#: src/features/transcriptions/components/TranscriptionList.tsx
+msgid "transcriptions.group.delete_confirm.title"
+msgstr "इस दिन की ट्रांसक्रिप्शन हटाएँ?"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDeleteDialog.tsx
 msgid "library.modal.delete_confirm.title"
 msgstr "क्या इस आइटम को हटाना है?"
 
@@ -1648,29 +2635,54 @@ msgid "settings.app.auto_delete.body"
 msgstr "लिप्यंतरण हटाने पर उनकी सहेजी गई ऑडियो भी हट जाएगी।"
 
 #. js-lingui-explicit-id
+#: src/features/transcriptions/components/TranscriptionList.tsx
+msgid "transcriptions.group.delete_confirm.deleting"
+msgstr "हटाया जा रहा है..."
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.deleting"
 msgstr "हटाया जा रहा है…"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.detection.title"
+msgstr "ऑनलाइन मीटिंग पहचानें"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers"
-msgstr "व्यक्तियों का पता लगाएँ"
+msgstr "वक्ताओं का पता लगाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.aria"
-msgstr "व्यक्तियों का पता लगाएँ"
+msgstr "वक्ताओं का पता लगाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers"
-msgstr "व्यक्तियों का पता लगाएँ"
+msgstr "वक्ताओं का पता लगाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.aria"
-msgstr "व्यक्तियों का पता लगाएँ"
+msgstr "वक्ताओं का पता लगाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.modal.detect_speakers_again"
+msgstr "वक्ताओं का फिर से पता लगाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.status.detecting_speakers"
+msgstr "वक्ताओं का पता लगाया जा रहा है"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.modal.detecting_speakers"
+msgstr "वक्ताओं का पता लगाया जा रहा है"
 
 #. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
@@ -1678,19 +2690,19 @@ msgid "settings.modal.section.developer"
 msgstr "डेवलपर"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_anywhere"
+msgstr "किसी भी ऐप में श्रुतलेख करें"
+
+#. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
 msgid "settings.modal.section.dictation"
 msgstr "डिक्टेशन"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
-msgid "onboarding.license.free_title"
-msgstr "डिक्टेशन हमेशा के लिए निःशुल्क है"
-
-#. js-lingui-explicit-id
-#: src/features/onboarding/steps/ReadyStep.tsx
-msgid "onboarding.done.free_title"
-msgstr "डिक्टेशन हमेशा के लिए मुफ़्त है"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.line_free"
+msgstr "श्रुतलेखन हमेशा निःशुल्क रहेगा।"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
@@ -1723,25 +2735,9 @@ msgid "dictionary.combined.title"
 msgstr "शब्दकोश और प्रतिस्थापन"
 
 #. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.full_hint"
-msgstr "शब्दकोश भरा हुआ है"
-
-#. js-lingui-explicit-id
-#. placeholder {0}: currentModel?.label ?? settings?.local_model
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.warning"
-msgstr "शब्दकोश केवल उन्हीं मॉडलों के लिए काम करता है जिनमें शब्दकोश समर्थन हो। मौजूदा मॉडल {0} इन प्रविष्टियों को तब तक नज़रअंदाज़ करेगा, जब तक आप किसी संगत मॉडल पर स्विच नहीं करते।"
-
-#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalizationView.tsx
 msgid "personalization.mode.disable"
 msgstr "अक्षम करें"
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/tabs/ModelsTab.tsx
-msgid "settings.models.cloud.disable"
-msgstr "क्लाउड निष्क्रिय करें"
 
 #. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalizationView.tsx
@@ -1754,9 +2750,19 @@ msgid "settings.general.microphone_test.done"
 msgstr "हो गया"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.active.done"
+msgstr "पूर्ण"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
 msgid "library.filter.done"
 msgstr "हो गया"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.down"
+msgstr "नीचे"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
@@ -1769,13 +2775,13 @@ msgid "models.card.download"
 msgstr "डाउनलोड"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/ModelStep.tsx
-msgid "onboarding.model.confirm.download"
-msgstr "डाउनलोड करें"
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.error.title"
+msgstr "डाउनलोड विफल"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/OnboardingScreen.tsx
-msgid "onboarding.download.failed"
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.failed"
 msgstr "डाउनलोड विफल हुआ"
 
 #. js-lingui-explicit-id
@@ -1789,9 +2795,39 @@ msgid "model_picker.ane.download"
 msgstr "Neural Engine एन्कोडर डाउनलोड करें"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.damaged"
+msgstr "डाउनलोड क्षतिग्रस्त था"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.status.ready"
+msgstr "डाउनलोड हो गया"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/ModelStatCard.tsx
 msgid "models.card.downloading"
 msgstr "डाउनलोड हो रहा है"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.status.downloading"
+msgstr "{0}% डाउनलोड हो रहा है"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.status.downloading_files"
+msgstr "डाउनलोड हो रहा है {percent}% ({fileIndex}/{fileCount})"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/ModelDownloadStatus.tsx
+msgid "onboarding.download_status.downloading"
+msgstr "मॉडल डाउनलोड हो रहा है {percent}%"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/ModelDownloadStatus.tsx
+msgid "onboarding.download_status.downloading_files"
+msgstr "मॉडल डाउनलोड हो रहा है {percent}% ({fileIndex}/{fileCount})"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -1807,11 +2843,6 @@ msgstr "Glimpse सदस्य कार्ड का ड्राफ़्ट"
 #: src/features/library/components/LibraryView.tsx
 msgid "library.view.empty_state"
 msgstr "अपनी लाइब्रेरी बनाने के लिए फ़ाइलें यहाँ खींचकर छोड़ें।"
-
-#. js-lingui-explicit-id
-#: src/features/personalization/components/PersonalityModal.tsx
-msgid "personalization.modal.custom_instructions.drag"
-msgstr "आकार बदलने के लिए ड्रैग करें"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
@@ -1834,9 +2865,19 @@ msgid "native.menu.edit"
 msgstr "संपादित करें"
 
 #. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+msgid "dictionary.edit_entry"
+msgstr "{entry} संपादित करें"
+
+#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
 msgid "personalization.modal.edit_name"
 msgstr "मोड नाम संपादित करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_edit"
+msgstr "अपनी आवाज़ से संपादित करें"
 
 #. js-lingui-explicit-id
 #: src/Home.tsx
@@ -1874,16 +2915,6 @@ msgid "settings.app.permission.enabled"
 msgstr "सक्रिय"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryImportModal.tsx
-msgid "library.import.timestamps_supported"
-msgstr "समर्थित मॉडलों के लिए सक्रिय"
-
-#. js-lingui-explicit-id
-#: src/features/library/components/LibraryRetranscribeModal.tsx
-msgid "library.retranscribe.timestamps_supported"
-msgstr "समर्थित मॉडलों के लिए सक्रिय"
-
-#. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.english"
 msgstr "अंग्रेज़ी"
@@ -1891,6 +2922,11 @@ msgstr "अंग्रेज़ी"
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ModelsTab.tsx
 msgid "settings.models.installed.english"
+msgstr "अंग्रेज़ी"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.supports.english"
 msgstr "अंग्रेज़ी"
 
 #. js-lingui-explicit-id
@@ -1914,6 +2950,12 @@ msgid "settings.speech_model.provider.custom.description"
 msgstr "अपना endpoint URL दर्ज करें"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.system_mode.all"
+msgstr "पूरा सिस्टम"
+
+#. js-lingui-explicit-id
 #: src/features/pill/PillOverlay.tsx
 msgid "pill.status.error"
 msgstr "त्रुटि हुई"
@@ -1924,9 +2966,14 @@ msgid "onboarding.first_dictation.next.library"
 msgstr "हर डिक्टेशन आपकी लाइब्रेरी में सहेजा जाता है।"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/ReadyStep.tsx
-msgid "onboarding.done.license_active.v2"
-msgstr "हर फ़ीचर अनलॉक है। अब कुछ नया बनाएँ!"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.title_active"
+msgstr "सब कुछ अनलॉक है।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.title_trial"
+msgstr "14 दिनों के लिए सब कुछ आपका है।"
 
 #. js-lingui-explicit-id
 #: src/Home.tsx
@@ -1936,7 +2983,7 @@ msgstr "साइडबार फैलाएँ"
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.experimental"
-msgstr "प्रयोगात्मक मॉडल"
+msgstr "प्रयोगात्मक"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -1962,6 +3009,11 @@ msgstr "निर्यात विफल हुआ। दोबारा प�
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.modal.export.title"
 msgstr "लिप्यंतरण निर्यात करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_export"
+msgstr "ट्रांसक्रिप्ट निर्यात करें"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2024,6 +3076,11 @@ msgid "settings.about.faq"
 msgstr "अक्सर पूछे जाने वाले प्रश्न (FAQ)"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.tier.fast"
+msgstr "तेज़"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.features"
 msgstr "विशेषताएँ"
@@ -2054,19 +3111,14 @@ msgid "library.import_error.file_not_found"
 msgstr "फ़ाइल नहीं मिली। इसे स्थानांतरित कर दिया गया होगा या हटा दिया गया होगा।"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.filter.aria"
-msgstr "व्यक्ति के अनुसार फ़िल्टर करें"
-
-#. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
 msgid "library.filter.aria_label"
 msgstr "स्थिति के अनुसार लाइब्रेरी फ़िल्टर करें"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.filter.aria"
-msgstr "श्रेणी के अनुसार मॉडल फ़िल्टर करें"
+msgid "model_picker.filter.aria_v2"
+msgstr "मॉडल फ़िल्टर करें"
 
 #. js-lingui-explicit-id
 #: src/features/dictionary/components/DictionaryView.tsx
@@ -2084,14 +3136,14 @@ msgid "onboarding.model.loading"
 msgstr "आपके डिवाइस के लिए मॉडल ढूँढा जा रहा है"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.menu.recording_finish"
+msgstr "रिकॉर्डिंग समाप्त करें..."
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.finishing"
 msgstr "पूरा किया जा रहा है..."
-
-#. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.modal.follow_timestamp"
-msgstr "टाइमस्टैम्प के साथ फ़ॉलो करें"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
@@ -2100,13 +3152,28 @@ msgstr "काम के लिए। हर सीट पर एक व्य�
 
 #. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
-msgid "member_card.edition_blurb_personal"
-msgstr "आपके लिए। अधिकतम 5 डिवाइस।"
+msgid "member_card.edition_blurb_personal_short"
+msgstr "आपके लिए।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_modes_formal"
+msgstr "औपचारिक"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.forward_delete"
+msgstr "फ़ॉरवर्ड डिलीट"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
 msgid "member_card.tier_founder"
 msgstr "संस्थापक"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tag_free"
+msgstr "निःशुल्क"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/WelcomeStep.tsx
@@ -2117,6 +3184,11 @@ msgstr "Glimpse में आपका स्वागत है"
 #: src/shared/ui/FAQModal.tsx
 msgid "faq.title"
 msgstr "अक्सर पूछे जाने वाले प्रश्न"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/SourceStep.tsx
+msgid "onboarding.source.friend"
+msgstr "मित्र या सहकर्मी"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/modelStats.ts
@@ -2134,19 +3206,25 @@ msgid "settings.modal.tab.general"
 msgstr "सामान्य"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/ReadyStep.tsx
-msgid "onboarding.done.get_license"
-msgstr "लाइसेंस प्राप्त करें"
+#: src/features/library/components/LibraryCard.tsx
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.card.title.generate"
+msgstr "शीर्षक और टैग बनाएँ"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/WelcomeStep.tsx
-msgid "onboarding.welcome.cta"
-msgstr "शुरू करें"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.title_free"
+msgstr "लाइसेंस के साथ सब कुछ पाएँ।"
 
 #. js-lingui-explicit-id
 #: src/Home.tsx
 msgid "home.support.title"
 msgstr "सहायता प्राप्त करें"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.model_preparing"
+msgstr "आपका वाक् मॉडल तैयार किया जा रहा है। यह पृष्ठभूमि में चलता है।"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -2174,14 +3252,39 @@ msgid "settings.about.version_label"
 msgstr "Glimpse"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_write_failed"
+msgstr "Glimpse रिकॉर्डिंग लिखना जारी नहीं रख सका, इसलिए वह रुक गया। अब तक की रिकॉर्डिंग सहेज ली गई है।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.retranscribe_failed"
+msgstr "Glimpse इसे फिर से ट्रांसक्राइब नहीं कर सका, इसलिए उसने पहले वाला ट्रांसक्रिप्ट रखा।"
+
+#. js-lingui-explicit-id
+#: src/main.tsx
+msgid "crash.title"
+msgstr "Glimpse में एक त्रुटि हुई"
+
+#. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
 msgid "member_card.aria"
 msgstr "Glimpse सदस्य कार्ड"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/ModelStep.tsx
-msgid "onboarding.model.confirm.body"
-msgstr "ट्रांसक्राइब करने के लिए Glimpse को एक मॉडल चाहिए। सुझाया गया मॉडल आप सेटअप पूरा करते समय पृष्ठभूमि में डाउनलोड हो सकता है।"
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.model_none"
+msgstr "आपके लिए टाइप करने से पहले Glimpse को एक वाक् मॉडल की आवश्यकता है।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.error.microphone_permission"
+msgstr "Glimpse को माइक्रोफ़ोन ऐक्सेस चाहिए।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.error.system_audio_permission"
+msgstr "Glimpse को सिस्टम ऑडियो रिकॉर्ड करने की अनुमति चाहिए।"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/PermissionsStep.tsx
@@ -2194,14 +3297,9 @@ msgid "settings.account.activate.placeholder"
 msgstr "GLIMPSE_…"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
-msgid "onboarding.license.placeholder"
-msgstr "GLIMPSE_…"
-
-#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.waiting.speak"
-msgstr ""
+msgstr "आगे बढ़ें और बोलें।"
 
 #. js-lingui-explicit-id
 #: src/features/transcriptions/homeGreeting.ts
@@ -2224,9 +3322,19 @@ msgid "onboarding.microphone.grant"
 msgstr "अनुमति दें"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.view.layout.grid_view"
+msgstr "ग्रिड दृश्य"
+
+#. js-lingui-explicit-id
 #: src/features/transcriptions/homeGreeting.ts
 msgid "home.greeting.occasion.leap_day"
 msgstr "हैपी लीप डे"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.ended_title"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/PermissionsStep.tsx
@@ -2237,6 +3345,11 @@ msgstr "ट्रांसक्रिप्शन के लिए आपकी
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.help"
 msgstr "सहायता"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_edit_selection"
+msgstr "अरे, क्या तुम फ़ाइल भेज सकते हो"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -2254,6 +3367,16 @@ msgid "settings.general.shortcuts.hide_shortcuts"
 msgstr "शॉर्टकट छुपाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.speaker_menu.hide"
+msgstr "वक्ता छिपाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.compact"
+msgstr "ट्रांसक्रिप्ट छिपाएँ"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.shortcuts.hold"
 msgstr "दबाए रखें"
@@ -2261,7 +3384,7 @@ msgstr "दबाए रखें"
 #. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.failed_empty_body"
-msgstr ""
+msgstr "थोड़ा और देर तक दबाए रखें, फिर दोबारा कोशिश करें।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2269,9 +3392,14 @@ msgid "settings.about.data.hold_to_delete"
 msgstr "दबाकर रखें और मिटाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.name.delete"
+msgstr "हटाने के लिए दबाकर रखें"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.hold"
-msgstr ""
+msgstr "डिक्टेट करने के लिए दबाकर रखें"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2287,6 +3415,11 @@ msgstr "बोलने के लिए दबाए रखें, रोकन
 #: src/Home.tsx
 msgid "home.sidebar.home"
 msgstr "होम"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/SourceStep.tsx
+msgid "onboarding.source.title"
+msgstr "आपको Glimpse के बारे में कैसे पता चला?"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/FAQModal.tsx
@@ -2322,6 +3455,12 @@ msgstr "मैं बोलता हूँ"
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.post.1"
 msgstr "मैं {wpm} शब्द प्रति मिनट बोलता हूँ। पता चला, बोलना टाइपिंग से बेहतर है। @try_glimpse_app के साथ डिक्टेट किया गया"
+
+#. js-lingui-explicit-id
+#. placeholder {0}: currentModel?.label ?? settings?.local_model
+#: src/features/dictionary/components/DictionaryView.tsx
+msgid "dictionary.warning.ignored_by"
+msgstr "{0} द्वारा अनदेखा किया गया"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
@@ -2409,9 +3548,19 @@ msgid "settings.app.input_monitoring"
 msgstr "इनपुट मॉनिटरिंग"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.error.no_model"
+msgstr "पहले सेटिंग्स में स्पीच मॉडल इंस्टॉल करें।"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.install_cli"
 msgstr "CLI इंस्टॉल करें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.meeting.model_required"
+msgstr "पहले कोई स्पीच मॉडल इंस्टॉल या कॉन्फ़िगर करें।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2427,6 +3576,11 @@ msgstr "इंस्टॉल हो गया"
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.cli.installed_subtitle"
 msgstr "{cliInstallPath} पर इंस्टॉल किया गया"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.apps.installed"
+msgstr "इस Mac पर इंस्टॉल है"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: cliInstallStatus.command
@@ -2451,6 +3605,16 @@ msgid "member_card.draft_stamp_issuing"
 msgstr "जारी करना"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.detected_message"
+msgstr "ऐसा लगता है कि {app} में कॉल चल रही है। क्या आप इसे रिकॉर्ड करना चाहते हैं?"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.jump"
+msgstr "लाइव पर जाएँ"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.store_original.description"
 msgstr "लाइब्रेरी फ़ोल्डर के अंदर एक प्रति रखें"
@@ -2458,6 +3622,16 @@ msgstr "लाइब्रेरी फ़ोल्डर के अंदर �
 #. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.waiting.hold"
+msgstr "दबाकर रखें, और काम पूरा होने पर छोड़ दें।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.on_top"
+msgstr "सबसे ऊपर रखें"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.ended_continue"
 msgstr ""
 
 #. js-lingui-explicit-id
@@ -2471,23 +3645,18 @@ msgid "import.cat.shortcut"
 msgstr "कीबोर्ड शॉर्टकट"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryImportModal.tsx
-msgid "library.import.detect_speakers.description"
-msgstr "खंडों में व्यक्तियों की अपने-आप पहचान करें"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_speakers"
+msgstr "जानें कि किसने क्या कहा"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryRetranscribeModal.tsx
-msgid "library.retranscribe.detect_speakers.description"
-msgstr "खंडों में व्यक्तियों की अपने-आप पहचान करें"
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.large"
+msgstr "L"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.language.label"
-msgstr "भाषा"
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/tabs/ProvidersTab.tsx
-msgid "settings.providers.language_label"
 msgstr "भाषा"
 
 #. js-lingui-explicit-id
@@ -2517,13 +3686,28 @@ msgstr "लॉगिन पर लॉन्च करें"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
-msgid "member_card.edition_blurb_founder"
-msgstr "लॉन्च के संस्थापक सदस्य। अधिकतम 5 डिवाइस।"
+msgid "member_card.edition_blurb_founder_short"
+msgstr "Launch संस्थापक।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.view.layout"
+msgstr "लेआउट"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.skip_short_hint"
 msgstr "एक सेकंड से कम के क्लिप छोड़ता है"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.left"
+msgstr "बायाँ"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.left_modifier"
+msgstr "बायाँ {key}"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
@@ -2556,12 +3740,7 @@ msgid "home.drag_import.eyebrow"
 msgstr "लाइब्रेरी आयात"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
-msgid "onboarding.license.dialog_aria"
-msgstr "लाइसेंस"
-
-#. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
+#: src/features/onboarding/steps/LicenseStep.tsx
 msgid "onboarding.license.input_aria"
 msgstr "लाइसेंस कुंजी"
 
@@ -2569,6 +3748,16 @@ msgstr "लाइसेंस कुंजी"
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.theme.light"
 msgstr "हल्का"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.diarizer.speakers_detail"
+msgstr "सीमा प्रत्येक ऑडियो ट्रैक पर लागू होती है।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.view.layout.list_view"
+msgstr "सूची दृश्य"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -2581,6 +3770,11 @@ msgid "settings.local_api.listen_on_lan_aria"
 msgstr "LAN पर सुनें"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.empty.listening"
+msgstr "सुन रहा है..."
+
+#. js-lingui-explicit-id
 #: src/features/pill/PillOverlay.tsx
 msgid "pill.status.listening"
 msgstr "सुन रहा है..."
@@ -2588,17 +3782,42 @@ msgstr "सुन रहा है..."
 #. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.listening"
+msgstr "सुन रहा है…"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.system.waveform"
 msgstr ""
 
 #. js-lingui-explicit-id
-#: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.capability.streaming"
-msgstr "लाइव स्ट्रीमिंग"
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.microphone.waveform"
+msgstr ""
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/tabs/ModelsTab.tsx
-msgid "settings.models.capability.streaming"
-msgstr "लाइव स्ट्रीमिंग"
+#: src/shared/ui/ModelCapabilityIcon.tsx
+msgid "model_capability.live_text"
+msgstr "लाइव टेक्स्ट"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.supports.live"
+msgstr "बोलते समय लाइव टेक्स्ट"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.empty.unavailable"
+msgstr "लाइव ट्रांसक्रिप्शन के लिए उसे समर्थित करने वाला स्पीच मॉडल आवश्यक है।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.active.live"
+msgstr "लाइव दृश्य"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs"
+msgstr "लाइव दृश्य सेटिंग्स"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx
@@ -2626,6 +3845,11 @@ msgid "home.mode.local"
 msgstr "स्थानीय"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/DiarizationModelCard.tsx
+msgid "settings.models.diarization.local_private"
+msgstr "स्थानीय"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx
 msgid "settings.language_model.provider.local"
 msgstr "स्थानीय"
@@ -2644,6 +3868,16 @@ msgstr "स्थानीय"
 #: src/features/settings/components/LocalApiSidebarStatus.tsx
 msgid "home.local_api.running"
 msgstr "स्थानीय API"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/DiarizationModelCard.tsx
+msgid "settings.models.diarization.title"
+msgstr "स्थानीय व्यक्ति पहचान"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/DiarizationModelCard.tsx
+msgid "settings.models.diarization.aria"
+msgstr "स्थानीय व्यक्ति पहचान मॉडल"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2667,14 +3901,24 @@ msgid "home.today.stats.longest_duration"
 msgstr "आज की सबसे लंबी रिकॉर्डिंग: {0}"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.apps.loading"
+msgstr "इंस्टॉल किए गए मीटिंग ऐप खोजे जा रहे हैं"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.auto_pause_media.body_duck"
 msgstr "रिकॉर्ड करते समय सिस्टम वॉल्यूम कम करता है।"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/AneCompileOverlay.tsx
-msgid "ane_compile.body"
-msgstr "macOS Apple Neural Engine के लिए {label} कम्पाइल कर रहा है। यह प्रक्रिया केवल एक बार होती है और इसमें कुछ मिनट लग सकते हैं।"
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.medium"
+msgstr "M"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_devices_body"
+msgstr "Mac और Windows"
 
 #. js-lingui-explicit-id
 #: src/features/updates/components/WhatsNewModal.tsx
@@ -2692,9 +3936,95 @@ msgid "window.controls.maximize"
 msgstr "अधिकतम करें"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.speaker_remote"
+msgstr "मीटिंग"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.name"
+msgstr "मीटिंग {date}"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.system"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.detected_title"
+msgstr "मीटिंग का पता चला"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.meeting.error"
+msgstr "मीटिंग रिकॉर्ड नहीं हो सकी। अनुमतियाँ जाँचें और फिर से कोशिश करें।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.recovered_title"
+msgstr "मीटिंग रिकवर की गई"
+
+#~ msgid "meeting.active.local"
+#~ msgstr "स्थानीय रूप से सहेजा गया · रिकॉर्डिंग रुकने पर ट्रांसक्रिप्शन शुरू होता है"
+
+#~ msgid "meeting.active.microphone"
+#~ msgstr "माइक्रोफ़ोन"
+
+#~ msgid "meeting.active.microphone.default"
+#~ msgstr "डिफ़ॉल्ट माइक्रोफ़ोन"
+
+#~ msgid "meeting.active.microphone.no_signal"
+#~ msgstr "माइक्रोफ़ोन सिग्नल नहीं मिला"
+
+#~ msgid "meeting.active.microphone.waveform"
+#~ msgstr "लाइव माइक्रोफ़ोन स्तर"
+
+#~ msgid "meeting.active.subtitle"
+#~ msgstr "दोनों ऑडियो स्रोत अलग-अलग सहेजे जा रहे हैं"
+
+#~ msgid "meeting.active.system"
+#~ msgstr "मीटिंग ऑडियो"
+
+#~ msgid "meeting.active.system.default"
+#~ msgstr "सिस्टम ऑडियो"
+
+#~ msgid "meeting.active.system.scope"
+#~ msgstr "सिस्टम कैप्चर"
+
+#~ msgid "meeting.active.system.scope.application"
+#~ msgstr "केवल ऐप"
+
+#~ msgid "meeting.active.system.waveform"
+#~ msgstr "लाइव मीटिंग ऑडियो स्तर"
+
+#~ msgid "meeting.active.title"
+#~ msgstr "रिकॉर्डिंग जारी है"
+
+#. js-lingui-explicit-id
+#: src/Home.tsx
+msgid "home.sidebar.meetings"
+msgstr "मीटिंग्स"
+
+#. js-lingui-explicit-id
+#: src/features/settings/settingsPanes.ts
+msgid "settings.modal.tab.meetings"
+msgstr "मीटिंग"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "meeting.view.title"
+msgstr "मीटिंग्स"
+
+#. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
 msgid "member_card.label_member_since"
 msgstr "सदस्यता आरंभ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/SpeakerContextMenu.tsx
+msgid "library.detail.speaker_menu.merge"
+msgstr "इसमें विलय करें"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -2712,6 +4042,11 @@ msgid "settings.general.microphone"
 msgstr "माइक्रोफ़ोन"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.microphone"
+msgstr "माइक्रोफ़ोन"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/steps/PermissionsStep.tsx
 msgid "onboarding.microphone.title"
 msgstr "माइक्रोफ़ोन एक्सेस"
@@ -2719,6 +4054,17 @@ msgstr "माइक्रोफ़ोन एक्सेस"
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ReadyStep.tsx
 msgid "onboarding.done.recap.microphone"
+msgstr "माइक्रोफ़ोन"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.microphone"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.sources.microphone"
 msgstr "माइक्रोफ़ोन"
 
 #. js-lingui-explicit-id
@@ -2732,14 +4078,24 @@ msgid "settings.general.microphone_test.permission_error"
 msgstr "माइक्रोफ़ोन का एक्सेस अस्वीकृत कर दिया गया।"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/tabs/GeneralTab.tsx
-msgid "settings.general.microphone_test.unsupported"
-msgstr "इस विंडो में माइक्रोफ़ोन परीक्षण उपलब्ध नहीं है।"
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.mic_removed"
+msgstr "माइक्रोफ़ोन डिस्कनेक्ट हो गया। रिकॉर्डिंग रोकी गई और इतिहास में सहेजी गई।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.tracks.microphone"
+msgstr "माइक्रोफ़ोन ट्रैक"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.mic_unavailable"
 msgstr "माइक्रोफ़ोन उपलब्ध नहीं है ({error})"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.mouse_middle"
+msgstr "मध्य क्लिक"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/WindowControls.tsx
@@ -2778,10 +4134,14 @@ msgid "settings.language_model.model.placeholder"
 msgstr "मॉडल (डिफ़ॉल्ट: {0})"
 
 #. js-lingui-explicit-id
-#. placeholder {0}: providerPreset?.defaultModel || "auto"
 #: src/features/settings/components/SpeechModelPanel.tsx
-msgid "settings.speech_model.model.placeholder"
-msgstr "मॉडल (डिफ़ॉल्ट: {0})"
+msgid "settings.speech_model.model.placeholder_default"
+msgstr "मॉडल (डिफ़ॉल्ट: {defaultModel})"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/ModelDownloadStatus.tsx
+msgid "onboarding.download_status.failed"
+msgstr "मॉडल डाउनलोड विफल हुआ"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ModelStep.tsx
@@ -2792,6 +4152,11 @@ msgstr "मॉडल सूची उपलब्ध नहीं है। आ�
 #: src/features/library/components/library-utils.ts
 msgid "library.error_details.model_not_installed"
 msgstr "मॉडल इंस्टॉल नहीं है।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/ModelDownloadStatus.tsx
+msgid "onboarding.download_status.ready"
+msgstr "मॉडल तैयार है"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
@@ -2819,6 +4184,11 @@ msgid "settings.about.storage.models"
 msgstr "मॉडल"
 
 #. js-lingui-explicit-id
+#: src/features/import/components/ImportStep.tsx
+msgid "import.cat.modes"
+msgstr "मोड"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.more_actions"
 msgstr "अन्य क्रियाएँ"
@@ -2835,11 +4205,6 @@ msgstr "कमांड लाइन टूल्स के बारे मे�
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
-msgid "settings.general.shortcuts.info_aria"
-msgstr "शॉर्टकट विकल्पों के बारे में अधिक जानकारी"
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.language_info_aria"
 msgstr "ट्रांसक्रिप्शन भाषा सहायता बैज के बारे में अधिक जानकारी"
 
@@ -2852,6 +4217,16 @@ msgstr "अधिक विकल्प"
 #: src/features/library/components/LibraryCard.tsx
 msgid "library.card.more_options"
 msgstr "अधिक विकल्प"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.mouse_back"
+msgstr "माउस पीछे"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.mouse_forward"
+msgstr "माउस आगे"
 
 #. js-lingui-explicit-id
 #: src/Home.tsx
@@ -2874,9 +4249,37 @@ msgid "settings.stats.post.5"
 msgstr "मेरा कीबोर्ड जलने लगा है। @try_glimpse_app के साथ {wpm} शब्द प्रति मिनट"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.name.title"
+msgstr "रिकॉर्डिंग को नाम दें"
+
+#~ msgid "native.meeting.ended_continue"
+#~ msgstr "रिकॉर्डिंग जारी रखें"
+
+#~ msgid "native.meeting.ended_message"
+#~ msgstr "{app} में कॉल अब सक्रिय नहीं है। क्या आप रिकॉर्डिंग रोकना चाहते हैं?"
+
+#~ msgid "native.meeting.ended_stop"
+#~ msgstr "रिकॉर्डिंग रोकें"
+
+#~ msgid "native.meeting.ended_title"
+#~ msgstr "क्या मीटिंग समाप्त हो गई है?"
+
+#. js-lingui-explicit-id
 #: src/Home.tsx
 msgid "home.sidebar.locked_hint"
 msgstr "Glimpse लाइसेंस आवश्यक है। खाता खोलता है।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.system_audio.unsupported"
+msgstr "macOS 14.2 या उसके बाद का संस्करण चाहिए"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryImportModal.tsx
+#: src/features/library/components/LibraryRetranscribeModal.tsx
+msgid "library.detect_speakers_unavailable"
+msgstr "स्पीकर पहचान मॉडल आवश्यक है"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
@@ -2931,8 +4334,8 @@ msgstr "कोई ऐप्लिकेशन चयनित नहीं"
 
 #. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalizationView.tsx
-msgid "personalization.no_apps"
-msgstr "अभी कोई ऐप नहीं"
+msgid "personalization.no_targets"
+msgstr "अभी तक कोई ऐप या वेबसाइट नहीं"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/library-utils.ts
@@ -2950,6 +4353,11 @@ msgid "updates.whats_new.no_changelog"
 msgstr "कोई चेंजलॉग उपलब्ध नहीं है।"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.apps.empty"
+msgstr "कोई संगत मीटिंग ऐप्लिकेशन नहीं मिला।"
+
+#. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.tooltip_empty"
 msgstr "कोई डिक्टेशन नहीं"
@@ -2958,11 +4366,6 @@ msgstr "कोई डिक्टेशन नहीं"
 #: src/features/onboarding/steps/ModelStep.tsx
 msgid "onboarding.model.option.no_download"
 msgstr "कोई डाउनलोड नहीं"
-
-#. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.no_entries"
-msgstr "अभी तक कोई प्रविष्टि नहीं"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
@@ -2980,13 +4383,18 @@ msgid "settings.local_api.logs.empty"
 msgstr "अभी तक कोई लॉग नहीं है।"
 
 #. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.no_matches"
-msgstr "कोई मेल नहीं मिला"
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.microphone.no_signal"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.microphone_test.not_found_error"
+msgstr "कोई माइक्रोफ़ोन नहीं मिला।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.error.no_microphone"
 msgstr "कोई माइक्रोफ़ोन नहीं मिला।"
 
 #. js-lingui-explicit-id
@@ -2996,13 +4404,13 @@ msgstr "अनुरोधों के बीच कोई मॉडल मे�
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
-msgid "library.import.no_models"
-msgstr "कोई मॉडल उपलब्ध नहीं। इंपोर्ट करने से पहले सेटिंग्स -> मॉडल में कोई रिमोट प्रोवाइडर सेट करें या लोकल मॉडल डाउनलोड करें।"
+msgid "library.import.no_models_installed"
+msgstr "कोई मॉडल उपलब्ध नहीं है। एक डाउनलोड करें या सेटिंग्ज़ > मॉडल में प्रदाता जोड़ें।"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
-msgid "library.retranscribe.no_models"
-msgstr "कोई मॉडल उपलब्ध नहीं। दोबारा ट्रांसक्राइब करने से पहले सेटिंग्स -> मॉडल में कोई रिमोट प्रोवाइडर सेट करें या लोकल मॉडल डाउनलोड करें।"
+msgid "library.retranscribe.no_models_installed"
+msgstr "कोई मॉडल उपलब्ध नहीं है। एक डाउनलोड करें या सेटिंग्ज़ > मॉडल में प्रदाता जोड़ें।"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ModelStep.tsx
@@ -3011,8 +4419,8 @@ msgstr "कोई मॉडल नहीं मिला। आप बाद म
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.no_results"
-msgstr "आपकी खोज से कोई मॉडल मेल नहीं खाता।"
+msgid "model_picker.no_matches"
+msgstr "कोई मॉडल मेल नहीं खाते।"
 
 #. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalizationView.tsx
@@ -3040,11 +4448,6 @@ msgid "library.modal.tags.no_other_tags"
 msgstr "कोई अन्य टैग नहीं"
 
 #. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.replacements.none"
-msgstr "अभी तक कोई प्रतिस्थापन नहीं"
-
-#. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionList.tsx
 msgid "transcriptions.list.no_results"
 msgstr "\"{resultSearchText}\" के लिए कोई परिणाम नहीं"
@@ -3055,19 +4458,30 @@ msgid "transcriptions.list.no_results_filters"
 msgstr "चयनित फ़िल्टरों के लिए कोई परिणाम नहीं"
 
 #. js-lingui-explicit-id
-#: src/features/personalization/components/PersonalizationView.tsx
-msgid "personalization.no_sites"
-msgstr "अभी तक कोई साइट नहीं"
+#. placeholder {0}: systemApps[0]
+#: src/features/recording/useSilenceWarning.ts
+msgid "live.silent.app"
+msgstr "अभी तक {0} से कोई ध्वनि नहीं आई है।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/useSilenceWarning.ts
+msgid "live.silent.microphone"
+msgstr "अभी तक माइक्रोफ़ोन से कोई ध्वनि नहीं आई है।"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.no_speakers"
-msgstr "अभी तक कोई व्यक्ति नहीं"
+msgstr "अभी तक कोई स्पीकर नहीं"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.toast.no_speech"
 msgstr "कोई वाणी नहीं मिली। रिकॉर्डिंग हटाई गई।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/useSilenceWarning.ts
+msgid "live.silent.system"
+msgstr "अभी तक सिस्टम ऑडियो नहीं है।"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryCard.tsx
@@ -3102,7 +4516,7 @@ msgstr "कोई वेबसाइट नहीं जोड़ी गई"
 #. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.failed_empty"
-msgstr ""
+msgstr "कोई शब्द कैप्चर नहीं हुआ।"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -3125,6 +4539,16 @@ msgid "settings.about.cli.unavailable_subtitle"
 msgstr "इस बिल्ड में उपलब्ध नहीं"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.unavailable"
+msgstr "अभी उपलब्ध नहीं है"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/modelStats.ts
+msgid "models.download_failed.disk_full"
+msgstr "डिस्क में पर्याप्त जगह नहीं है"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/library-utils.ts
 msgid "library.error_details.insufficient_disk_space"
 msgstr "डिस्क में पर्याप्त स्थान नहीं है।"
@@ -3133,6 +4557,21 @@ msgstr "डिस्क में पर्याप्त स्थान न�
 #: src/features/personalization/components/PersonalityModal.tsx
 msgid "personalization.modal.applications.not_installed"
 msgstr "इंस्टॉल नहीं है"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.detected_not_now"
+msgstr "अभी नहीं"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.apps.not_running"
+msgstr "चल नहीं रहा"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+msgid "settings.models.card.not_set_up"
+msgstr "सेट नहीं किया गया"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
@@ -3148,11 +4587,6 @@ msgstr "यह मॉडल इसे समर्थित नहीं कर�
 #: src/features/settings/components/LanguageModelPanel.tsx
 msgid "settings.language_model.apple.unsupported"
 msgstr "इस Mac पर समर्थित नहीं है।"
-
-#. js-lingui-explicit-id
-#: src/features/personalization/components/PersonalizationView.tsx
-msgid "personalization.notes"
-msgstr "टिप्पणियाँ:"
 
 #. js-lingui-explicit-id
 #: src/features/news/components/NewsMenu.tsx
@@ -3177,6 +4611,16 @@ msgstr "बंद"
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.auto_pause_media.off"
+msgstr "बंद"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+msgid "settings.models.card.off"
+msgstr "बंद"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.source.off"
 msgstr "बंद"
 
 #. js-lingui-explicit-id
@@ -3205,6 +4649,21 @@ msgid "faq.ai_writing.answer.v2"
 msgstr "सिर्फ़ तब, जब आप सेटिंग्स → प्रदाताओं के तहत कोई राइटिंग मॉडल सेट करते हैं। Cleanup चालू वाले शॉर्टकट, और Personalization, फिर संबंधित टेक्स्ट सीधे उसी प्रदाता को भेजते हैं। आपकी API कुंजी Glimpse में लोकल ही संग्रहीत रहती है। ऑडियो आपके डिवाइस से तभी बाहर जाएगा जब आप सेटिंग्स → मॉडल्स में कोई क्लाउड स्पीच मॉडल चुनते हैं।"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.apps.description"
+msgstr "केवल चुने गए ऐप्लिकेशन की निगरानी की जाती है। ब्राउज़र पहचान के लिए Accessibility चाहिए और केवल सक्रिय टैब जाँचा जाता है; Glimpse मीटिंग की सामग्री नहीं पढ़ता।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.apps"
+msgstr "केवल ये ऐप्स"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.saved.open"
+msgstr "खोलें"
+
+#. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.tray.open"
 msgstr "{app} खोलें"
@@ -3220,9 +4679,24 @@ msgid "onboarding.done.auto_launch"
 msgstr "लॉगिन पर खोलें"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ProvidersTab.tsx
+msgid "settings.providers.guide.language.action"
+msgstr "सामान्य खोलें"
+
+#. js-lingui-explicit-id
 #: src/features/asks/components/AskPrompt.tsx
 msgid "home.ask.star.answer"
 msgstr "GitHub खोलें"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.model_action"
+msgstr "मॉडल खोलें"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ProvidersTab.tsx
+msgid "settings.providers.guide.speech.action"
+msgstr "मॉडल खोलें"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -3230,14 +4704,24 @@ msgid "settings.app.open_settings"
 msgstr "सेटिंग्स खोलें"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.error.open_settings"
+msgstr "सेटिंग्स खोलें"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.apps.empty"
+msgstr "जिस ऐप को आप कैप्चर करना चाहते हैं, उसे खोलें और वह यहाँ दिखाई देगा।"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.command_line.open_wiki_aria"
 msgstr "कमांड लाइन दस्तावेज़ खोलें"
 
 #. js-lingui-explicit-id
-#: src/features/settings/components/AneCompileOverlay.tsx
-msgid "ane_compile.title"
-msgstr "Neural Engine के लिए अनुकूलन हो रहा है"
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.open_on_start"
+msgstr "रिकॉर्डिंग शुरू होने पर खोलें"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx
@@ -3255,9 +4739,19 @@ msgid "settings.local_api.api_key.placeholder_optional"
 msgstr "वैकल्पिक — अक्षम करने के लिए खाली छोड़ें"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.title.generating"
+msgstr "व्यवस्थित किया जा रहा है..."
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.verbatim_text"
 msgstr "मूल पाठ"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_recording_others"
+msgstr "अन्य"
 
 #. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionList.tsx
@@ -3275,9 +4769,35 @@ msgid "settings.app.auto_pause_media.pause"
 msgstr "रोकें"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.active.pause"
+msgstr "रोकें"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.modal.pause_audio"
 msgstr "ऑडियो रोकें"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.menu.recording_pause"
+msgstr "रिकॉर्डिंग रोकें"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.empty.paused"
+msgstr "रोका गया"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.status.paused"
+msgstr "रोका गया"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.active.paused"
+msgstr "रोकी गई"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -3295,14 +4815,19 @@ msgid "onboarding.permissions.title"
 msgstr "अनुमतियाँ"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.library.person_default"
+msgstr "व्यक्ति {nextIndex}"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.speaker_default_name"
+msgstr "स्पीकर {nextIndex}"
+
+#. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
 msgid "member_card.tier_personal"
 msgstr "व्यक्तिगत"
-
-#. js-lingui-explicit-id
-#: src/features/import/components/ImportStep.tsx
-msgid "import.cat.personalities"
-msgstr "व्यक्तित्व"
 
 #. js-lingui-explicit-id
 #: src/Home.tsx
@@ -3318,6 +4843,16 @@ msgstr "व्यक्तिकरण"
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.modal.play_audio"
 msgstr "ऑडियो चलाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.playback_settings"
+msgstr "प्लेबैक सेटिंग्स"
+
+#. js-lingui-explicit-id
+#: src/main.tsx
+msgid "crash.body"
+msgstr "कृपया ऐप को फिर से शुरू करें।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -3341,13 +4876,8 @@ msgstr "पूर्व-लोडेड मॉडल"
 
 #. js-lingui-explicit-id
 #: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.replacements.press_enter_to_add"
-msgstr "जोड़ने के लिए किसी भी फ़ील्ड में Enter दबाएँ"
-
-#. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.press_enter_to_add"
-msgstr "जोड़ने के लिए Enter दबाएँ"
+msgid "dictionary.replacements.empty_hint"
+msgstr "जोड़ने के लिए किसी भी फ़ील्ड में Enter दबाएँ। मिलान में बड़े-छोटे अक्षरों का भेद नहीं किया जाता।"
 
 #. js-lingui-explicit-id
 #. placeholder {0}: newEntry.trim()
@@ -3356,29 +4886,19 @@ msgid "dictionary.add_prompt"
 msgstr "नई प्रविष्टि के रूप में \"{0}\" जोड़ने के लिए Enter दबाएँ।"
 
 #. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.press_enter_to_add_match"
-msgstr "यह शब्द जोड़ने के लिए Enter दबाएँ"
-
-#. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.edit_hint"
-msgstr "सहेजने के लिए Enter दबाएँ · रद्द करने के लिए Esc दबाएँ"
-
-#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.waiting.v5"
-msgstr ""
+msgstr "ऊपर दिए गए शॉर्टकट को दबाएँ, या नीचे दिए गए बटन को दबाकर रखें।"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.waiting.capture"
-msgstr ""
+msgstr "जो शॉर्टकट आप चाहते हैं, उसे दबाएँ।"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.subtitle.v5"
-msgstr ""
+msgstr "यह शॉर्टकट दबाएँ और नीचे दी गई पंक्ति पढ़ें।"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/FAQModal.tsx
@@ -3421,6 +4941,11 @@ msgid "settings.speech_model.provider"
 msgstr "प्रदाता"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/SpeechModelPanel.tsx
+msgid "settings.speech_model.model.provider_default"
+msgstr "प्रदाता डिफ़ॉल्ट"
+
+#. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
 msgid "settings.modal.tab.providers"
 msgstr "प्रदाता"
@@ -3429,11 +4954,6 @@ msgstr "प्रदाता"
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.shortcuts.cleanup_locked.providers_link"
 msgstr "प्रदाता"
-
-#. js-lingui-explicit-id
-#: src/features/license/components/MemberCard.tsx
-msgid "member_card.tier_purchase_aria"
-msgstr "{label} को {price} में ख़रीदें"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryCard.tsx
@@ -3466,6 +4986,11 @@ msgid "home.ask.review.title"
 msgstr "Microsoft Store में Glimpse को रेट करें?"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_raycast"
+msgstr "Raycast"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryCard.tsx
 msgid "library.card.status.ready"
 msgstr "तैयार"
@@ -3474,6 +4999,76 @@ msgstr "तैयार"
 #: src/features/updates/components/UpdateChecker.tsx
 msgid "updates.ready_to_install"
 msgstr "इंस्टॉल करने के लिए तैयार"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelCapabilityIcon.tsx
+msgid "model_capability.dictionary_detail"
+msgstr "आपके शब्दकोश के शब्द पहचानता है।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AccountView.tsx
+msgid "settings.account.license.unverified"
+msgstr "अपने लाइसेंस की पुष्टि करने के लिए इंटरनेट से फिर से कनेक्ट करें।"
+
+#. js-lingui-explicit-id
+#: src/Home.tsx
+msgid "home.sidebar.record"
+msgstr "रिकॉर्ड करें"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.detected_record"
+msgstr "रिकॉर्ड करें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.meeting.start"
+msgstr "मीटिंग रिकॉर्ड करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_recording"
+msgstr "मीटिंग रिकॉर्ड करें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "meeting.view.empty_state"
+msgstr "अपनी पहली मीटिंग रिकॉर्ड करें।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.menu.recording_active"
+msgstr "रिकॉर्डिंग"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.active.recording"
+msgstr "रिकॉर्डिंग"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.recording"
+msgstr "रिकॉर्डिंग"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.recording.default_name"
+msgstr "रिकॉर्डिंग - {date}"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.default_name"
+msgstr "रिकॉर्डिंग - {day}, {time}"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.title"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.menu.recording_paused"
+msgstr "रिकॉर्डिंग रोकी गई"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -3499,6 +5094,16 @@ msgstr "रिकॉर्डिंग्स पुनः प्राप्त 
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.toast.recovered_saved_many"
 msgstr "रिकॉर्डिंग्स हिस्ट्री में सहेजी गईं।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.recovered"
+msgstr "पुनर्प्राप्त"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.recovered_name"
+msgstr "रिकवर की गई: {name}"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -3529,11 +5134,6 @@ msgstr "रिमोट वाक् API कुंजी"
 #: src/features/settings/components/SpeechModelPanel.tsx
 msgid "settings.speech_model.endpoint.aria"
 msgstr "रिमोट स्पीच एंडपॉइंट URL"
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/SpeechModelPanel.tsx
-msgid "settings.speech_model.title"
-msgstr "दूरस्थ वाक् सेवा"
 
 #. js-lingui-explicit-id
 #: src/features/dictionary/components/DictionaryView.tsx
@@ -3578,9 +5178,29 @@ msgid "library.modal.tags.remove"
 msgstr "{tag} हटाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.bookmark.remove"
+msgstr "बुकमार्क हटाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.bookmark.remove"
+msgstr "बुकमार्क हटाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.speaker.clear"
+msgstr "वक्ता साफ़ करें"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.shortcuts.remove_shortcut"
 msgstr "शॉर्टकट हटाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/SpeakerContextMenu.tsx
+msgid "library.detail.speaker_menu.remove"
+msgstr "वक्ता हटाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -3597,6 +5217,17 @@ msgstr "नाम बदलें"
 msgid "library.card.rename"
 msgstr "नाम बदलें"
 
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.rename"
+msgstr "नाम बदलें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
+msgid "library.detail.speaker_menu.rename"
+msgstr "नाम बदलें"
+
 #: src/features/settings/components/AccountView.tsx
 msgid "Renews {renewsAt}"
 msgstr "नवीनीकरण होगा {renewsAt}"
@@ -3610,6 +5241,11 @@ msgstr "इसके स्थान पर लगाएँ"
 #: src/features/dictionary/components/DictionaryView.tsx
 msgid "dictionary.replacements.replace_with"
 msgstr "इसके साथ बदलें..."
+
+#. js-lingui-explicit-id
+#: src/features/import/components/ImportStep.tsx
+msgid "import.cat.replacements_title"
+msgstr "प्रतिस्थापन"
 
 #. js-lingui-explicit-id
 #: src/features/dictionary/components/DictionaryView.tsx
@@ -3667,11 +5303,6 @@ msgid "settings.about.cli.locked_subtitle"
 msgstr "सक्रिय लाइसेंस आवश्यक"
 
 #. js-lingui-explicit-id
-#: src/features/personalization/components/PersonalityModal.tsx
-msgid "personalization.modal.custom_instructions.resize"
-msgstr "कस्टम निर्देशों का आकार बदलें"
-
-#. js-lingui-explicit-id
 #: src/features/updates/components/UpdateChecker.tsx
 msgid "updates.restart"
 msgstr "पुनः प्रारंभ करें"
@@ -3702,6 +5333,17 @@ msgid "transcriptions.item.restore_original"
 msgstr "मूल ट्रांसक्रिप्ट पुनर्स्थापित करें"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.active.resume"
+msgstr "फिर से शुरू करें"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.menu.recording_resume"
+msgstr "रिकॉर्डिंग फिर से शुरू करें"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryCard.tsx
 msgid "library.card.retranscribe"
 msgstr "फिर से ट्रांसक्राइब करें"
@@ -3727,6 +5369,11 @@ msgid "library.retranscribe.loading"
 msgstr "दोबारा ट्रांसक्राइब किया जा रहा है..."
 
 #. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.retry"
+msgstr "पुनः प्रयास करें"
+
+#. js-lingui-explicit-id
 #: src/features/updates/components/UpdateChecker.tsx
 msgid "updates.retry"
 msgstr "पुनः प्रयास करें"
@@ -3739,6 +5386,11 @@ msgstr "पुनः प्रयास करें"
 #. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.retry"
+msgstr "पुनः प्रयास करें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/ModelDownloadStatus.tsx
+msgid "onboarding.download_status.retry"
 msgstr "पुनः प्रयास करें"
 
 #. js-lingui-explicit-id
@@ -3782,6 +5434,16 @@ msgid "transcriptions.item.reverting"
 msgstr "पिछली स्थिति पर लौटाया जा रहा है..."
 
 #. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.right"
+msgstr "दायाँ"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.right_modifier"
+msgstr "दायाँ {key}"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.prune.threshold.immediately"
 msgstr "अभी तुरंत"
@@ -3802,6 +5464,16 @@ msgid "settings.about.restart_onboarding_description"
 msgstr "सेटअप विज़ार्ड फिर से चलाएँ"
 
 #. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.ane.detail"
+msgstr "Neural Engine पर एन्कोडर चलाता है। तेज़ है और कम ऊर्जा का उपयोग करता है। macOS के इसे अनुकूलित करने के दौरान पहली बार लोड होने में अधिक समय लगता है।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size.small"
+msgstr "S"
+
+#. js-lingui-explicit-id
 #: src/features/license/components/ShareCardModal.tsx
 msgid "settings.stats.share.save"
 msgstr "सहेजें"
@@ -3812,9 +5484,35 @@ msgid "personalization.modal.save_name"
 msgstr "नाम सहेजें"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.rename_save"
+msgstr "नाम सहेजें"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.name.save"
+msgstr "लाइब्रेरी में सहेजें"
+
+#. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.card.saved"
 msgstr "सहेजा गया"
+
+#. js-lingui-explicit-id
+#. placeholder {0}: saved.name
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.saved"
+msgstr "“{0}” को लाइब्रेरी में सहेजा गया।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.local"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.name.saving"
+msgstr "सहेजा जा रहा है..."
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ReadyStep.tsx
@@ -3822,9 +5520,19 @@ msgid "onboarding.done.saving"
 msgstr "सहेजा जा रहा है..."
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.follow_playback"
+msgstr "प्लेबैक के साथ स्क्रॉल करें"
+
+#. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionList.tsx
 msgid "transcriptions.list.search.placeholder_short"
 msgstr "खोज"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_raycast_body"
+msgstr "पिछले डिक्टेशन खोजें और पेस्ट करें।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx
@@ -3840,6 +5548,11 @@ msgstr "उपलब्ध वाक् मॉडल खोजें..."
 #: src/features/dictionary/components/DictionaryView.tsx
 msgid "dictionary.search_only"
 msgstr "शब्दकोश में खोजें..."
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/SourceStep.tsx
+msgid "onboarding.source.search"
+msgstr "खोज इंजन"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
@@ -3927,6 +5640,11 @@ msgid "settings.about.data.include_timestamps_hint"
 msgstr "सेगमेंट के शुरू और अंत के समय"
 
 #. js-lingui-explicit-id
+#: src/shared/ui/ModelCapabilityIcon.tsx
+msgid "model_capability.timestamps_detail"
+msgstr "लाइब्रेरी में सेगमेंट टाइमिंग और उपशीर्षक निर्यात।"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.select_model"
 msgstr "कोई मॉडल चुनें"
@@ -3972,11 +5690,6 @@ msgid "dropdown.placeholder"
 msgstr "चुनें..."
 
 #. js-lingui-explicit-id
-#: src/features/library/components/library-utils.ts
-msgid "library.import_error.model_not_installed"
-msgstr "चयनित मॉडल इंस्टॉल नहीं है। सेटिंग्स -> Models में जाकर कोई मॉडल डाउनलोड करें।"
-
-#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
 msgid "settings.local_api.allow_browser_requests_help"
 msgstr "CORS हैडर भेजें ताकि वेब ऐप्स API को कॉल कर सकें"
@@ -3985,6 +5698,11 @@ msgstr "CORS हैडर भेजें ताकि वेब ऐप्स AP
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.send_feedback"
 msgstr "प्रतिक्रिया भेजें"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_cleanup_after"
+msgstr "इसे कल भेजें।"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -4001,6 +5719,12 @@ msgstr "सेट अप करें"
 msgid "home.sidebar.settings"
 msgstr "सेटिंग्स"
 
+#~ msgid "settings.general.shortcuts.dictation_key"
+#~ msgstr "डिक्टेशन कुंजी का उपयोग करें"
+
+#~ msgid "settings.general.shortcuts.dictation_key.description"
+#~ msgstr "माइक्रोफ़ोन कुंजी को स्मार्ट डिक्टेशन के लिए निर्धारित करता है"
+
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.setup"
@@ -4014,7 +5738,7 @@ msgstr "शेयर करें"
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ReadyStep.tsx
 msgid "onboarding.done.recap.shortcut.v2"
-msgstr ""
+msgstr "शॉर्टकट"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
@@ -4032,6 +5756,17 @@ msgid "native.menu.show_all"
 msgstr "सब दिखाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+#: src/features/library/components/SpeakerContextMenu.tsx
+msgid "library.detail.speaker_menu.show_all"
+msgstr "सभी वक्ता दिखाएँ"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.error.show"
+msgstr "त्रुटि विवरण दिखाएँ"
+
+#. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.show_less"
 msgstr "कम दिखाएँ"
@@ -4042,6 +5777,11 @@ msgid "transcriptions.item.show_more"
 msgstr "अधिक दिखाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/SpeakerContextMenu.tsx
+msgid "library.detail.speaker_menu.show_only"
+msgstr "केवल यह वक्ता दिखाएँ"
+
+#. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
 msgid "personalization.modal.snippets.info"
 msgstr "पर्सनलाइज़ेशन स्निपेट के उदाहरण दिखाएँ"
@@ -4050,6 +5790,21 @@ msgstr "पर्सनलाइज़ेशन स्निपेट के उ
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.shortcuts.show_shortcuts"
 msgstr "शॉर्टकट दिखाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.speaker_menu.show"
+msgstr "वक्ता दिखाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.timestamps"
+msgstr "टाइमस्टैम्प दिखाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.detail.show_timestamps"
+msgstr "टाइमस्टैम्प दिखाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
@@ -4072,24 +5827,29 @@ msgid "library.retranscribe.show_timestamps.aria"
 msgstr "समय-मोहरे दिखाएँ"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.expand"
+msgstr "ट्रांसक्रिप्ट दिखाएँ"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.detection.description"
+msgstr "समर्थित मीटिंग शुरू होने पर रिकॉर्डिंग का सुझाव दिखाता है।"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.later"
 msgstr "छोड़ें"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/PermissionsStep.tsx
-msgid "onboarding.permissions.skip"
+#: src/features/onboarding/steps/SourceStep.tsx
+msgid "onboarding.source.skip"
 msgstr "छोड़ें"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.skip_short_aria"
 msgstr "एक सेकंड से छोटे क्लिप्स छोड़ें"
-
-#. js-lingui-explicit-id
-#: src/features/onboarding/steps/ModelStep.tsx
-msgid "onboarding.model.confirm.continue"
-msgstr "अभी के लिए छोड़ें"
 
 #. js-lingui-explicit-id
 #: src/features/import/components/ImportStep.tsx
@@ -4107,6 +5867,11 @@ msgid "settings.app.text_size.small"
 msgstr "छोटा"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.tier.small"
+msgstr "छोटा"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.shortcuts.smart"
 msgstr "स्मार्ट"
@@ -4115,6 +5880,11 @@ msgstr "स्मार्ट"
 #: src/features/asks/components/AskPrompt.tsx
 msgid "home.survey.title"
 msgstr "आप Glimpse का उपयोग कैसे करते हैं, इस बारे में कुछ प्रश्न?"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/SourceStep.tsx
+msgid "onboarding.source.other"
+msgstr "कहीं और"
 
 #. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionList.tsx
@@ -4127,14 +5897,34 @@ msgid "transcriptions.list.filter.aria"
 msgstr "लिखित रूपों को क्रमबद्ध करें और फ़िल्टर करें"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.detail.speaker_default_name"
-msgstr "व्यक्ति {nextIndex}"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_speakers_one"
+msgstr "वक्ता 1"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_speakers_two"
+msgstr "वक्ता 2"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.supports.speakers"
+msgstr "वक्ता पहचान"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.speaker_model_upgraded"
+msgstr "वक्ता पहचान अब एक नए मॉडल का उपयोग करती है, जो लोगों के बीच अधिक सटीक रूप से अंतर करता है।"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.diarizer.description"
+msgstr "लाइब्रेरी ट्रांसक्रिप्ट के लिए वक्ता विभाजन।"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speakers"
-msgstr "व्यक्ति"
+msgstr "स्पीकर"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ProvidersTab.tsx
@@ -4144,12 +5934,22 @@ msgstr "स्पीच"
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ReadyStep.tsx
 msgid "onboarding.done.recap.model.v2"
-msgstr ""
+msgstr "वाक् मॉडल"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/SpeechModelPanel.tsx
+msgid "settings.speech_model.title_provider"
+msgstr "वाक् प्रदाता"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_offline_body"
+msgstr "वाक् इस कंप्यूटर पर ही रहती है।"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.standard"
-msgstr "ट्रांसक्रिप्शन मॉडल"
+msgstr "मानक"
 
 #. js-lingui-explicit-id
 #: src/features/asks/components/AskPrompt.tsx
@@ -4187,14 +5987,34 @@ msgid "settings.local_api.start_on_launch"
 msgstr "लॉन्च पर शुरू करें"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.menu.recording_start"
+msgstr "रिकॉर्डिंग शुरू करें"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.start"
+msgstr "रिकॉर्डिंग शुरू करें"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/OnboardingScreen.tsx
 msgid "onboarding.download.starting"
+msgstr "शुरू हो रहा है..."
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.starting"
 msgstr "शुरू हो रहा है..."
 
 #. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.title"
 msgstr "आँकड़े"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.filter.status"
+msgstr "स्थिति"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
@@ -4205,6 +6025,22 @@ msgstr "रोकें"
 #: src/features/settings/components/tabs/LocalApiTab.tsx
 msgid "settings.local_api.stop"
 msgstr "API रोकें"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.ended_stop"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.stop"
+msgstr "रिकॉर्डिंग रोकें"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+#: src/features/library/components/LibraryView.tsx
+msgid "library.meeting.stop"
+msgstr "रिकॉर्डिंग रोकें"
 
 #. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionItem.tsx
@@ -4257,9 +6093,9 @@ msgid "home.support.menu_aria"
 msgstr "सहायता मेनू"
 
 #. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.section.replacements_description"
-msgstr "ट्रांसक्रिप्शन के बाद सामान्य वाक्यांशों को अपने‑आप बदलें।"
+#: src/features/onboarding/steps/ModelStep.tsx
+msgid "onboarding.model.supports"
+msgstr "समर्थन करता है"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/modelStats.ts
@@ -4277,9 +6113,35 @@ msgid "settings.app.language.system"
 msgstr "सिस्टम"
 
 #. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.system.default"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.system_audio"
+msgstr "सिस्टम ऑडियो"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryCard.tsx
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.sources.system_audio"
+msgstr "सिस्टम ऑडियो"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.auto_pause_media.body_off"
 msgstr "रिकॉर्ड करते समय सिस्टम ऑडियो चलता है।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.tracks.system_audio"
+msgstr "सिस्टम ऑडियो ट्रैक"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/ActiveMeetingCard.tsx
+msgid "meeting.active.system.scope"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ReadyStep.tsx
@@ -4295,6 +6157,16 @@ msgstr "सिस्टम डिफ़ॉल्ट"
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.system_default"
 msgstr "सिस्टम डिफ़ॉल्ट"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.microphone.default"
+msgstr "सिस्टम डिफ़ॉल्ट"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.setup.microphone.default_named"
+msgstr "सिस्टम डिफ़ॉल्ट ({fallback})"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -4327,9 +6199,14 @@ msgid "settings.general.microphone_test.test"
 msgstr "परीक्षण"
 
 #. js-lingui-explicit-id
-#: src/features/import/components/ImportStep.tsx
-msgid "import.cat.replacements"
-msgstr "पाठ प्रतिस्थापन"
+#: src/shared/ui/ModelCapabilityIcon.tsx
+msgid "model_capability.live_text_detail"
+msgstr "आप बोलते समय टेक्स्ट पिल में दिखाई देता है।"
+
+#. js-lingui-explicit-id
+#: src/features/recording/components/LiveView.tsx
+msgid "live.prefs.text_size"
+msgstr "टेक्स्ट का आकार"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -4343,13 +6220,18 @@ msgstr "टाइप करने से"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/MemberCard.tsx
-msgid "member_card.edition_blurb_contributor"
-msgstr "योगदान देने के लिए धन्यवाद। अधिकतम 5 डिवाइस।"
+msgid "member_card.edition_blurb_contributor_short"
+msgstr "योगदान देने के लिए धन्यवाद।"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/ReadyStep.tsx
-msgid "onboarding.done.license_active_title.v2"
-msgstr "Glimpse को समर्थन देने के लिए धन्यवाद"
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.line_active"
+msgstr "Glimpse का समर्थन करने के लिए धन्यवाद!"
+
+#. js-lingui-explicit-id
+#: src/features/toast/ToastOverlay.tsx
+msgid "toast.action_failed"
+msgstr "यह काम नहीं किया। फिर से कोशिश करें।"
 
 #. js-lingui-explicit-id
 #: src/features/personalization/components/PersonalityModal.tsx
@@ -4358,12 +6240,17 @@ msgstr "यह डोमेन पहले से जोड़ा जा चु
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/AccountView.tsx
-msgid "settings.account.activate.discount_code_error"
-msgstr "यह किसी डिस्काउंट कोड जैसा लग रहा है। इसे चेकआउट पर दर्ज करें, फिर अपनी रसीद से लाइसेंस कुंजी पेस्ट करें।"
+msgid "settings.account.activate.masked_key_error_generic"
+msgstr "यह संक्षिप्त कुंजी है। अपनी रसीद वाले ईमेल से पूरी कुंजी कॉपी करें।"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
-msgid "onboarding.license.discount_code_error"
+#: src/features/settings/components/AccountView.tsx
+msgid "settings.account.activate.order_id_error_generic"
+msgstr "यह आपका ऑर्डर नंबर है। उसी ईमेल से लाइसेंस कुंजी पेस्ट करें।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AccountView.tsx
+msgid "settings.account.activate.discount_code_error"
 msgstr "यह किसी डिस्काउंट कोड जैसा लग रहा है। इसे चेकआउट पर दर्ज करें, फिर अपनी रसीद से लाइसेंस कुंजी पेस्ट करें।"
 
 #. js-lingui-explicit-id
@@ -4382,9 +6269,24 @@ msgid "onboarding.first_dictation.complete.v2"
 msgstr "बस इतना ही, यही पूरी प्रक्रिया है।"
 
 #. js-lingui-explicit-id
+#: src/features/settings/useSettingsForm.ts
+msgid "settings.error.api_server_restart"
+msgstr "API सर्वर बंद नहीं हुआ, इसलिए उसे पुनः प्रारंभ नहीं किया जा सका।"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx
 msgid "settings.language_model.apple.not_ready"
 msgstr "Apple Intelligence मॉडल अभी डाउनलोड हो रहा है।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.ended_message"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.card.title.error.not_found"
+msgstr "कॉन्फ़िगर किया गया लेखन मॉडल नहीं मिला। इसे सेटिंग्स में जाँचें।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -4397,9 +6299,59 @@ msgid "settings.about.cli.installed_info"
 msgstr "glimpse कमांड {cliInstallPath} पर इंस्टॉल है। Glimpse का ऐप UI खोले बिना इसे कॉल करने के लिए इसे टर्मिनल, स्क्रिप्ट या स्वचालन टूल से उपयोग करें।"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.recovered_message_one"
+msgstr "बाधित रिकॉर्डिंग लाइब्रेरी में सेव कर दी गई है और उसका ट्रांसक्रिप्शन किया जाएगा।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_mic_lost"
+msgstr "माइक्रोफ़ोन ने प्रतिसाद देना बंद कर दिया और कोई अन्य माइक्रोफ़ोन नहीं मिला। कनेक्ट होते ही Glimpse उस पर स्विच कर देगा।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_mic_switched"
+msgstr "माइक्रोफ़ोन ने प्रतिसाद देना बंद कर दिया। रिकॉर्डिंग {name} के साथ जारी है।"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/FirstDictationGuide.tsx
 msgid "onboarding.first_dictation.next.anywhere"
 msgstr "जहाँ भी आप टाइप कर सकते हैं, किसी भी ऐप में यही शॉर्टकट काम करता है।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/library-utils.ts
+msgid "library.import_error.model_missing"
+msgstr "चयनित मॉडल इंस्टॉल नहीं है। Settings > Models में एक डाउनलोड करें।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDeleteDialog.tsx
+msgid "library.delete_confirm.recycle_bin"
+msgstr "ट्रांसक्रिप्ट हटा दिया जाता है और ऑडियो Recycle Bin में चला जाता है।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDeleteDialog.tsx
+msgid "library.delete_confirm.trash"
+msgstr "ट्रांसक्रिप्ट हटा दिया जाता है और ऑडियो Trash में चला जाता है।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.card.title.error.invalid_response"
+msgstr "लेखन मॉडल ने जवाब दिया, लेकिन इस आइटम को व्यवस्थित नहीं कर सका। फिर कोशिश करें।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.card.title.error.rate_limited"
+msgstr "लेखन प्रदाता की उपयोग सीमा पूरी हो गई है। बाद में फिर कोशिश करें।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.card.title.error.unauthorized"
+msgstr "लेखन प्रदाता ने API कुंजी अस्वीकार कर दी। इसे सेटिंग्स में जाँचें।"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryView.tsx
+msgid "library.card.title.error.rejected"
+msgstr "लेखन प्रदाता ने शीर्षक अनुरोध अस्वीकार कर दिया।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -4433,9 +6385,9 @@ msgid "settings.app.auto_delete.confirm.audio_only"
 msgstr "यह केवल सहेजी गई ऑडियो फ़ाइलें हटाता है, आपके ट्रांसक्रिप्ट नहीं।"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.modal.delete_confirm.description"
-msgstr "यह आपके संग्रह से ट्रांसक्रिप्ट और ऑडियो हटा देगा।"
+#: src/features/transcriptions/components/TranscriptionList.tsx
+msgid "transcriptions.group.delete_confirm.description"
+msgstr "इससे इस दिन की सभी ट्रांसक्रिप्शन और उनका ऑडियो स्थायी रूप से हट जाएगा।"
 
 #. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
@@ -4448,19 +6400,29 @@ msgid "settings.stats.saved"
 msgstr "बचा हुआ समय"
 
 #. js-lingui-explicit-id
+#: src/shared/ui/ModelCapabilityIcon.tsx
+msgid "model_capability.timestamps"
+msgstr "टाइमस्टैम्प"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.include_timestamps"
 msgstr "टाइमस्टैम्प"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ModelStep.tsx
-msgid "onboarding.model.capability.timestamps"
-msgstr "टाइमस्टैम्प"
+msgid "onboarding.model.supports.timestamps"
+msgstr "समय-मुद्राएँ"
 
 #. js-lingui-explicit-id
-#: src/features/library/components/LibraryDetail.tsx
-msgid "library.modal.timestamps"
-msgstr "टाइमस्टैम्प"
+#: src/features/settings/components/tabs/ProvidersTab.tsx
+msgid "settings.providers.guide.language.body"
+msgstr "इस मॉडल के साथ वाक्-लेखन साफ़ करने के लिए, \"सामान्य\" में किसी शॉर्टकट पर ब्रश टैप करें।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ProvidersTab.tsx
+msgid "settings.providers.guide.speech.body"
+msgstr "इस प्रदाता के साथ प्रतिलिपि बनाने के लिए, इसे \"मॉडल\" में चालू करें।"
 
 #. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionList.tsx
@@ -4498,6 +6460,11 @@ msgid "settings.app.auto_update.toggle_aria"
 msgstr "ऑटो‑अपडेट टॉगल करें"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.detection.toggle_aria"
+msgstr "स्वचालित मीटिंग पहचान चालू या बंद करें"
+
+#. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.fullscreen"
 msgstr "फुल स्क्रीन टॉगल करें"
@@ -4506,6 +6473,11 @@ msgstr "फुल स्क्रीन टॉगल करें"
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.auto_launch.toggle_aria"
 msgstr "लॉग‑इन पर लॉन्च टॉगल करें"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/MeetingsTab.tsx
+msgid "settings.meetings.apps.toggle_aria"
+msgstr "इस ऐप्लिकेशन के लिए मीटिंग पहचान चालू या बंद करें"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/Dropdown.tsx
@@ -4528,14 +6500,26 @@ msgid "settings.about.storage.total"
 msgstr "कुल"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/FirstDictationGuide.tsx
-msgid "onboarding.first_dictation.transcribing"
-msgstr ""
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_files"
+msgstr "फ़ाइलों का लिप्यंतरण करें"
 
 #. js-lingui-explicit-id
+#. placeholder {0}: (progress * 100).toFixed(0)
+#: src/features/library/components/LibraryCard.tsx
+msgid "library.card.status.transcribing"
+msgstr "ट्रांसक्राइब किया जा रहा है {0}%"
+
+#. js-lingui-explicit-id
+#. placeholder {0}: (clampProgress(item.status.progress) * 100).toFixed(0)
 #: src/features/library/components/LibraryDetail.tsx
-msgid "library.modal.transcribing"
-msgstr "ट्रांसक्राइब हो रहा है..."
+msgid "library.modal.transcribing_progress"
+msgstr "ट्रांसक्राइब किया जा रहा है {0}%"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/FirstDictationGuide.tsx
+msgid "onboarding.first_dictation.transcribing"
+msgstr "ट्रांसक्राइब कर रहा है..."
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -4561,6 +6545,11 @@ msgstr "ट्रांसक्रिप्शन रद्द किया ग
 #: src/features/transcriptions/components/TranscriptionItem.tsx
 msgid "transcriptions.item.error.default"
 msgstr "ट्रांसक्रिप्शन विफल"
+
+#. js-lingui-explicit-id
+#: src/features/library/components/LibraryDetail.tsx
+msgid "library.modal.transcription_failed"
+msgstr "ट्रांसक्रिप्शन विफल हुआ"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
@@ -4607,14 +6596,29 @@ msgid "settings.language_model.apple.not_enabled"
 msgstr "इसे उपयोग करने के लिए सिस्टम सेटिंग्स में Apple Intelligence चालू करें।"
 
 #. js-lingui-explicit-id
+#: src/features/recording/components/RecordingView.tsx
+msgid "record.error.no_sources"
+msgstr "कम-से-कम एक स्रोत चालू करें।"
+
+#. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.post.7"
 msgstr "लगता है, मैं सोचता टाइप करने से तेज़ हूँ। {wpm} शब्द प्रति मिनट। @try_glimpse_app"
 
 #. js-lingui-explicit-id
+#: src/features/dictionary/components/DictionaryView.tsx
+msgid "dictionary.empty_hint"
+msgstr "ऊपर कोई शब्द लिखें और उसे जोड़ने के लिए Enter दबाएँ।"
+
+#. js-lingui-explicit-id
 #: src/features/onboarding/steps/PermissionsStep.tsx
 msgid "onboarding.accessibility.subtitle"
 msgstr "किसी भी ऐप में अपने‑आप पेस्ट सक्षम करता है।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_cleanup_before"
+msgstr "उम्, तो हाँ, इसे कल भेज देना"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -4635,16 +6639,6 @@ msgstr "अनइंस्टॉल करें"
 #: src/features/license/components/MemberCard.tsx
 msgid "member_card.draft_stamp_empty"
 msgstr "जारी नहीं किया गया"
-
-#. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
-msgid "onboarding.license.free_body"
-msgstr "AI क्लीनअप, वॉइस एडिटिंग, प्रति‑ऐप पर्सनैलिटी, ऑडियो और वीडियो ट्रांसक्रिप्शन आदि अनलॉक करें।"
-
-#. js-lingui-explicit-id
-#: src/features/onboarding/steps/ReadyStep.tsx
-msgid "onboarding.done.license_adds.v2"
-msgstr "Cleanup, Personalities, File Transcription और अन्य सुविधाएँ अनलॉक करें।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/useSettingsForm.ts
@@ -4670,6 +6664,16 @@ msgstr "फ़ाइल फ़ॉर्मेट समर्थित नही
 #: src/features/settings/components/tabs/GeneralTab.tsx
 msgid "settings.general.language_info.active_model"
 msgstr "असमर्थित भाषाएँ आपके सक्रिय मॉडल पर उपलब्ध नहीं हैं। उन्हें उपयोग करने के लिए किसी समर्थित मॉडल पर जाएँ।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/shortcuts.ts
+msgid "shortcuts.key.up"
+msgstr "ऊपर"
+
+#. js-lingui-explicit-id
+#: src/shared/ui/ModelPickerModal.tsx
+msgid "model_picker.diarizer.speakers"
+msgstr "अधिकतम 8 वक्ता"
 
 #. js-lingui-explicit-id
 #: src/features/updates/components/UpdateChecker.tsx
@@ -4717,6 +6721,16 @@ msgid "settings.models.installed.use"
 msgstr "उपयोग करें"
 
 #. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ModelsTab.tsx
+msgid "settings.models.cloud.toggle"
+msgstr "क्लाउड ट्रांसक्रिप्शन का उपयोग करें"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/GeneralTab.tsx
+msgid "settings.general.shortcuts.dictation_key"
+msgstr ""
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.cli.default_subtitle"
 msgstr "Terminal या स्क्रिप्ट से Glimpse का उपयोग करें"
@@ -4730,11 +6744,6 @@ msgstr "लाइव संदर्भ भाषा मॉडल तक भे�
 #: src/features/settings/components/tabs/AboutTab.tsx
 msgid "settings.about.data.verbatim_text_aria"
 msgstr "साफ़-सफ़ाई से पहले मूल ट्रांस्क्रिप्ट्स का उपयोग करें"
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/LanguageModelPanel.tsx
-msgid "settings.language_model.subtitle"
-msgstr "उन शॉर्टकट्स द्वारा उपयोग किया जाता है जिनमें writing मॉडल चालू है, और Personalization द्वारा भी।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/GeneralTab.tsx
@@ -4788,11 +6797,6 @@ msgid "import.title"
 msgstr "क्या आप अपनी सेटिंग्स आयात करना चाहते हैं?"
 
 #. js-lingui-explicit-id
-#: src/features/dictionary/components/DictionaryView.tsx
-msgid "dictionary.warning_aria"
-msgstr "चेतावनी: मॉडल अनुकूलता समस्या"
-
-#. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
 msgid "settings.app.auto_delete.confirm.unknown_count"
 msgstr "हम अभी इनकी गिनती नहीं कर सके, लेकिन जैसे ही आप यह बदलाव सहेजेंगे, स्वतः‑हटाना फिर भी चल जाएगा।"
@@ -4813,11 +6817,6 @@ msgid "personalization.modal.websites"
 msgstr "वेबसाइटें"
 
 #. js-lingui-explicit-id
-#: src/features/personalization/components/PersonalizationView.tsx
-msgid "personalization.websites"
-msgstr "वेबसाइटें"
-
-#. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.tooltip.week_of"
 msgstr "{date} का सप्ताह"
@@ -4834,8 +6833,8 @@ msgstr "पिछले वर्ष की साप्ताहिक डि�
 
 #. js-lingui-explicit-id
 #: src/shared/ui/FAQModal.tsx
-msgid "faq.free.question"
-msgstr "Glimpse मुफ़्त कैसे है?"
+msgid "faq.free.question.v2"
+msgstr "क्या निःशुल्क है और क्या सशुल्क?"
 
 #. js-lingui-explicit-id
 #: src/shared/ui/FAQModal.tsx
@@ -4868,21 +6867,6 @@ msgid "faq.privacy.question"
 msgstr "क्या मेरा डेटा निजी है?"
 
 #. js-lingui-explicit-id
-#: src/features/onboarding/steps/LicenseModal.tsx
-msgid "onboarding.license.why_paid"
-msgstr "भुगतान वाली चीज़ें क्यों हैं?"
-
-#. js-lingui-explicit-id
-#: src/shared/ui/ModelPickerModal.tsx
-msgid "model_picker.capability.timestamps"
-msgstr "शब्द‑स्तरीय टाइमस्टैम्प"
-
-#. js-lingui-explicit-id
-#: src/features/settings/components/tabs/ModelsTab.tsx
-msgid "settings.models.capability.timestamps"
-msgstr "शब्द‑स्तर टाइमस्टैम्प"
-
-#. js-lingui-explicit-id
 #: src/features/license/components/DictationStatsPanel.tsx
 msgid "settings.stats.card.words"
 msgstr "शब्द"
@@ -4903,6 +6887,16 @@ msgid "member_card.label_words_spoken"
 msgstr "बोले गए शब्द"
 
 #. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_offline"
+msgstr "ऑफ़लाइन काम करता है"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/tabs/ProvidersTab.tsx
+msgid "settings.providers.writing_label"
+msgstr "लिखना"
+
+#. js-lingui-explicit-id
 #: src/features/settings/components/LanguageModelPanel.tsx
 msgid "settings.language_model.title"
 msgstr "भाषा मॉडल प्रदाता"
@@ -4911,6 +6905,16 @@ msgstr "भाषा मॉडल प्रदाता"
 #: src/features/transcriptions/components/TranscriptionList.tsx
 msgid "transcriptions.group.yesterday"
 msgstr "कल"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.meeting.speaker_you"
+msgstr "आप"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/steps/LicenseStep.tsx
+msgid "onboarding.license_step.tile_recording_you"
+msgstr "आप"
 
 #. js-lingui-explicit-id
 #: src/features/onboarding/steps/ReadyStep.tsx
@@ -4933,9 +6937,44 @@ msgid "faq.privacy.answer"
 msgstr "हाँ। लोकल मोड में आपका सारा ऑडियो और ट्रांसक्रिप्शन आपके डिवाइस पर ही रहता है। हम आपकी रिकॉर्डिंग न तो इकट्ठा करते हैं न भेजते हैं। क्लाउड सिंक वैकल्पिक है।"
 
 #. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_low_disk"
+msgstr "आपकी डिस्क लगभग भर चुकी है। जगह समाप्त होने पर Glimpse रिकॉर्डिंग बंद कर देगा।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.dictation_disk_full"
+msgstr "आपकी डिस्क भर चुकी है, इसलिए Glimpse इस डिक्टेशन को सहेज नहीं सका।"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.recording_disk_full"
+msgstr "आपकी डिस्क भर चुकी है, इसलिए Glimpse ने रिकॉर्डिंग बंद कर दी। अब तक की रिकॉर्डिंग सहेज ली गई है।"
+
+#. js-lingui-explicit-id
+#: src/features/settings/components/AccountView.tsx
+msgid "settings.account.activate.checkout_return_hint_generic"
+msgstr "आपकी लाइसेंस कुंजी आपके रसीद वाले ईमेल में है। उसे यहाँ पेस्ट करें या पूरा ईमेल पेस्ट करें।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/FirstDictationGuide.tsx
+msgid "onboarding.first_dictation.waiting.model_failed"
+msgstr "आपका मॉडल डाउनलोड नहीं हुआ। नीचे पुनः प्रयास करें।"
+
+#. js-lingui-explicit-id
+#: src/features/onboarding/FirstDictationGuide.tsx
+msgid "onboarding.first_dictation.waiting.model"
+msgstr "आपका मॉडल अभी भी डाउनलोड हो रहा है। कृपया प्रतीक्षा करें।"
+
+#. js-lingui-explicit-id
 #: src/features/transcriptions/components/TranscriptionList.tsx
 msgid "transcriptions.list.empty"
 msgstr "आपके हाल के ट्रांसक्रिप्शन यहाँ दिखेंगे"
+
+#. js-lingui-explicit-id
+#: src/shared/lib/nativeMenuStrings.ts
+msgid "native.toast.model_downloading"
+msgstr "आपका वाक् मॉडल अभी भी डाउनलोड हो रहा है। {percent}% पूर्ण।"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ModelsTab.tsx
@@ -4961,320 +7000,3 @@ msgstr "आपके शब्द यहाँ दिखाई देंगे�
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.zoom"
 msgstr "ज़ूम"
-
-#. js-lingui-explicit-id
-msgid "library.card.origin.meeting"
-msgstr "मीटिंग"
-
-#. js-lingui-explicit-id
-msgid "library.card.origin.recording"
-msgstr "रिकॉर्डिंग"
-
-#. js-lingui-explicit-id
-msgid "library.card.origin.recovered_meeting"
-msgstr "रिकवर की गई मीटिंग"
-
-#. js-lingui-explicit-id
-msgid "library.card.status.cancelling"
-msgstr "रद्द किया जा रहा है"
-
-#. js-lingui-explicit-id
-msgid "library.card.status.cancelled"
-msgstr "रद्द किया गया"
-
-#. js-lingui-explicit-id
-msgid "library.filter.files"
-msgstr "फ़ाइलें"
-
-#. js-lingui-explicit-id
-msgid "library.filter.meetings"
-msgstr "मीटिंग्स"
-
-#. js-lingui-explicit-id
-msgid "library.filter.origin_aria_label"
-msgstr "स्रोत के अनुसार लाइब्रेरी फ़िल्टर करें"
-
-#. js-lingui-explicit-id
-msgid "library.meeting.model_required"
-msgstr "पहले कोई स्पीच मॉडल इंस्टॉल या कॉन्फ़िगर करें।"
-
-#. js-lingui-explicit-id
-msgid "library.meeting.start"
-msgstr "मीटिंग रिकॉर्ड करें"
-
-#. js-lingui-explicit-id
-msgid "library.meeting.stop"
-msgstr "रिकॉर्डिंग रोकें"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.name"
-msgstr "मीटिंग {date}"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.recovered_name"
-msgstr "रिकवर की गई: {name}"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.recovered_title"
-msgstr "मीटिंग रिकवर की गई"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.recovered_message_one"
-msgstr "बाधित रिकॉर्डिंग लाइब्रेरी में सेव कर दी गई है और उसका ट्रांसक्रिप्शन किया जाएगा।"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.recovered_message_many"
-msgstr "{count} बाधित रिकॉर्डिंग लाइब्रेरी में सेव कर दी गई हैं और उनका ट्रांसक्रिप्शन किया जाएगा।"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.speaker_you"
-msgstr "आप"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.speaker_remote"
-msgstr "मीटिंग"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.detected_title"
-msgstr "मीटिंग का पता चला"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.detected_message"
-msgstr "ऐसा लगता है कि {app} में कॉल चल रही है। क्या आप इसे रिकॉर्ड करना चाहते हैं?"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.detected_record"
-msgstr "रिकॉर्ड करें"
-
-#. js-lingui-explicit-id
-msgid "native.meeting.detected_not_now"
-msgstr "अभी नहीं"
-
-#. js-lingui-explicit-id
-msgid "library.meeting.error"
-msgstr "मीटिंग रिकॉर्ड नहीं हो सकी। अनुमतियाँ जाँचें और फिर से कोशिश करें।"
-
-#. js-lingui-explicit-id
-msgid "home.sidebar.meetings"
-msgstr "मीटिंग्स"
-
-#. js-lingui-explicit-id
-msgid "meeting.detail.back"
-msgstr "मीटिंग्स पर वापस जाएँ"
-
-#. js-lingui-explicit-id
-msgid "meeting.view.title"
-msgstr "मीटिंग्स"
-
-#. js-lingui-explicit-id
-msgid "meeting.view.description"
-msgstr "ऑनलाइन मीटिंग रिकॉर्ड और ट्रांसक्राइब करें।"
-
-#. js-lingui-explicit-id
-msgid "meeting.view.search_placeholder"
-msgstr "मीटिंग्स खोजें..."
-
-#. js-lingui-explicit-id
-msgid "meeting.view.empty_state"
-msgstr "अपनी पहली मीटिंग रिकॉर्ड करें।"
-
-#. js-lingui-explicit-id
-msgid "library.card.recovered"
-msgstr "पुनर्प्राप्त"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.generate"
-msgstr "शीर्षक और टैग बनाएँ"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.generating"
-msgstr "व्यवस्थित किया जा रहा है..."
-
-#. js-lingui-explicit-id
-msgid "library.card.title.error"
-msgstr "शीर्षक और टैग नहीं बनाए जा सके। फिर कोशिश करें।"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.error.not_configured"
-msgstr "शीर्षक बनाने से पहले कोई लेखन मॉडल कॉन्फ़िगर करें।"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.error.rate_limited"
-msgstr "लेखन प्रदाता की उपयोग सीमा पूरी हो गई है। बाद में फिर कोशिश करें।"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.error.unauthorized"
-msgstr "लेखन प्रदाता ने API कुंजी अस्वीकार कर दी। इसे सेटिंग्स में जाँचें।"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.error.not_found"
-msgstr "कॉन्फ़िगर किया गया लेखन मॉडल नहीं मिला। इसे सेटिंग्स में जाँचें।"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.error.rejected"
-msgstr "लेखन प्रदाता ने शीर्षक अनुरोध अस्वीकार कर दिया।"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.error.unreachable"
-msgstr "लेखन प्रदाता से संपर्क नहीं हो सका। अपना कनेक्शन जाँचें और फिर कोशिश करें।"
-
-#. js-lingui-explicit-id
-msgid "library.card.title.error.invalid_response"
-msgstr "लेखन मॉडल ने जवाब दिया, लेकिन इस आइटम को व्यवस्थित नहीं कर सका। फिर कोशिश करें।"
-
-#. js-lingui-explicit-id
-msgid "native.library.person_default"
-msgstr "व्यक्ति {nextIndex}"
-#. js-lingui-explicit-id
-msgid "settings.models.diarization.aria"
-msgstr "स्थानीय व्यक्ति पहचान मॉडल"
-
-#. js-lingui-explicit-id
-msgid "settings.models.diarization.title"
-msgstr "स्थानीय व्यक्ति पहचान"
-
-#. js-lingui-explicit-id
-msgid "settings.models.diarization.description"
-msgstr "ऑडियो अपलोड किए बिना आवाज़ों को अलग करता है"
-
-#. js-lingui-explicit-id
-msgid "settings.models.diarization.local_private"
-msgstr "स्थानीय"
-
-#. js-lingui-explicit-id
-msgid "settings.models.diarization.delete"
-msgstr "स्थानीय व्यक्ति पहचान हटाएँ"
-
-#. js-lingui-explicit-id
-msgid "settings.models.diarization.download"
-msgstr "स्थानीय व्यक्ति पहचान डाउनलोड करें"
-
-#. js-lingui-explicit-id
-msgid "settings.models.local_intelligence"
-msgstr "ऐड-ऑन"
-
-#. js-lingui-explicit-id
-msgid "settings.models.diarization.addon"
-msgstr "ऐड-ऑन"
-
-#. js-lingui-explicit-id
-msgid "transcriptions.group.delete_day_aria"
-msgstr "इस दिन की सभी ट्रांसक्रिप्शन हटाएँ"
-
-#. js-lingui-explicit-id
-msgid "transcriptions.group.delete_confirm.title"
-msgstr "इस दिन की ट्रांसक्रिप्शन हटाएँ?"
-
-#. js-lingui-explicit-id
-msgid "transcriptions.group.delete_confirm.description"
-msgstr "इससे इस दिन की सभी ट्रांसक्रिप्शन और उनका ऑडियो स्थायी रूप से हट जाएगा।"
-
-#. js-lingui-explicit-id
-msgid "transcriptions.group.delete_confirm.error"
-msgstr "ट्रांसक्रिप्शन नहीं हटाई जा सकीं। फिर से कोशिश करें।"
-
-#. js-lingui-explicit-id
-msgid "transcriptions.group.delete_confirm.deleting"
-msgstr "हटाया जा रहा है..."
-
-#. js-lingui-explicit-id
-msgid "transcriptions.group.delete_confirm.action"
-msgstr "सभी हटाएँ"
-
-#. js-lingui-explicit-id
-msgid "settings.modal.tab.meetings"
-msgstr "मीटिंग"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.detection.section"
-msgstr "स्वचालित पहचान"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.detection.title"
-msgstr "ऑनलाइन मीटिंग पहचानें"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.detection.description"
-msgstr "समर्थित मीटिंग शुरू होने पर रिकॉर्डिंग का सुझाव दिखाता है।"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.detection.toggle_aria"
-msgstr "स्वचालित मीटिंग पहचान चालू या बंद करें"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.apps.section"
-msgstr "ऐप्लिकेशन"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.apps.loading"
-msgstr "इंस्टॉल किए गए मीटिंग ऐप खोजे जा रहे हैं"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.apps.empty"
-msgstr "कोई संगत मीटिंग ऐप्लिकेशन नहीं मिला।"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.apps.installed"
-msgstr "इस Mac पर इंस्टॉल है"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.apps.toggle_aria"
-msgstr "इस ऐप्लिकेशन के लिए मीटिंग पहचान चालू या बंद करें"
-
-#. js-lingui-explicit-id
-msgid "settings.meetings.apps.description"
-msgstr "केवल चुने गए ऐप्लिकेशन की निगरानी की जाती है। ब्राउज़र पहचान के लिए Accessibility चाहिए और केवल सक्रिय टैब जाँचा जाता है; Glimpse मीटिंग की सामग्री नहीं पढ़ता।"
-
-msgid "meeting.active.microphone.default"
-msgstr "डिफ़ॉल्ट माइक्रोफ़ोन"
-
-msgid "meeting.active.system.default"
-msgstr "सिस्टम ऑडियो"
-
-msgid "meeting.active.microphone.waveform"
-msgstr "लाइव माइक्रोफ़ोन स्तर"
-
-msgid "meeting.active.system.waveform"
-msgstr "लाइव मीटिंग ऑडियो स्तर"
-
-msgid "meeting.active.title"
-msgstr "रिकॉर्डिंग जारी है"
-
-msgid "meeting.active.subtitle"
-msgstr "दोनों ऑडियो स्रोत अलग-अलग सहेजे जा रहे हैं"
-
-msgid "meeting.active.microphone"
-msgstr "माइक्रोफ़ोन"
-
-msgid "meeting.active.system"
-msgstr "मीटिंग ऑडियो"
-
-msgid "meeting.active.system.scope"
-msgstr "सिस्टम कैप्चर"
-
-msgid "meeting.active.local"
-msgstr "स्थानीय रूप से सहेजा गया · रिकॉर्डिंग रुकने पर ट्रांसक्रिप्शन शुरू होता है"
-
-msgid "meeting.active.microphone.no_signal"
-msgstr "माइक्रोफ़ोन सिग्नल नहीं मिला"
-
-msgid "meeting.active.system.scope.application"
-msgstr "केवल ऐप"
-
-msgid "native.meeting.ended_title"
-msgstr "क्या मीटिंग समाप्त हो गई है?"
-
-msgid "native.meeting.ended_message"
-msgstr "{app} में कॉल अब सक्रिय नहीं है। क्या आप रिकॉर्डिंग रोकना चाहते हैं?"
-
-msgid "native.meeting.ended_stop"
-msgstr "रिकॉर्डिंग रोकें"
-
-msgid "native.meeting.ended_continue"
-msgstr "रिकॉर्डिंग जारी रखें"
-
-msgid "settings.general.shortcuts.dictation_key"
-msgstr "डिक्टेशन कुंजी का उपयोग करें"
-
-msgid "settings.general.shortcuts.dictation_key.description"
-msgstr "माइक्रोफ़ोन कुंजी को स्मार्ट डिक्टेशन के लिए निर्धारित करता है"

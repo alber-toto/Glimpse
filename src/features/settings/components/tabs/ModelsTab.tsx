@@ -5,25 +5,26 @@ import {
   CaretLeft as ChevronLeft,
   CaretRight as ChevronRight,
   Check,
-  Clock,
-  Cloud,
   Trash as Trash2,
-  Waveform,
 } from "@phosphor-icons/react";
-import ModelStatCard from "../ModelStatCard";
 import DiarizationModelCard from "../DiarizationModelCard";
+import ModelStatCard from "../ModelStatCard";
+import ModelCapabilityIcon from "../../../../shared/ui/ModelCapabilityIcon";
 import CloudModelCard from "../CloudModelCard";
 import SectionLabel from "../../../../shared/ui/SectionLabel";
+import ToggleSwitch from "../../../../shared/ui/ToggleSwitch";
 import { ModelPickerPanel } from "../../../../shared/ui/ModelPickerModal";
 import {
   deriveModelStats,
   formatModelSize,
   isBuiltInModel,
   formatQuantLabel,
+  modelSizeMb,
   sortInstalledModels,
 } from "../../../../shared/lib/modelStats";
 import {
   hasModelCapability,
+  MODEL_CAPABILITY_DICTIONARY,
   MODEL_CAPABILITY_STREAMING,
   MODEL_CAPABILITY_TIMESTAMPS,
 } from "../../../../shared/lib/modelCapabilities";
@@ -45,6 +46,7 @@ const SIDE_BY_SIDE_WIDTH = 280;
 type ModelsTabProps = {
   variants: Variants;
   modelCatalog: ModelInfo[];
+  diarizerModel: ModelInfo | null;
   diarizationModel: ModelInfo | null;
   modelStatus: Record<string, ModelStatus>;
   downloadState: Record<string, DownloadEvent>;
@@ -54,6 +56,7 @@ type ModelsTabProps = {
   remoteSpeechProvider: RemoteSpeechProvider;
   remoteSpeechEndpoint: string;
   remoteSpeechModel: string;
+  remoteSpeechApiKey: string;
   setLocalModel: (value: string) => void;
   handleDownload: (modelKey: string, ane?: boolean) => void;
   handleDelete: (modelKey: string) => void;
@@ -64,52 +67,40 @@ type ModelsTabProps = {
 const InstalledModelRow = ({
   model,
   active,
+  activeLabel,
   aneInstalled,
   shiftHeld,
   onUse,
   onDelete,
-  auxiliary = false,
 }: {
   model: ModelInfo;
   active: boolean;
+  activeLabel: string;
   aneInstalled: boolean;
   shiftHeld: boolean;
   onUse: () => void;
   onDelete: () => void;
-  auxiliary?: boolean;
 }) => {
   const { t } = useLingui();
   const stats = deriveModelStats(model);
 
+  const hasDictionary = hasModelCapability(model, MODEL_CAPABILITY_DICTIONARY);
   const isStreaming = hasModelCapability(model, MODEL_CAPABILITY_STREAMING);
   const hasTimestamps = hasModelCapability(model, MODEL_CAPABILITY_TIMESTAMPS);
 
   const builtIn = isBuiltInModel(model);
-  const facts = auxiliary
-    ? [
-        t({
-          id: "settings.models.diarization.addon",
-          message: "Add-on",
+  const facts = [
+    stats.englishOnly
+      ? t({ id: "settings.models.installed.english", message: "English" })
+      : t({
+          id: "settings.models.installed.multilingual",
+          message: "Multilingual",
         }),
-        t({
-          id: "settings.models.diarization.local_private",
-          message: "Local",
-        }),
-      ]
-    : [
-        stats.englishOnly
-          ? t({ id: "settings.models.installed.english", message: "English" })
-          : t({
-              id: "settings.models.installed.multilingual",
-              message: "Multilingual",
-            }),
-      ];
+  ];
   facts.push(
     builtIn
       ? t({ id: "settings.models.installed.built_in", message: "Built in" })
-      : formatModelSize(
-          model.size_mb + (aneInstalled ? (model.ane_size_mb ?? 0) : 0),
-        ),
+      : formatModelSize(modelSizeMb(model, aneInstalled)),
   );
   const quant = formatQuantLabel(model.variant);
   if (quant) facts.push(quant);
@@ -121,7 +112,7 @@ const InstalledModelRow = ({
       <button
         type="button"
         onClick={onUse}
-        disabled={active || auxiliary}
+        disabled={active}
         className="min-w-0 text-left disabled:cursor-default"
       >
         <span className="flex min-w-0 items-center gap-1.5 ui-text-body-sm-strong text-content-primary">
@@ -131,27 +122,14 @@ const InstalledModelRow = ({
               {t({ id: "settings.models.installed.legacy", message: "Legacy" })}
             </span>
           )}
+          {hasDictionary && (
+            <ModelCapabilityIcon capability={MODEL_CAPABILITY_DICTIONARY} />
+          )}
           {isStreaming && (
-            <span
-              className="inline-flex shrink-0 text-content-muted"
-              title={t({
-                id: "settings.models.capability.streaming",
-                message: "Live streaming",
-              })}
-            >
-              <Waveform size={13} aria-hidden="true" />
-            </span>
+            <ModelCapabilityIcon capability={MODEL_CAPABILITY_STREAMING} />
           )}
           {hasTimestamps && (
-            <span
-              className="inline-flex shrink-0 text-content-muted"
-              title={t({
-                id: "settings.models.capability.timestamps",
-                message: "Word-level timestamps",
-              })}
-            >
-              <Clock size={13} aria-hidden="true" />
-            </span>
+            <ModelCapabilityIcon capability={MODEL_CAPABILITY_TIMESTAMPS} />
           )}
         </span>
         <span className="mt-0.5 block ui-text-meta tabular-nums text-content-muted">
@@ -160,10 +138,10 @@ const InstalledModelRow = ({
       </button>
 
       <div className="flex items-center justify-end gap-2">
-        {auxiliary ? null : active ? (
+        {active ? (
           <span className="flex items-center gap-1 ui-text-meta font-medium text-local">
             <Check size={12} aria-hidden="true" />
-            {t({ id: "settings.models.installed.active", message: "Active" })}
+            {activeLabel}
           </span>
         ) : (
           <button
@@ -174,7 +152,9 @@ const InstalledModelRow = ({
             {t({ id: "settings.models.installed.use", message: "Use" })}
           </button>
         )}
-        {!builtIn && (
+        {builtIn ? (
+          <span className="h-6 w-6 shrink-0" aria-hidden="true" />
+        ) : (
           <button
             type="button"
             onClick={onDelete}
@@ -200,70 +180,70 @@ const InstalledModelRow = ({
   );
 };
 
-const CloudModelRow = ({
+type CloudMode = "on" | "off" | "unconfigured";
+
+const CloudHeroCard = ({
+  mode,
   providerLabel,
   modelLabel,
-  configured,
-  onUse,
+  width,
+  onToggle,
   onOpenProvidersTab,
 }: {
+  mode: CloudMode;
   providerLabel: string;
   modelLabel: string | null;
-  configured: boolean;
-  onUse: () => void;
+  width?: number;
+  onToggle: () => void;
   onOpenProvidersTab: () => void;
 }) => {
   const { t } = useLingui();
+  const status =
+    mode === "on"
+      ? t({ id: "settings.models.card.active", message: "Active" })
+      : mode === "off"
+        ? t({ id: "settings.models.card.off", message: "Off" })
+        : t({ id: "settings.models.card.not_set_up", message: "Not set up" });
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-surface-elevated/40">
-      <button
-        type="button"
-        onClick={configured ? onUse : onOpenProvidersTab}
-        className="min-w-0 text-left"
-      >
-        <span
-          className={`flex min-w-0 items-center gap-1.5 ui-text-body-sm-strong ${
-            configured ? "text-content-primary" : "text-content-disabled"
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative">
+        <div
+          className={`transition-opacity duration-200 ${
+            mode === "on" ? "" : "opacity-45"
           }`}
         >
-          <Cloud
-            size={13}
-            weight="fill"
-            className="shrink-0 ui-color-cloud"
-            aria-hidden="true"
+          <CloudModelCard
+            width={width}
+            providerLabel={providerLabel}
+            modelLabel={modelLabel}
           />
-          <span className="truncate">{providerLabel}</span>
-        </span>
-        <span className="mt-0.5 block truncate ui-text-meta text-content-muted">
-          {configured
-            ? modelLabel
-            : t({
-                id: "settings.models.cloud.unconfigured",
-                message: "Add an endpoint and model in Providers first",
+        </div>
+        <div className="absolute bottom-4 right-5 flex h-7 items-center">
+          {mode === "unconfigured" ? (
+            <button
+              type="button"
+              onClick={onOpenProvidersTab}
+              className="inline-flex h-7 items-center rounded-md px-2.5 ui-text-button-sm ui-color-secondary transition-colors hover:bg-surface-elevated hover:text-content-primary"
+            >
+              {t({ id: "settings.models.cloud.set_up", message: "Set up" })}
+            </button>
+          ) : (
+            <ToggleSwitch
+              size="md"
+              enabled={mode === "on"}
+              onToggle={onToggle}
+              ariaLabel={t({
+                id: "settings.models.cloud.toggle",
+                message: "Use cloud transcription",
               })}
-        </span>
-      </button>
-
-      <div className="flex items-center justify-end gap-2">
-        {configured ? (
-          <button
-            type="button"
-            onClick={onUse}
-            className="ui-text-meta font-medium text-content-secondary transition-colors hover:text-content-primary"
-          >
-            {t({ id: "settings.models.installed.use", message: "Use" })}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onOpenProvidersTab}
-            className="ui-text-meta font-medium text-content-secondary transition-colors hover:text-content-primary"
-          >
-            {t({ id: "settings.models.cloud.set_up", message: "Set up" })}
-          </button>
-        )}
+            />
+          )}
+        </div>
       </div>
+      <span className="flex h-7 items-center ui-text-meta ui-color-muted">
+        {status}
+      </span>
     </div>
   );
 };
@@ -271,6 +251,7 @@ const CloudModelRow = ({
 const ModelsTab = ({
   variants,
   modelCatalog,
+  diarizerModel,
   diarizationModel,
   modelStatus,
   downloadState,
@@ -280,6 +261,7 @@ const ModelsTab = ({
   remoteSpeechProvider,
   remoteSpeechEndpoint,
   remoteSpeechModel,
+  remoteSpeechApiKey,
   setLocalModel,
   handleDownload,
   handleDelete,
@@ -294,9 +276,6 @@ const ModelsTab = ({
     modelCatalog,
     modelStatus,
     localModel,
-  );
-  const hasInstalledFallback = Boolean(
-    installedModel && modelStatus[installedModel.key]?.installed,
   );
 
   const providerLabel =
@@ -313,44 +292,23 @@ const ModelsTab = ({
   const installedModels = sortInstalledModels(
     modelCatalog.filter((m) => modelStatus[m.key]?.installed),
   );
-  const localizedDiarizationModel = diarizationModel
-    ? {
-        ...diarizationModel,
-        label: t({
-          id: "settings.models.diarization.title",
-          message: "Local person detection",
-        }),
-      }
-    : null;
-  const diarizationInstalled = Boolean(
-    localizedDiarizationModel &&
-    modelStatus[localizedDiarizationModel.key]?.installed,
-  );
-
-  const renderInstalledDiarizationCard = () =>
-    localizedDiarizationModel && diarizationInstalled ? (
-      <>
-        <span
-          aria-hidden="true"
-          className="self-center text-xl font-light leading-none text-content-disabled"
-        >
-          +
-        </span>
-        <div className="origin-bottom-left self-center rotate-[1.5deg] transition-transform duration-200 hover:rotate-[0.5deg]">
-          <DiarizationModelCard
-            model={localizedDiarizationModel}
-            onDelete={() => handleDelete(localizedDiarizationModel.key)}
-          />
-        </div>
-      </>
-    ) : null;
 
   const cloudConfigured = isRemoteSpeechConfigured({
     enabled: true,
     provider: remoteSpeechProvider,
     endpoint: remoteSpeechEndpoint,
     model: remoteSpeechModel,
+    apiKey: remoteSpeechApiKey,
   });
+  const cloudMode: CloudMode = remoteSpeechEnabled
+    ? "on"
+    : cloudConfigured
+      ? "off"
+      : "unconfigured";
+  const localRoleLabel =
+    cloudMode === "on"
+      ? t({ id: "settings.models.card.fallback", message: "Fallback" })
+      : t({ id: "settings.models.card.active", message: "Active" });
 
   const renderLocalCard = (width?: number, compact?: boolean) =>
     installedModel ? (
@@ -373,7 +331,7 @@ const ModelsTab = ({
       initial="hidden"
       animate="visible"
       exit="exit"
-      className="flex h-full flex-col"
+      className="flex min-h-0 flex-1 flex-col"
     >
       {browsing ? (
         <>
@@ -388,6 +346,8 @@ const ModelsTab = ({
           <ModelPickerPanel
             className="w-full min-h-0 flex-1"
             catalog={modelCatalog}
+            diarizer={diarizerModel}
+            auxiliaryModels={diarizationModel ? [diarizationModel] : []}
             activeKey={localModel}
             isInstalled={(key) => Boolean(modelStatus[key]?.installed)}
             isAneInstalled={(key) => Boolean(modelStatus[key]?.ane_installed)}
@@ -396,97 +356,39 @@ const ModelsTab = ({
             onDownload={handleDownload}
             onDelete={handleDelete}
             onCancel={handleCancelDownload}
-            auxiliaryModels={
-              localizedDiarizationModel
-                ? [localizedDiarizationModel]
-                : undefined
-            }
           />
         </>
       ) : (
         <div className="flex h-full min-h-0 flex-col gap-5">
-          {remoteSpeechEnabled ? (
-            installedModel && hasInstalledFallback ? (
-              <div className="flex shrink-0 flex-wrap items-start justify-center gap-4">
-                <div className="flex flex-col items-center gap-2">
-                  <CloudModelCard
-                    width={SIDE_BY_SIDE_WIDTH}
-                    providerLabel={providerLabel}
-                    modelLabel={activeModel ?? null}
-                    onClick={onOpenProvidersTab}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setRemoteSpeechEnabled(false)}
-                    className="ui-text-meta ui-color-cloud transition-colors hover:text-content-primary"
-                  >
-                    {t({
-                      id: "settings.models.cloud.disable",
-                      message: "Disable cloud",
-                    })}
-                  </button>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  {renderLocalCard(SIDE_BY_SIDE_WIDTH, true)}
-                  <span className="ui-text-meta ui-color-muted">
-                    {t({
-                      id: "settings.models.card.fallback",
-                      message: "Fallback",
-                    })}
-                  </span>
-                </div>
-                {renderInstalledDiarizationCard()}
-              </div>
-            ) : (
-              <div className="flex shrink-0 flex-wrap items-start justify-center gap-4">
-                <div className="flex flex-col items-center gap-2">
-                  <CloudModelCard
-                    width={
-                      diarizationInstalled ? SIDE_BY_SIDE_WIDTH : undefined
-                    }
-                    providerLabel={providerLabel}
-                    modelLabel={activeModel ?? null}
-                    onClick={onOpenProvidersTab}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setRemoteSpeechEnabled(false)}
-                    className="ui-text-meta ui-color-cloud transition-colors hover:text-content-primary"
-                  >
-                    {t({
-                      id: "settings.models.cloud.disable",
-                      message: "Disable cloud",
-                    })}
-                  </button>
-                </div>
-                {renderInstalledDiarizationCard()}
-              </div>
-            )
-          ) : (
-            installedModel && (
-              <div className="flex shrink-0 flex-wrap items-start justify-center gap-4">
-                {renderLocalCard(
-                  diarizationInstalled ? SIDE_BY_SIDE_WIDTH : undefined,
-                  diarizationInstalled,
-                )}
-                {renderInstalledDiarizationCard()}
-              </div>
-            )
-          )}
-
-          {!remoteSpeechEnabled && (
-            <div className="flex shrink-0 flex-col gap-2">
-              <SectionLabel>
-                {t({ id: "settings.models.cloud", message: "Cloud" })}
-              </SectionLabel>
-              <CloudModelRow
+          {installedModel ? (
+            <div className="flex shrink-0 items-start justify-center gap-4">
+              <CloudHeroCard
+                mode={cloudMode}
+                width={SIDE_BY_SIDE_WIDTH}
                 providerLabel={providerLabel}
                 modelLabel={activeModel ?? null}
-                configured={cloudConfigured}
-                onUse={() => setRemoteSpeechEnabled(true)}
+                onToggle={() => setRemoteSpeechEnabled(!remoteSpeechEnabled)}
                 onOpenProvidersTab={onOpenProvidersTab}
               />
+              <div className="flex flex-col items-center gap-2">
+                {renderLocalCard(SIDE_BY_SIDE_WIDTH, true)}
+                <span className="flex h-7 items-center ui-text-meta ui-color-muted">
+                  {localRoleLabel}
+                </span>
+              </div>
             </div>
+          ) : (
+            cloudMode !== "unconfigured" && (
+              <div className="flex shrink-0 justify-center">
+                <CloudHeroCard
+                  mode={cloudMode}
+                  providerLabel={providerLabel}
+                  modelLabel={activeModel ?? null}
+                  onToggle={() => setRemoteSpeechEnabled(!remoteSpeechEnabled)}
+                  onOpenProvidersTab={onOpenProvidersTab}
+                />
+              </div>
+            )
           )}
 
           <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -516,28 +418,25 @@ const ModelsTab = ({
             </div>
 
             <div className="-mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-2">
+              {diarizationModel &&
+                modelStatus[diarizationModel.key]?.installed && (
+                  <DiarizationModelCard
+                    model={diarizationModel}
+                    onDelete={() => handleDelete(diarizationModel.key)}
+                  />
+                )}
               {installedModels.map((model) => (
                 <InstalledModelRow
                   key={model.key}
                   model={model}
-                  active={!remoteSpeechEnabled && model.key === localModel}
+                  active={model.key === localModel}
+                  activeLabel={localRoleLabel}
                   aneInstalled={Boolean(modelStatus[model.key]?.ane_installed)}
                   shiftHeld={shiftHeld}
                   onUse={() => setLocalModel(model.key)}
                   onDelete={() => handleDelete(model.key)}
                 />
               ))}
-              {localizedDiarizationModel && diarizationInstalled && (
-                <InstalledModelRow
-                  model={localizedDiarizationModel}
-                  active={false}
-                  aneInstalled={false}
-                  shiftHeld={shiftHeld}
-                  auxiliary
-                  onUse={() => undefined}
-                  onDelete={() => handleDelete(localizedDiarizationModel.key)}
-                />
-              )}
             </div>
           </div>
         </div>

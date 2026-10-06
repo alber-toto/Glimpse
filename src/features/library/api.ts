@@ -29,6 +29,10 @@ export async function getLibraryItemsPage(
   });
 }
 
+export async function getLibraryItem(id: string): Promise<LibraryItem | null> {
+  return invoke<LibraryItem | null>("get_library_item", { id });
+}
+
 export async function updateLibraryItem(
   id: string,
   patch: LibraryItemPatch,
@@ -52,6 +56,10 @@ export async function cancelLibraryTranscription(id: string): Promise<void> {
 
 export async function retryLibraryTranscription(id: string): Promise<void> {
   await invoke("retry_library_transcription", { id });
+}
+
+export async function rediarizeLibraryItem(id: string): Promise<void> {
+  await invoke("rediarize_library_item", { id });
 }
 
 export async function exportLibraryItemToPath(

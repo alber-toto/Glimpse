@@ -127,34 +127,21 @@ fn validate_update_settings_args(args: &UpdateSettingsArgs) -> Result<(), String
         return Err("At least one recording mode must be enabled".into());
     }
 
+    let modes = [
+        ("Smart", args.smart_enabled, &args.shortcut_bindings.smart),
+        ("Hold", args.hold_enabled, &args.shortcut_bindings.hold),
+        (
+            "Toggle",
+            args.toggle_enabled,
+            &args.shortcut_bindings.toggle,
+        ),
+    ];
     let mut enabled_shortcuts: Vec<(&str, hotkeys::Hotkey)> = vec![];
-    collect_enabled_shortcuts(
-        &mut enabled_shortcuts,
-        "Smart",
-        args.smart_enabled,
-        &args.shortcut_bindings.smart,
-    )?;
-    collect_enabled_shortcuts(
-        &mut enabled_shortcuts,
-        "Hold",
-        args.hold_enabled,
-        &args.shortcut_bindings.hold,
-    )?;
-    collect_enabled_shortcuts(
-        &mut enabled_shortcuts,
-        "Toggle",
-        args.toggle_enabled,
-        &args.shortcut_bindings.toggle,
-    )?;
-
-    if args.smart_enabled && !enabled_shortcuts.iter().any(|(name, _)| *name == "Smart") {
-        return Err("Smart shortcut cannot be empty when enabled".into());
-    }
-    if args.hold_enabled && !enabled_shortcuts.iter().any(|(name, _)| *name == "Hold") {
-        return Err("Hold shortcut cannot be empty when enabled".into());
-    }
-    if args.toggle_enabled && !enabled_shortcuts.iter().any(|(name, _)| *name == "Toggle") {
-        return Err("Toggle shortcut cannot be empty when enabled".into());
+    for (name, enabled, bindings) in modes {
+        collect_enabled_shortcuts(&mut enabled_shortcuts, name, enabled, bindings)?;
+        if enabled && !enabled_shortcuts.iter().any(|(n, _)| *n == name) {
+            return Err(format!("{name} shortcut cannot be empty when enabled"));
+        }
     }
 
     for i in 0..enabled_shortcuts.len() {
@@ -402,7 +389,10 @@ pub(crate) fn update_settings(
 
     state.request_preflight_refresh();
 
-    pill::register_shortcuts(app).map_err(|err| err.to_string())?;
+    pill::register_shortcuts(app).map_err(|err| {
+        crate::analytics::track_shortcut_failed("register", crate::analytics::error_detail(&err));
+        err.to_string()
+    })?;
 
     if prev.transcription_mode != next.transcription_mode
         || prev.local_model != next.local_model
@@ -412,13 +402,7 @@ pub(crate) fn update_settings(
         || prev.microphone_device != next.microphone_device
         || prev.app_locale != next.app_locale
     {
-        if let Err(err) = tray::refresh_tray_menu(app, &next) {
-            tracing::error!("Failed to refresh tray menu: {err}");
-        }
-        #[cfg(target_os = "macos")]
-        if let Err(err) = crate::set_app_menu(app, &next) {
-            tracing::error!("Failed to refresh app menu: {err}");
-        }
+        tray::refresh_menus(app, &next);
     }
 
     state.emit_settings_changed(app, &next);

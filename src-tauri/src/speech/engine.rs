@@ -7,6 +7,7 @@ use glimpse_speech::service::{AudioInput, SpeechConfig, SpeechService, Transcrib
 use parking_lot::{Condvar, Mutex};
 
 use crate::{
+    analytics::{self, Activity},
     model_manager::{self, ReadyModel},
     transcription_api::{TranscriptionSuccess, normalize_transcript},
 };
@@ -28,8 +29,8 @@ impl LocalTranscriber {
     pub fn new(model_cache_dir: std::path::PathBuf) -> Self {
         Self {
             service: SpeechService::new(SpeechConfig {
+                resolver: crate::model_manager::local_resolver(model_cache_dir.clone()),
                 model_cache_dir,
-                resolver: crate::model_manager::local_resolver(),
             }),
             last_used: Mutex::new(None),
             idle_wait: Condvar::new(),
@@ -100,7 +101,16 @@ impl LocalTranscriber {
     fn warm_locked(&self, model: &ReadyModel) -> Result<()> {
         let was_loaded = self.service.is_loaded();
         let started = Instant::now();
-        self.service.preload_and_warm(&model.key)?;
+        let previous_activity = analytics::activity();
+        if !was_loaded {
+            analytics::set_activity(Activity::ModelLoading);
+        }
+        let result = self.service.preload_and_warm(&model.key);
+        // A dictation step that started meanwhile keeps its own activity.
+        if analytics::activity() == Activity::ModelLoading {
+            analytics::set_activity(previous_activity);
+        }
+        result?;
         tracing::info!(
             "[LocalTranscriber] warm {} took {:.2}s (was_loaded={})",
             model.key,
@@ -154,16 +164,19 @@ impl LocalTranscriber {
         language: Option<&str>,
     ) -> Result<TranscriptionSuccess> {
         let result =
-            self.transcribe_internal(model, samples, sample_rate, dictionary, language, false)?;
+            self.transcribe_internal(model, samples, sample_rate, dictionary, language, None)?;
 
         Ok(TranscriptionSuccess {
             transcript: normalize_transcript(&result.text),
             speech_model: Some(model_manager::model_label(&model.key)),
             segments: None,
             words: None,
+            language: result.language,
         })
     }
 
+    /// Whisper computes word timings in an extra pass, so ask for
+    /// `Segment` unless the words are used.
     pub fn transcribe_with_segments(
         &self,
         model: &ReadyModel,
@@ -171,16 +184,46 @@ impl LocalTranscriber {
         sample_rate: u32,
         dictionary: &[String],
         language: Option<&str>,
+        granularity: TimestampGranularity,
     ) -> Result<TranscriptionSuccess> {
-        let result =
-            self.transcribe_internal(model, samples, sample_rate, dictionary, language, true)?;
+        let result = self.transcribe_internal(
+            model,
+            samples,
+            sample_rate,
+            dictionary,
+            language,
+            Some(granularity),
+        )?;
 
         Ok(TranscriptionSuccess {
             transcript: normalize_transcript(&result.text),
             speech_model: Some(model_manager::model_label(&model.key)),
             segments: result.segments,
             words: result.words,
+            language: result.language,
         })
+    }
+
+    /// Like `transcribe_with_segments`, but returns `None` instead of waiting
+    /// when the transcriber is busy, so the caller never queues ahead of dictation.
+    pub fn try_transcribe_with_segments(
+        &self,
+        model: &ReadyModel,
+        samples: &[i16],
+        sample_rate: u32,
+        dictionary: &[String],
+        language: Option<&str>,
+        granularity: TimestampGranularity,
+    ) -> Option<Result<glimpse_speech::Transcription>> {
+        let _exclusive = self.exclusive.try_lock()?;
+        Some(self.transcribe_locked(
+            model,
+            samples,
+            sample_rate,
+            dictionary,
+            language,
+            Some(granularity),
+        ))
     }
 
     fn transcribe_internal(
@@ -190,9 +233,29 @@ impl LocalTranscriber {
         sample_rate: u32,
         dictionary: &[String],
         language: Option<&str>,
-        with_segments: bool,
+        granularity: Option<TimestampGranularity>,
     ) -> Result<glimpse_speech::Transcription> {
         let _exclusive = self.exclusive.lock();
+        self.transcribe_locked(
+            model,
+            samples,
+            sample_rate,
+            dictionary,
+            language,
+            granularity,
+        )
+    }
+
+    // Caller must hold `exclusive`.
+    fn transcribe_locked(
+        &self,
+        model: &ReadyModel,
+        samples: &[i16],
+        sample_rate: u32,
+        dictionary: &[String],
+        language: Option<&str>,
+        granularity: Option<TimestampGranularity>,
+    ) -> Result<glimpse_speech::Transcription> {
         let was_loaded = self.service.is_loaded();
         let started = Instant::now();
         let response = self.service.transcribe(TranscribeRequest {
@@ -204,8 +267,8 @@ impl LocalTranscriber {
             language: language.map(str::to_string),
             prompt: None,
             dictionary: dictionary.to_vec(),
-            timestamps: with_segments,
-            timestamp_granularity: with_segments.then_some(TimestampGranularity::Word),
+            timestamps: granularity.is_some(),
+            timestamp_granularity: granularity,
         })?;
         tracing::info!(
             "[LocalTranscriber] transcribe took {:.2}s (audio {:.2}s, was_loaded={})",
@@ -220,7 +283,6 @@ impl LocalTranscriber {
     // Take exclusive use of the transcriber for a live dictation session. Batch
     // transcriptions block until the returned guard drops, so the shared
     // streaming transcript buffer can't be overwritten mid-session.
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
     pub fn begin_streaming_session(&self) -> StreamingGuard<'_> {
         StreamingGuard {
             _exclusive: self.exclusive.lock(),
@@ -252,13 +314,11 @@ impl LocalTranscriber {
 /// Exclusive hold on the transcriber for one live dictation session. All
 /// streaming calls go through this guard so they share the single held lock;
 /// batch transcriptions wait until it drops.
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
 pub struct StreamingGuard<'a> {
     transcriber: &'a LocalTranscriber,
     _exclusive: parking_lot::MutexGuard<'a, ()>,
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
 impl StreamingGuard<'_> {
     pub fn warm(&self, model: &ReadyModel) -> Result<()> {
         self.transcriber.warm_locked(model)
@@ -290,5 +350,93 @@ impl StreamingGuard<'_> {
         let transcript = self.transcriber.service.streaming_finalize();
         self.transcriber.service.streaming_reset();
         transcript
+    }
+}
+
+#[cfg(all(test, target_os = "macos", target_arch = "aarch64"))]
+mod parakeet_ane_tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires PARAKEET_ANE_TEST_CACHE, PARAKEET_ANE_TEST_ORIGIN and PARAKEET_ANE_TEST_RECORDINGS"]
+    fn installs_and_transcribes_recordings_with_timestamps() -> anyhow::Result<()> {
+        let cache = std::path::PathBuf::from(std::env::var("PARAKEET_ANE_TEST_CACHE")?);
+        let origin = std::env::var("PARAKEET_ANE_TEST_ORIGIN")?;
+        let recordings: serde_json::Value = serde_json::from_slice(&std::fs::read(
+            std::env::var("PARAKEET_ANE_TEST_RECORDINGS")?,
+        )?)?;
+        let mut spec = crate::speech::catalog::install_spec("parakeet_tdt_v3_gguf", true).unwrap();
+        for file in &mut spec.files {
+            let filename = file.url.rsplit('/').next().unwrap();
+            file.url = format!("{origin}/{filename}");
+        }
+        let manager = glimpse_speech::models::ModelInstallManager::new(cache.clone());
+        let runtime = tokio::runtime::Runtime::new()?;
+        let status = runtime.block_on(manager.install(&spec, Default::default()))?;
+        assert!(status.installed);
+        let resolved = manager.resolve(&spec)?;
+        let model = ReadyModel {
+            key: resolved.id,
+            path: resolved.path,
+            engine: resolved.engine,
+        };
+        let transcriber = LocalTranscriber::new(cache);
+        transcriber.preload_and_warm(&model)?;
+        for recording in recordings.as_array().unwrap() {
+            let samples = glimpse_speech::audio::read_audio_samples(std::path::Path::new(
+                recording["path"].as_str().unwrap(),
+            ))
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+            let duration = samples.len() as f32 / 16_000.0;
+            let pcm: Vec<i16> = samples
+                .iter()
+                .map(|s| (s.clamp(-1.0, 1.0) * 32767.0) as i16)
+                .collect();
+            let result = transcriber.transcribe_with_segments(
+                &model,
+                &pcm,
+                16_000,
+                &[],
+                Some("en"),
+                TimestampGranularity::Word,
+            )?;
+            assert!(!result.transcript.trim().is_empty());
+            assert_eq!(result.speech_model.as_deref(), Some("Parakeet TDT V3"));
+            let words = result.words.as_ref().expect("word timestamps");
+            assert!(!words.is_empty());
+            let mut previous_start = 0.0;
+            for word in words {
+                assert!(word.start.is_finite() && word.end.is_finite());
+                assert!(word.start >= previous_start && word.end >= word.start);
+                assert!(
+                    word.end <= duration + 0.001,
+                    "timestamp {}..{} exceeds audio {}",
+                    word.start,
+                    word.end,
+                    duration
+                );
+                previous_start = word.start;
+            }
+            println!(
+                "Parakeet ANE: {:.2}s recording, {} timed words",
+                duration,
+                words.len()
+            );
+        }
+        transcriber.unload();
+        transcriber.preload_and_warm(&model)?;
+        transcriber.unload();
+        let encoder = manager
+            .model_dir("parakeet_tdt_v3_gguf")
+            .join(&spec.files[1].path);
+        let moved = encoder.with_extension("held");
+        std::fs::rename(&encoder, &moved)?;
+        let missing = manager.resolve(&spec);
+        std::fs::rename(&moved, &encoder)?;
+        assert!(
+            missing.is_err(),
+            "missing encoder must not silently use ggml"
+        );
+        Ok(())
     }
 }

@@ -30,3 +30,8 @@ notes/
 *.njsproj
 *.sln
 *.sw?
+
+# Agent worktrees
+.delta/
+
+.claude/

@@ -22,6 +22,7 @@ import {
   ArrowCircleUp as ArrowUpCircle,
   Books as Library,
   VideoCamera as MeetingsIcon,
+  Record as RecordIcon,
 } from "@phosphor-icons/react";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import WindowControls from "./shared/ui/WindowControls";
@@ -38,30 +39,43 @@ import FloatingPortal from "./shared/ui/FloatingPortal";
 import { useCopyToClipboard } from "./shared/hooks/useCopyToClipboard";
 import HomeTodayHeader from "./features/transcriptions/components/HomeTodayHeader";
 import TranscriptionList from "./features/transcriptions/components/TranscriptionList";
-import { useTodayDictationStats } from "./features/transcriptions/queries";
+import {
+  transcriptionKeys,
+  useTodayDictationStats,
+} from "./features/transcriptions/queries";
 import { EMPTY_TODAY_DICTATION_STATS } from "./features/transcriptions/todayStats";
 import { useTimeOfDayPeriodTick } from "./features/transcriptions/homeGreeting";
 import DictionaryView from "./features/dictionary/components/DictionaryView";
 import PersonalizationView from "./features/personalization/components/PersonalizationView";
 import LibraryView from "./features/library/components/LibraryView";
+import RecordingView from "./features/recording/components/RecordingView";
 import LocalApiSidebarStatus from "./features/settings/components/LocalApiSidebarStatus";
 import NewsMenu from "./features/news/components/NewsMenu";
 import AccountPill from "./features/license/components/AccountPill";
 import { getLocalApiStatus } from "./features/settings/models-api";
 import type { LocalApiStatus } from "./types";
-import { useLicenseGate, useLicenseState } from "./features/license/queries";
+import {
+  licenseKeys,
+  useLicenseGate,
+  useLicenseState,
+} from "./features/license/queries";
+import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import type { PurchaseSource } from "./features/license/purchaseConfig";
-import { useSettings, useAppInfo } from "./features/settings/queries";
-import { useUpdateStatus } from "./features/updates/queries";
+import { useSettings } from "./features/settings/queries";
+import { updateKeys, useUpdateStatus } from "./features/updates/queries";
+import { askKeys } from "./features/asks/queries";
 import type { TranscriptionMode } from "./types";
+import { isRemoteSpeechInUse } from "./shared/lib/speechProviders";
+import { isCloudLlmInUse, isLlmInUse } from "./shared/lib/llmProviders";
 
 const importSettingsScreen = () =>
   import("./features/settings/components/SettingsScreen");
 const SettingsScreen = lazy(importSettingsScreen);
 const FAQModal = lazy(() => import("./shared/ui/FAQModal"));
 
-type ActiveView = "home" | "dictionary" | "brain" | "library" | "meetings";
+type ActiveView =
+  "home" | "dictionary" | "brain" | "library" | "meetings" | "record";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "glimpse:sidebar-collapsed";
 
@@ -138,9 +152,27 @@ const StaticGlimpseLogo = ({
   );
 };
 
-const Home = () => {
+const FIRST_SCREEN_QUERY_ROOTS: readonly string[] = [
+  licenseKeys.state()[0],
+  transcriptionKeys.all[0],
+  updateKeys.status()[0],
+  askKeys.prompt()[0],
+];
+
+const gatedFeatureName = (view: "brain" | "library" | "record") =>
+  view === "brain" ? "personalization" : view;
+
+type HomeProps = {
+  onReady: () => void;
+};
+
+const Home = ({ onReady }: HomeProps) => {
   const { t } = useLingui();
+  const queryClient = useQueryClient();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // The nav animates when it swaps, not when the window first opens.
+  const [navSwapped, setNavSwapped] = useState(false);
+  if (isSettingsOpen && !navSwapped) setNavSwapped(true);
   const [settingsMounted, setSettingsMounted] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsPane>("account");
   const [accountSource, setAccountSource] =
@@ -149,8 +181,14 @@ const Home = () => {
     initialSidebarCollapsed,
   );
   const [activeView, setActiveView] = useState<ActiveView>("home");
+  useEffect(() => {
+    void invoke("track_screen_viewed", { screen: activeView }).catch(() => {});
+  }, [activeView]);
+  const [openLibraryItemId, setOpenLibraryItemId] = useState<string | null>(
+    null,
+  );
   const licenseGateActive = useLicenseGate();
-  const { data: licenseState } = useLicenseState();
+  const { data: licenseState, isFetched: licenseFetched } = useLicenseState();
   const activeLicense = licenseState?.status === "active";
   const [showSupportPopup, setShowSupportPopup] = useState(false);
   const {
@@ -171,16 +209,20 @@ const Home = () => {
     null,
   );
   const licenseGateActiveRef = useRef(false);
+  const licenseLoadedRef = useRef(false);
 
   const { data: settings } = useSettings();
   const { data: updateStatus } = useUpdateStatus();
-  const { data: appInfoData } = useAppInfo();
 
   const transcriptionMode: TranscriptionMode =
     settings?.transcription_mode ?? "local";
-  const remoteSpeechEnabled = settings?.remote_speech_enabled ?? false;
   const llmEnabled = settings?.llm_enabled ?? false;
-  const appVersion = appInfoData?.version ?? "-";
+  const remoteSpeechInUse = settings ? isRemoteSpeechInUse(settings) : false;
+  const cloudLlmInUse = settings ? isCloudLlmInUse(settings) : false;
+  const localLlmInUse = settings
+    ? isLlmInUse(settings) && !cloudLlmInUse
+    : false;
+  const appVersion = window.__GLIMPSE_BOOT__?.version ?? "-";
   const updateAvailable = updateStatus?.available ?? false;
 
   useEffect(() => {
@@ -203,6 +245,29 @@ const Home = () => {
     setIsSettingsOpen(false);
     setSettingsTab("account");
     setAccountSource("settings_account");
+  }, []);
+
+  // While any sidebar tip is showing (or was within the last moment), the
+  // next item's tip appears with no delay so sweeping down the rail feels instant.
+  const [tipsWarm, setTipsWarm] = useState(false);
+  const tipsWarmTimer = useRef<number | null>(null);
+  const handleSidebarPointerOver = useCallback((event: React.PointerEvent) => {
+    if (!(event.target as Element).closest(".group")) return;
+    if (tipsWarmTimer.current !== null) {
+      window.clearTimeout(tipsWarmTimer.current);
+      tipsWarmTimer.current = null;
+    }
+    setTipsWarm(true);
+  }, []);
+  const handleSidebarPointerOut = useCallback((event: React.PointerEvent) => {
+    const from = (event.target as Element).closest(".group");
+    if (!from) return;
+    const to = event.relatedTarget as Element | null;
+    if (to && from.contains(to)) return;
+    tipsWarmTimer.current = window.setTimeout(() => {
+      setTipsWarm(false);
+      tipsWarmTimer.current = null;
+    }, 350);
   }, []);
 
   const toggleSidebarCollapsed = useCallback(() => {
@@ -231,21 +296,51 @@ const Home = () => {
     }
   }, [licenseGateActive, licenseState]);
 
+  const openAccountSettings = useCallback(
+    (source: PurchaseSource = "settings_account", lockedFeature?: string) => {
+      if (source !== "settings_account") {
+        void invoke("track_paywall_clicked", { source }).catch(() => {});
+      }
+      if (lockedFeature) {
+        void invoke("track_gate_blocked", { feature: lockedFeature }).catch(
+          () => {},
+        );
+      }
+      setAccountSource(source);
+      setSettingsTab("account");
+      setIsSettingsOpen(true);
+    },
+    [],
+  );
+
+  // A gated view requested (from the CLI) before the license state has loaded.
+  const pendingGatedViewRef = useRef<"brain" | "library" | "record" | null>(
+    null,
+  );
+
   useEffect(() => {
     licenseGateActiveRef.current = licenseGateActive;
+    licenseLoadedRef.current = licenseState !== undefined;
+    if (licenseState && pendingGatedViewRef.current) {
+      const view = pendingGatedViewRef.current;
+      pendingGatedViewRef.current = null;
+      if (licenseGateActive) setActiveView(view);
+      else openAccountSettings("sidebar_lock", gatedFeatureName(view));
+    }
     if (
       !licenseGateActive &&
       (activeView === "brain" ||
         activeView === "library" ||
-        activeView === "meetings")
+        activeView === "meetings" ||
+        activeView === "record")
     ) {
       setActiveView("home");
       setDragActive(false);
       setPendingImportPaths(null);
     }
-  }, [activeView, licenseGateActive]);
+  }, [activeView, licenseGateActive, licenseState, openAccountSettings]);
 
-  const wideLights = isMac && (appInfoData?.os_major ?? 26) >= 26;
+  const wideLights = isMac && (window.__GLIMPSE_BOOT__?.osMajor ?? 26) >= 26;
   const collapsedWidth = wideLights ? 78 : 68;
   const sidebarIconPl = wideLights ? 21 : isWindows ? 16 : 17;
   const sidebarWidth = isSidebarCollapsed ? collapsedWidth : 200;
@@ -254,18 +349,6 @@ const Home = () => {
     cachedLocalApiStatus = status;
     setLocalApiStatus(status);
   }, []);
-
-  const openAccountSettings = useCallback(
-    (source: PurchaseSource = "settings_account") => {
-      if (source !== "settings_account") {
-        void invoke("track_paywall_clicked", { source }).catch(() => {});
-      }
-      setAccountSource(source);
-      setSettingsTab("account");
-      setIsSettingsOpen(true);
-    },
-    [],
-  );
 
   const openLocalApiSettings = useCallback(() => {
     setSettingsTab(activeLicense ? "api" : "account");
@@ -303,6 +386,7 @@ const Home = () => {
     let unlistenHistory: UnlistenFn | null = null;
     let unlistenModels: UnlistenFn | null = null;
     let unlistenAccount: UnlistenFn | null = null;
+    let unlistenViews: UnlistenFn[] = [];
     let unlistenDragEnter: UnlistenFn | null = null;
     let unlistenDragOver: UnlistenFn | null = null;
     let unlistenDragLeave: UnlistenFn | null = null;
@@ -347,7 +431,38 @@ const Home = () => {
       else unlistenAccount = fn;
     });
 
-    Promise.all([navigateReady, historyReady, modelsReady, accountReady])
+    const viewsReady = (
+      [
+        ["navigate:dictionary", "dictionary"],
+        ["navigate:personalization", "brain"],
+        ["navigate:library", "library"],
+        ["navigate:record", "record"],
+      ] as const
+    ).map(([event, view]) =>
+      listen(event, () => {
+        setIsSettingsOpen(false);
+        if (view === "dictionary") {
+          setActiveView(view);
+        } else if (!licenseLoadedRef.current) {
+          pendingGatedViewRef.current = view;
+        } else if (licenseGateActiveRef.current) {
+          setActiveView(view);
+        } else {
+          openAccountSettings("sidebar_lock", gatedFeatureName(view));
+        }
+      }).then((fn) => {
+        if (cancelled) fn();
+        else unlistenViews.push(fn);
+      }),
+    );
+
+    Promise.all([
+      navigateReady,
+      historyReady,
+      modelsReady,
+      accountReady,
+      ...viewsReady,
+    ])
       .then(() => {
         if (!cancelled) {
           emit("settings:renderer_ready").catch(() => {});
@@ -420,6 +535,9 @@ const Home = () => {
       .catch(() => {});
 
     listen("license:checkout-returned", () => {
+      // The backend may have just activated the key from the link.
+      void queryClient.invalidateQueries({ queryKey: licenseKeys.state() });
+      setAccountSource("checkout_return");
       setSettingsTab("account");
       setIsSettingsOpen(true);
     })
@@ -435,6 +553,8 @@ const Home = () => {
       unlistenHistory?.();
       unlistenModels?.();
       unlistenAccount?.();
+      unlistenViews.forEach((fn) => fn());
+      unlistenViews = [];
       unlistenDragEnter?.();
       unlistenDragOver?.();
       unlistenDragLeave?.();
@@ -442,7 +562,7 @@ const Home = () => {
       unlistenOpenImport?.();
       unlistenLicenseReturn?.();
     };
-  }, []);
+  }, [queryClient]);
 
   useClickOutside(
     supportMenuRef,
@@ -505,12 +625,30 @@ const Home = () => {
     data: todayStats = EMPTY_TODAY_DICTATION_STATS,
     isFetched: todayStatsFetched,
   } = useTodayDictationStats(homeViewActive);
+  // News is remote and can fill in later; the rest is local and quick.
+  const firstScreenFetching =
+    useIsFetching({
+      predicate: (query) =>
+        FIRST_SCREEN_QUERY_ROOTS.includes(String(query.queryKey[0])),
+    }) > 0;
+  // Today's stats only load on Home; a cold open can land on another view.
+  const firstScreenReady =
+    licenseFetched &&
+    (todayStatsFetched || !homeViewActive) &&
+    !firstScreenFetching;
+
+  useEffect(() => {
+    if (firstScreenReady) onReady();
+  }, [firstScreenReady, onReady]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-transparent font-sans ui-color-on-solid select-none">
       <WindowControls />
       <aside
         data-app-sidebar
+        data-tips-warm={tipsWarm ? "" : undefined}
+        onPointerOver={handleSidebarPointerOver}
+        onPointerOut={handleSidebarPointerOut}
         style={
           {
             width: sidebarWidth,
@@ -529,8 +667,8 @@ const Home = () => {
           >
             <div className="flex w-[20px] shrink-0 items-center justify-center">
               <StaticGlimpseLogo
-                cloudActive={remoteSpeechEnabled || llmEnabled}
-                localActive={!remoteSpeechEnabled}
+                cloudActive={remoteSpeechInUse || cloudLlmInUse}
+                localActive={!remoteSpeechInUse || localLlmInUse}
               />
             </div>
             <span
@@ -548,7 +686,7 @@ const Home = () => {
         <nav className="flex-1 flex flex-col px-2">
           <div
             key={isSettingsOpen ? "settings-nav" : "app-nav"}
-            className="nav-swap space-y-1"
+            className={`${navSwapped ? "nav-swap " : ""}space-y-1`}
           >
             {isSettingsOpen ? (
               SETTINGS_PANE_GROUPS.map((group, groupIndex) => {
@@ -583,7 +721,7 @@ const Home = () => {
                           lockedHint={lockedHint}
                           onClick={() =>
                             locked
-                              ? openAccountSettings("sidebar_lock")
+                              ? openAccountSettings("sidebar_lock", paneDef.id)
                               : setSettingsTab(paneDef.id)
                           }
                         />
@@ -627,7 +765,7 @@ const Home = () => {
                   onClick={() =>
                     licenseGateActive
                       ? setActiveView("brain")
-                      : openAccountSettings("sidebar_lock")
+                      : openAccountSettings("sidebar_lock", "personalization")
                   }
                 />
                 <SidebarItem
@@ -643,7 +781,28 @@ const Home = () => {
                   onClick={() =>
                     licenseGateActive
                       ? setActiveView("library")
-                      : openAccountSettings("sidebar_lock")
+                      : openAccountSettings("sidebar_lock", "library")
+                  }
+                />
+                <div className="flex h-5 items-center pr-3 pl-[var(--sidebar-icon-pl,17px)]">
+                  <div className="flex w-[20px] shrink-0 justify-center">
+                    <div className="h-px w-3.5 bg-[var(--border-strong)]" />
+                  </div>
+                </div>
+                <SidebarItem
+                  icon={RecordIcon}
+                  label={t({
+                    id: "home.sidebar.record",
+                    message: "Record",
+                  })}
+                  active={activeView === "record"}
+                  collapsed={isSidebarCollapsed}
+                  locked={!licenseGateActive}
+                  lockedHint={lockedHint}
+                  onClick={() =>
+                    licenseGateActive
+                      ? setActiveView("record")
+                      : openAccountSettings("sidebar_lock", "record")
                   }
                 />
                 <SidebarItem
@@ -926,9 +1085,13 @@ const Home = () => {
         <div data-tauri-drag-region className="h-8 w-full shrink-0" />
 
         {homeViewActive && (
-          <div className="absolute right-6 top-10 z-40 flex items-center gap-2">
-            <AccountPill onClick={() => openAccountSettings("home_pill")} />
+          <div className="absolute right-6 top-10 z-40 flex h-9 items-center overflow-visible rounded-full border border-border-primary bg-surface-surface shadow-[var(--shadow-sm)]">
             <NewsMenu />
+            <div
+              aria-hidden="true"
+              className="h-4 w-px shrink-0 bg-border-primary"
+            />
+            <AccountPill onClick={() => openAccountSettings("home_pill")} />
           </div>
         )}
 
@@ -987,6 +1150,8 @@ const Home = () => {
             <LibraryView
               pendingImportPaths={pendingImportPaths}
               onSetImportPaths={setPendingImportPaths}
+              openItemId={openLibraryItemId}
+              onOpenItemHandled={() => setOpenLibraryItemId(null)}
               isActive={activeView === "library" && licenseGateActive}
               scope="files"
             />
@@ -1000,6 +1165,18 @@ const Home = () => {
               onSetImportPaths={setPendingImportPaths}
               isActive={activeView === "meetings" && licenseGateActive}
               scope="meetings"
+            />
+          </div>
+
+          <div
+            className={`w-full max-w-[400px] mx-auto pt-8 min-h-0 flex-1 ${activeView === "record" ? "flex flex-col" : "hidden"}`}
+          >
+            <RecordingView
+              isActive={activeView === "record" && licenseGateActive}
+              onOpenLibraryItem={(id) => {
+                setOpenLibraryItemId(id);
+                setActiveView("library");
+              }}
             />
           </div>
         </div>

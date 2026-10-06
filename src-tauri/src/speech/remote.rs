@@ -30,13 +30,14 @@ pub(crate) fn resolved_endpoint(settings: &UserSettings) -> String {
 
 pub(crate) fn provider_default_model(provider: &str) -> Option<&'static str> {
     match provider.trim().to_ascii_lowercase().as_str() {
-        "openai" => Some("gpt-4o-mini-transcribe"),
+        "openai" => Some("gpt-transcribe"),
         "groq" => Some("whisper-large-v3-turbo"),
+        "xai" => Some("grok-voice-transcribe-2.0"),
         "mistral" => Some("voxtral-mini-latest"),
-        "fireworks" => Some("whisper-v3"),
-        "openrouter" => Some("openai/whisper-1"),
+        "fireworks" => Some("whisper-v3-turbo"),
+        "openrouter" => Some("openai/gpt-transcribe"),
         "deepgram" => Some("nova-3"),
-        "elevenlabs" => Some("scribe_v1"),
+        "elevenlabs" => Some("scribe_v2"),
         "vllm" => Some("openai/whisper-large-v3-turbo"),
         "localai" | "whisper-cpp" | "llamaedge" | "litellm" => Some("whisper-1"),
         _ => None,
@@ -46,7 +47,14 @@ pub(crate) fn provider_default_model(provider: &str) -> Option<&'static str> {
 pub(crate) fn provider_requires_api_key(provider: &str) -> bool {
     matches!(
         provider.trim().to_ascii_lowercase().as_str(),
-        "openai" | "groq" | "mistral" | "fireworks" | "openrouter" | "deepgram" | "elevenlabs"
+        "openai"
+            | "groq"
+            | "xai"
+            | "mistral"
+            | "fireworks"
+            | "openrouter"
+            | "deepgram"
+            | "elevenlabs"
     )
 }
 
@@ -115,6 +123,7 @@ pub(crate) async fn transcribe_file(
             )),
             segments: response.segments,
             words: response.words,
+            language: response.language,
         },
         diarized_segments,
     })
@@ -239,13 +248,7 @@ pub(crate) fn emit_fallback_toast(app: &AppHandle<AppRuntime>, error: &RemoteErr
             title: Some("Speech Provider".to_string()),
             message: fallback_toast_message(error),
             auto_dismiss: Some(true),
-            duration: None,
-            retry_id: None,
-            mode: None,
-            action: None,
-            action_label: None,
-            secondary_action: None,
-            secondary_action_label: None,
+            ..Default::default()
         },
     );
 }
@@ -277,13 +280,7 @@ pub(crate) fn emit_not_configured_toast(app: &AppHandle<AppRuntime>, settings: &
             title: Some("Speech Provider".to_string()),
             message,
             auto_dismiss: Some(true),
-            duration: None,
-            retry_id: None,
-            mode: None,
-            action: None,
-            action_label: None,
-            secondary_action: None,
-            secondary_action_label: None,
+            ..Default::default()
         },
     );
 }
@@ -296,50 +293,49 @@ fn emit_fallback_unavailable_toast_message(app: &AppHandle<AppRuntime>, message:
             title: Some("Speech Provider".to_string()),
             message: message.to_string(),
             auto_dismiss: Some(true),
-            duration: None,
-            retry_id: None,
-            mode: None,
-            action: None,
-            action_label: None,
-            secondary_action: None,
-            secondary_action_label: None,
+            ..Default::default()
         },
     );
 }
 
 fn remote_issue_message(error: &RemoteError) -> String {
+    issue_message("Speech provider", error)
+}
+
+/// User-facing summary of a remote API failure, prefixed by the service name.
+pub(crate) fn issue_message(subject: &str, error: &RemoteError) -> String {
     match error.kind {
         RemoteErrorKind::RateLimited => {
             if let Some(retry_after) = error.retry_after {
                 let seconds = retry_after.as_secs().max(1);
                 format!(
-                    "Speech provider rate limit reached (retry in about {seconds} second{}).",
+                    "{subject} rate limit reached (retry in about {seconds} second{}).",
                     if seconds == 1 { "" } else { "s" }
                 )
             } else {
-                "Speech provider rate limit reached.".to_string()
+                format!("{subject} rate limit reached.")
             }
         }
-        RemoteErrorKind::QuotaExceeded => "Speech provider quota exceeded.".to_string(),
-        RemoteErrorKind::Unauthorized => {
-            "Speech provider API key is invalid or expired.".to_string()
-        }
+        RemoteErrorKind::QuotaExceeded => format!("{subject} quota exceeded."),
+        RemoteErrorKind::Unauthorized => format!("{subject} API key is invalid or expired."),
         RemoteErrorKind::InvalidRequest => {
             let detail = error.message.trim();
             if detail.is_empty() {
-                "Speech provider rejected the request.".to_string()
+                format!("{subject} rejected the request.")
             } else {
                 const MAX_DETAIL_CHARS: usize = 160;
                 let mut snippet: String = detail.chars().take(MAX_DETAIL_CHARS).collect();
                 if detail.chars().count() > MAX_DETAIL_CHARS {
                     snippet.push('…');
+                } else if !snippet.ends_with(['.', '!', '?']) {
+                    snippet.push('.');
                 }
-                format!("Speech provider rejected the request: {snippet}")
+                format!("{subject} rejected the request: {snippet}")
             }
         }
-        RemoteErrorKind::NotFound => "Speech provider endpoint or model was not found.".to_string(),
+        RemoteErrorKind::NotFound => format!("{subject} endpoint or model was not found."),
         RemoteErrorKind::UpstreamUnavailable | RemoteErrorKind::Other => {
-            "Speech provider unreachable.".to_string()
+            format!("{subject} unreachable.")
         }
     }
 }

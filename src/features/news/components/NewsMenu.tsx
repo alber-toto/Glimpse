@@ -30,8 +30,14 @@ const NewsMenu = () => {
     if (lastSeen === null && items.length > 0) markSeen(items[0].id);
   }, [lastSeen, items, markSeen]);
 
+  const preloaded = useRef<HTMLImageElement | null>(null);
   useEffect(() => {
-    if (items[0]?.image) new Image().src = items[0].image;
+    const src = items[0]?.image;
+    if (!src) return;
+    const image = new Image();
+    image.src = src;
+    void image.decode().catch(() => {});
+    preloaded.current = image;
   }, [items]);
 
   const seenIndex = items.findIndex((item) => item.id === lastSeen);
@@ -57,19 +63,24 @@ const NewsMenu = () => {
   const [lead, ...rest] = items;
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="flex h-full">
       <button
         type="button"
         onClick={toggle}
         aria-expanded={isOpen}
         aria-label={title}
-        className="ui-button-ghost relative flex h-9 w-9 items-center justify-center rounded-lg text-content-muted hover:text-content-primary transition-colors"
+        className="relative flex h-full w-9 items-center justify-center rounded-l-full text-content-muted transition-colors hover:bg-[var(--surface-interactive)] hover:text-content-primary"
       >
-        <Bell size={20} weight="regular" aria-hidden="true" />
+        <Bell
+          size={18}
+          weight="regular"
+          aria-hidden="true"
+          className={unreadCount > 0 ? "text-content-primary" : undefined}
+        />
         {unreadCount > 0 && (
           <span
             aria-hidden="true"
-            className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full"
+            className="absolute right-[7px] top-[7px] h-2 w-2 rounded-full ring-2 ring-surface-surface"
             style={{ backgroundColor: "var(--color-accent)" }}
           />
         )}

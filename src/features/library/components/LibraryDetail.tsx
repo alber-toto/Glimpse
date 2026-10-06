@@ -17,14 +17,21 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import FloatingPortal from "../../../shared/ui/FloatingPortal";
 import {
   Warning as AlertTriangle,
+  AppWindow,
+  Eye,
+  EyeSlash,
   ArrowLeft,
+  BookmarkSimple,
   Check,
   CaretDown as ChevronDown,
   CaretLeft as ChevronLeft,
   CaretRight as ChevronRight,
   Copy,
   DotsThreeVertical,
-  Funnel,
+  Export,
+  GearSix,
+  Microphone,
+  MicrophoneSlash,
   Pause,
   PencilSimple as Pencil,
   Sparkle,
@@ -33,12 +40,20 @@ import {
   Plus,
   ArrowClockwise as RotateCw,
   MagnifyingGlass as Search,
+  Monitor,
+  SpeakerHigh,
+  SpeakerSlash,
   Trash as Trash2,
   UserPlus,
   Users,
   X,
 } from "@phosphor-icons/react";
-import LibraryRetranscribeModal from "./LibraryRetranscribeModal";
+import AudioScrubber from "./AudioScrubber";
+import SpeakerContextMenu, { SpeakerMenuItem } from "./SpeakerContextMenu";
+import LibraryRetranscribeModal, {
+  type LibraryRetranscribeOptions,
+} from "./LibraryRetranscribeModal";
+import LibraryDeleteDialog from "./LibraryDeleteDialog";
 import {
   clampProgress,
   formatDuration,
@@ -50,12 +65,17 @@ import {
   shouldShowImportProgress,
   formatLibraryName,
 } from "./library-utils";
-import { resolveSpeechModelLabel } from "../../settings/models-queries";
+import {
+  resolveSpeechModelLabel,
+  useDiarizerInstalled,
+} from "../../settings/models-queries";
+import { useInstalledApps } from "../../personalization/queries";
 import { useClickOutside } from "../../../shared/hooks/useClickOutside";
 import { useCopyToClipboard } from "../../../shared/hooks/useCopyToClipboard";
+import HoverTip from "../../../shared/ui/HoverTip";
 import { IntelligencePixel } from "../../../shared/ui/IntelligencePixel";
-import ToggleSwitch from "../../../shared/ui/ToggleSwitch";
 import type {
+  Bookmark,
   ExportFormat,
   LibraryItem,
   LibraryItemPatch,
@@ -63,17 +83,63 @@ import type {
   SpeechModel,
   TranscriptSegment,
 } from "../../../types";
-
-const SPEAKER_COLORS = [
-  "#7aa2f7",
-  "#9ece6a",
-  "#e0af68",
-  "#f7768e",
-  "#bb9af7",
-  "#7dcfff",
-];
+import { SPEAKER_COLORS, withSpeakerColors } from "../speakerColors";
+import { showErrorToast } from "../../../shared/lib/errorToast";
 
 const MAX_SPEAKERS = 16;
+const FOLLOW_PLAYBACK_KEY = "glimpse.library.follow_playback";
+// Scrollers span the window so the scrollbar sits at its edge; content stays in this column.
+const CONTENT_COLUMN = "mx-auto w-full max-w-3xl px-5";
+const EXPORT_FORMATS: Array<{ value: ExportFormat; needsSegments?: boolean }> =
+  [
+    { value: "txt" },
+    { value: "md" },
+    { value: "srt", needsSegments: true },
+    { value: "vtt", needsSegments: true },
+  ];
+
+type SpeakerTurn = {
+  key: number;
+  speaker: Speaker | null;
+  text: string;
+};
+
+// Consecutive segments by the same speaker merge into one turn.
+type RowMatch = { row: number; occurrence: number };
+
+const findRowMatches = (rows: string[], query: string): RowMatch[] => {
+  const needle = query.toLowerCase();
+  const matches: RowMatch[] = [];
+  rows.forEach((text, row) => {
+    const lower = text.toLowerCase();
+    let cursor = lower.indexOf(needle);
+    for (let occurrence = 0; cursor !== -1; occurrence += 1) {
+      matches.push({ row, occurrence });
+      cursor = lower.indexOf(needle, cursor + needle.length);
+    }
+  });
+  return matches;
+};
+
+const buildSpeakerTurns = (
+  segments: TranscriptSegment[],
+  speakerById: Map<string, Speaker>,
+) => {
+  const turns: SpeakerTurn[] = [];
+  for (let index = 0; index < segments.length; index += 1) {
+    const text = segments[index].text.trim();
+    if (!text) continue;
+    const id = segments[index].speaker_id;
+    const speaker = (id && speakerById.get(id)) || null;
+    const last = turns[turns.length - 1];
+    if (last && last.speaker === speaker) {
+      last.text += ` ${text}`;
+    } else {
+      turns.push({ key: index, speaker, text });
+    }
+  }
+  return turns;
+};
 
 const SegmentWordsRow = ({
   tokens,
@@ -131,14 +197,117 @@ const SegmentWordsRow = ({
   );
 };
 
+// A saved moment: click the time to jump there, click the label to name it.
+const BookmarkRow = ({
+  bookmark,
+  timeWidth,
+  onSeek,
+  onRename,
+  onRemove,
+}: {
+  bookmark: Bookmark;
+  timeWidth: string;
+  onSeek: () => void;
+  onRename: (label: string) => void;
+  onRemove: () => void;
+}) => {
+  const { t } = useLingui();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(bookmark.label ?? "");
+
+  const commit = () => {
+    setEditing(false);
+    const value = draft.trim();
+    if (value !== (bookmark.label ?? "")) onRename(value);
+  };
+
+  return (
+    <div
+      className="group/bookmark grid w-full grid-cols-[auto_1fr] items-center gap-3 rounded-md px-2 py-1"
+      title={`${formatTimestamp(bookmark.at_ms)}${bookmark.label ? ` · ${bookmark.label}` : ""}`}
+    >
+      <button
+        type="button"
+        onClick={onSeek}
+        className="flex items-center gap-1.5 font-mono ui-text-label tabular-nums ui-color-cloud transition-opacity hover:opacity-75"
+      >
+        <span className={`${timeWidth} shrink-0 text-right`}>
+          {formatTimestamp(bookmark.at_ms)}
+        </span>
+        {/* Sits in the speaker dot's slot so both row kinds share columns. */}
+        <span className="flex w-2 shrink-0 justify-center">
+          <BookmarkSimple size={11} weight="fill" aria-hidden="true" />
+        </span>
+      </button>
+      <div className="flex min-w-0 items-center gap-2 ui-text-body">
+        {editing ? (
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={commit}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commit();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setDraft(bookmark.label ?? "");
+                setEditing(false);
+              }
+            }}
+            placeholder={t({
+              id: "library.bookmark.label_placeholder",
+              message: "Add a note",
+            })}
+            className="min-w-0 flex-1 bg-transparent border-b border-[var(--color-border-primary)] px-0.5 text-content-primary outline-hidden focus:border-[var(--color-border-hover)] placeholder:text-content-disabled"
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(bookmark.label ?? "");
+              setEditing(true);
+            }}
+            className={`min-w-0 flex-1 truncate text-left transition-colors hover:text-content-primary ${
+              bookmark.label
+                ? "text-content-secondary"
+                : "text-content-disabled"
+            }`}
+          >
+            {bookmark.label ||
+              t({ id: "library.bookmark.unnamed", message: "Bookmark" })}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={t({
+            id: "library.bookmark.remove",
+            message: "Remove bookmark",
+          })}
+          className="shrink-0 text-content-disabled opacity-0 transition-opacity hover:text-red-500 group-hover/bookmark:opacity-100"
+        >
+          <X size={10} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const LibraryDetail = ({
   item,
   models,
   followTimestamps,
   onFollowTimestampsChange,
+  shiftHeld,
   onClose,
   onDelete,
   onRetry,
+  onRetranscribe,
+  onRediarize,
+  rediarizing,
   onCancel,
   onUpdate,
   onExport,
@@ -153,9 +322,13 @@ const LibraryDetail = ({
   onFollowTimestampsChange: (
     value: boolean | ((prev: boolean) => boolean),
   ) => void;
+  shiftHeld: boolean;
   onClose: () => void;
   onDelete: () => Promise<void>;
   onRetry: () => Promise<void>;
+  onRetranscribe: (options: LibraryRetranscribeOptions) => Promise<void>;
+  onRediarize: () => Promise<void>;
+  rediarizing: boolean;
   onCancel: () => void;
   onUpdate: (patch: LibraryItemPatch) => Promise<LibraryItem>;
   onExport: (format: ExportFormat, outputPath: string) => Promise<void>;
@@ -167,16 +340,17 @@ const LibraryDetail = ({
   const { t } = useLingui();
   const [nameDraft, setNameDraft] = useState(item.name);
   const [isEditingName, setIsEditingName] = useState(false);
+  const nameEditCancelled = useRef(false);
   const [transcriptDraft, setTranscriptDraft] = useState(item.transcript ?? "");
   const [tagInput, setTagInput] = useState("");
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [showTimestamps, setShowTimestamps] = useState(
     item.show_timestamps && Boolean(item.segments?.length),
   );
-  const [exportOpen, setExportOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const closeDeleteConfirm = useCallback(() => setShowDeleteConfirm(false), []);
   const { copied: copyConfirmed, copy: copyTranscript } =
     useCopyToClipboard(1400);
   const [audioDuration, setAudioDuration] = useState(
@@ -184,12 +358,21 @@ const LibraryDetail = ({
   );
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [followPaused, setFollowPaused] = useState(false);
+  const followPlayback = followTimestamps;
+  const setFollowPlayback = onFollowTimestampsChange;
+  const playbackMenuRef = useRef<HTMLDivElement>(null);
+  const [playbackMenuOpen, setPlaybackMenuOpen] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [trackMuted, setTrackMuted] = useState({
+    primary: false,
+    secondary: false,
+  });
   const [streamChunks, setStreamChunks] = useState<string[]>([]);
   const [showRetranscribe, setShowRetranscribe] = useState(false);
+  const diarizerInstalled = useDiarizerInstalled(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
   const [renamingSpeakerId, setRenamingSpeakerId] = useState<string | null>(
@@ -200,8 +383,13 @@ const LibraryDetail = ({
     null,
   );
   const [speakersMenuOpen, setSpeakersMenuOpen] = useState(false);
-  const [speakerFilter, setSpeakerFilter] = useState<string | null>(null);
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [speakerContext, setSpeakerContext] = useState<{
+    speakerId: string;
+    segmentIndex?: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [hiddenSpeakerIds, setHiddenSpeakerIds] = useState<string[]>([]);
   const transcriptTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptPending = useRef<string | null>(null);
   const transcriptSent = useRef<string | null>(null);
@@ -211,6 +399,9 @@ const LibraryDetail = ({
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const secondaryAudioRef = useRef<HTMLAudioElement | null>(null);
+  const trackMutedRef = useRef(trackMuted);
+  trackMutedRef.current = trackMuted;
   const tagMenuRef = useRef<HTMLDivElement>(null);
   const tagPopupRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -221,8 +412,8 @@ const LibraryDetail = ({
   const speakerPopupRef = useRef<HTMLDivElement>(null);
   const speakersMenuRef = useRef<HTMLDivElement>(null);
   const speakersPopupRef = useRef<HTMLDivElement>(null);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
-  const filterPopupRef = useRef<HTMLDivElement>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const playbackRateRef = useRef(1);
   const streamTranscriptRef = useRef(item.transcript ?? "");
   const scrubWasPlayingRef = useRef(false);
@@ -232,23 +423,44 @@ const LibraryDetail = ({
   const isPlayingRef = useRef(false);
   const lastTimestampNavRef = useRef(0);
   const transcriptAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const transcriptHighlightsRef = useRef<HTMLDivElement | null>(null);
+  const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const segmentsVirtuosoRef = useRef<VirtuosoHandle | null>(null);
+  const turnsVirtuosoRef = useRef<VirtuosoHandle | null>(null);
   const streamVirtuosoRef = useRef<VirtuosoHandle | null>(null);
   const segmentsScrollerRef = useRef<HTMLElement | null>(null);
   const followScrollRafRef = useRef<number | null>(null);
 
   const modelLabel =
     resolveSpeechModelLabel(models, item.speech_model) ?? item.speech_model;
+  const sourceAppNames = item.sources?.system_audio ?? [];
+  const installedApps = useInstalledApps(sourceAppNames.length > 0).data;
+  const microphoneLabel = t({
+    id: "library.sources.microphone",
+    message: "Microphone",
+  });
+  const systemAudioLabel = t({
+    id: "library.sources.system_audio",
+    message: "System Audio",
+  });
+  const entireSystemLabel = t({
+    id: "record.setup.system_mode.all",
+    message: "Entire system",
+  });
+  const appIconPath = (name: string) =>
+    installedApps?.find((app) => app.name.toLowerCase() === name.toLowerCase())
+      ?.icon_path ?? null;
+  const bookmarks = useMemo(
+    () => [...(item.bookmarks ?? [])].sort((a, b) => a.at_ms - b.at_ms),
+    [item.bookmarks],
+  );
   const transcriptEditable = item.status.type === "complete";
   const transcriptAvailable =
     transcriptEditable && (item.transcript ?? "").trim().length > 0;
   const canShowTimestamps = !!item.segments && item.segments.length > 0;
   const speakers = useMemo(
-    () =>
-      (item.speakers ?? []).map((speaker, index) => ({
-        ...speaker,
-        color: speaker.color ?? SPEAKER_COLORS[index % SPEAKER_COLORS.length],
-      })),
+    () => withSpeakerColors(item.speakers ?? []),
     [item.speakers],
   );
   const canAddSpeaker = speakers.length < MAX_SPEAKERS;
@@ -257,6 +469,19 @@ const LibraryDetail = ({
     item.status.type === "cancelling" ||
     item.status.type === "pending" ||
     item.status.type === "importing";
+  const detectingSpeakersLabel = t({
+    id: "library.modal.detecting_speakers",
+    message: "Detecting speakers",
+  });
+  const transcribingLabel =
+    item.status.type !== "transcribing"
+      ? null
+      : item.status.detecting_speakers
+        ? detectingSpeakersLabel
+        : t({
+            id: "library.modal.transcribing_progress",
+            message: `Transcribing ${(clampProgress(item.status.progress) * 100).toFixed(0)}%`,
+          });
   const importStatusText =
     item.status.type === "importing"
       ? shouldShowImportProgress(item.status.progress)
@@ -287,6 +512,13 @@ const LibraryDetail = ({
     () => convertFileSrc(item.audio_path),
     [item.audio_path],
   );
+  const secondaryAudioUrl = useMemo(
+    () =>
+      item.secondary_audio_path
+        ? convertFileSrc(item.secondary_audio_path)
+        : null,
+    [item.secondary_audio_path],
+  );
 
   const stopSeekLoop = useCallback(() => {
     if (rafRef.current !== null) {
@@ -302,7 +534,6 @@ const LibraryDetail = ({
 
   const updateIsScrubbing = useCallback((value: boolean) => {
     isScrubbingRef.current = value;
-    setIsScrubbing(value);
   }, []);
 
   const releaseAudioSource = useCallback(() => {
@@ -322,6 +553,9 @@ const LibraryDetail = ({
     playbackRateRef.current = value;
     setPlaybackRate(value);
     if (audioRef.current) audioRef.current.playbackRate = value;
+    if (secondaryAudioRef.current) {
+      secondaryAudioRef.current.playbackRate = value;
+    }
   }, []);
 
   const playAudio = useCallback(
@@ -354,6 +588,15 @@ const LibraryDetail = ({
         }
         if (playing && !isScrubbingRef.current) {
           setAudioCurrentTime(audio.currentTime);
+        }
+        // The second track shadows the first; nudge it back if it drifts.
+        const secondary = secondaryAudioRef.current;
+        if (
+          secondary &&
+          playing &&
+          Math.abs(secondary.currentTime - audio.currentTime) > 0.25
+        ) {
+          secondary.currentTime = audio.currentTime;
         }
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -389,6 +632,15 @@ const LibraryDetail = ({
     const audio = new Audio(audioUrl);
     audio.preload = "auto";
     audio.playbackRate = playbackRateRef.current;
+    audio.muted = trackMutedRef.current.primary;
+    const secondary = secondaryAudioUrl ? new Audio(secondaryAudioUrl) : null;
+    if (secondary) {
+      secondary.preload = "auto";
+      secondary.playbackRate = playbackRateRef.current;
+      secondary.muted = trackMutedRef.current.secondary;
+      secondary.load();
+    }
+    secondaryAudioRef.current = secondary;
 
     const handleReady = () => {
       setAudioDuration(
@@ -411,19 +663,26 @@ const LibraryDetail = ({
     const handlePlay = () => {
       updateIsPlaying(true);
       startSeekLoop();
+      if (secondary) {
+        secondary.currentTime = audio.currentTime;
+        void secondary.play().catch(() => {});
+      }
     };
     const handlePause = () => {
       updateIsPlaying(false);
       stopSeekLoop();
+      secondary?.pause();
     };
     const handleEnded = () => {
       updateIsPlaying(false);
       stopSeekLoop();
+      secondary?.pause();
       if (Number.isFinite(audio.duration)) {
         setAudioCurrentTime(audio.duration);
       }
     };
     const handleSeeked = () => {
+      if (secondary) secondary.currentTime = audio.currentTime;
       if (!isScrubbingRef.current) setAudioCurrentTime(audio.currentTime);
     };
 
@@ -448,9 +707,18 @@ const LibraryDetail = ({
       audio.removeAttribute("src");
       audio.load();
       if (audioRef.current === audio) audioRef.current = null;
+      if (secondary) {
+        secondary.pause();
+        secondary.removeAttribute("src");
+        secondary.load();
+      }
+      if (secondaryAudioRef.current === secondary) {
+        secondaryAudioRef.current = null;
+      }
     };
   }, [
     audioUrl,
+    secondaryAudioUrl,
     item.duration_seconds,
     startSeekLoop,
     stopSeekLoop,
@@ -557,7 +825,9 @@ const LibraryDetail = ({
     transcriptSent.current = written;
     transcriptSaves.current += 1;
     transcriptChain.current = transcriptChain.current
-      .then(() => onUpdateRef.current({ transcript: written }))
+      .then(() =>
+        onUpdateRef.current({ transcript: written, transcript_edited: true }),
+      )
       .then(() => {
         transcriptSaveFailed.current = false;
       })
@@ -620,6 +890,11 @@ const LibraryDetail = ({
     overflowPopupRef,
   ]);
   useClickOutside(
+    playbackMenuRef,
+    () => setPlaybackMenuOpen(false),
+    playbackMenuOpen,
+  );
+  useClickOutside(
     speakerMenuRef,
     () => setSpeakerMenuSegment(null),
     speakerMenuSegment !== null,
@@ -632,24 +907,59 @@ const LibraryDetail = ({
       setRenamingSpeakerId(null);
       setSpeakerNameDraft("");
     },
-    speakersMenuOpen,
+    speakersMenuOpen && !speakerContext,
     [speakersPopupRef],
   );
-  useClickOutside(
-    filterMenuRef,
-    () => setFilterMenuOpen(false),
-    filterMenuOpen,
-    [filterPopupRef],
-  );
+
+  // Returns false after telling the user the save failed.
+  const saveOrToast = async (patch: LibraryItemPatch, failure: string) => {
+    try {
+      await onUpdate(patch);
+      return true;
+    } catch (err) {
+      console.error("failed to save library item:", err);
+      showErrorToast(failure);
+      return false;
+    }
+  };
+  const retryFailedMessage = t({
+    id: "library.detail.retry_failed",
+    message: "Couldn't start the transcription again.",
+  });
+  const tagsFailedMessage = t({
+    id: "library.detail.tags_failed",
+    message: "Couldn't save the tags.",
+  });
+  const speakersFailedMessage = t({
+    id: "library.detail.speakers_failed",
+    message: "Couldn't save the speakers.",
+  });
+  const bookmarksFailedMessage = t({
+    id: "library.detail.bookmarks_failed",
+    message: "Couldn't save the bookmark.",
+  });
 
   const handleNameCommit = async () => {
-    const value = nameDraft.trim();
-    if (!value || value === item.name) {
-      setNameDraft(item.name);
-      setIsEditingName(false);
+    // Escape already closed the editor; a trailing blur shouldn't save.
+    if (nameEditCancelled.current) {
+      nameEditCancelled.current = false;
       return;
     }
-    await onUpdate({ name: value });
+    const value = nameDraft.trim();
+    if (value && value !== item.name) {
+      await saveOrToast(
+        { name: value },
+        t({
+          id: "library.detail.rename_failed",
+          message: "Couldn't rename this item.",
+        }),
+      );
+    }
+    setIsEditingName(false);
+  };
+
+  const cancelNameEdit = () => {
+    nameEditCancelled.current = true;
     setIsEditingName(false);
   };
 
@@ -660,8 +970,9 @@ const LibraryDetail = ({
       setTagInput("");
       return;
     }
-    await onUpdate({ tags: [...item.tags, value] });
-    setTagInput("");
+    if (await saveOrToast({ tags: [...item.tags, value] }, tagsFailedMessage)) {
+      setTagInput("");
+    }
   };
 
   const normalizedTagInput = tagInput.trim().toLowerCase();
@@ -675,7 +986,10 @@ const LibraryDetail = ({
   });
 
   const handleRemoveTag = async (tag: string) => {
-    await onUpdate({ tags: item.tags.filter((entry) => entry !== tag) });
+    await saveOrToast(
+      { tags: item.tags.filter((entry) => entry !== tag) },
+      tagsFailedMessage,
+    );
   };
 
   const handleAddSpeaker = async () => {
@@ -689,8 +1003,21 @@ const LibraryDetail = ({
       }),
       color: SPEAKER_COLORS[speakers.length % SPEAKER_COLORS.length],
     };
-    await onUpdate({ speakers: [...speakers, speaker] });
-    return speaker;
+    const saved = await saveOrToast(
+      { speakers: [...speakers, speaker] },
+      speakersFailedMessage,
+    );
+    return saved ? speaker : null;
+  };
+
+  const handleUpdateSpeaker = async (
+    speakerId: string,
+    changes: Partial<Omit<Speaker, "id">>,
+  ) => {
+    const next = speakers.map((speaker) =>
+      speaker.id === speakerId ? { ...speaker, ...changes } : speaker,
+    );
+    await saveOrToast({ speakers: next }, speakersFailedMessage);
   };
 
   const handleRenameSpeaker = async (speakerId: string) => {
@@ -698,14 +1025,45 @@ const LibraryDetail = ({
     setRenamingSpeakerId(null);
     setSpeakerNameDraft("");
     if (!value) return;
-    const next = speakers.map((speaker) =>
-      speaker.id === speakerId ? { ...speaker, name: value } : speaker,
-    );
-    await onUpdate({ speakers: next });
+    await handleUpdateSpeaker(speakerId, { name: value });
   };
 
+  const handleMergeSpeaker = async (fromId: string, intoId: string) => {
+    setHiddenSpeakerIds((ids) => ids.filter((id) => id !== fromId));
+    const patch: LibraryItemPatch = {
+      speakers: speakers.filter((entry) => entry.id !== fromId),
+    };
+    if (item.segments?.some((segment) => segment.speaker_id === fromId)) {
+      patch.segments = item.segments.map((segment) =>
+        segment.speaker_id === fromId
+          ? { ...segment, speaker_id: intoId }
+          : segment,
+      );
+    }
+    await saveOrToast(patch, speakersFailedMessage);
+  };
+
+  const openSpeakerContext = (
+    speakerId: string,
+    event: React.MouseEvent,
+    segmentIndex?: number,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSpeakerMenuSegment(null);
+    setRenamingSpeakerId(null);
+    setSpeakerContext({
+      speakerId,
+      segmentIndex,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  };
+
+  const closeSpeakerContext = useCallback(() => setSpeakerContext(null), []);
+
   const handleRemoveSpeaker = async (speakerId: string) => {
-    if (speakerFilter === speakerId) setSpeakerFilter(null);
+    setHiddenSpeakerIds((ids) => ids.filter((id) => id !== speakerId));
     const nextSpeakers = speakers.filter((entry) => entry.id !== speakerId);
     const patch: LibraryItemPatch = { speakers: nextSpeakers };
     if (item.segments?.some((segment) => segment.speaker_id === speakerId)) {
@@ -715,7 +1073,7 @@ const LibraryDetail = ({
           : segment,
       );
     }
-    await onUpdate(patch);
+    await saveOrToast(patch, speakersFailedMessage);
   };
 
   const handleAssignSpeaker = async (
@@ -728,7 +1086,7 @@ const LibraryDetail = ({
     const next = segments.map((segment, idx) =>
       idx === segmentIndex ? { ...segment, speaker_id: speakerId } : segment,
     );
-    await onUpdate({ segments: next });
+    await saveOrToast({ segments: next }, speakersFailedMessage);
   };
 
   const speakerById = useMemo(() => {
@@ -736,17 +1094,92 @@ const LibraryDetail = ({
     for (const speaker of speakers) map.set(speaker.id, speaker);
     return map;
   }, [speakers]);
+  const hiddenSpeakers = useMemo(
+    () => new Set(hiddenSpeakerIds.filter((id) => speakerById.has(id))),
+    [hiddenSpeakerIds, speakerById],
+  );
+  const toggleSpeakerHidden = (speakerId: string) =>
+    setHiddenSpeakerIds((ids) =>
+      ids.includes(speakerId)
+        ? ids.filter((id) => id !== speakerId)
+        : [...ids, speakerId],
+    );
+  const contextSpeaker = speakerContext
+    ? (speakerById.get(speakerContext.speakerId) ?? null)
+    : null;
+  const lineIndex = speakerContext?.segmentIndex;
 
   const visibleSegments = useMemo(() => {
     const entries = (item.segments ?? []).map((segment, index) => ({
       segment,
       index,
     }));
-    if (!speakerFilter) return entries;
+    if (hiddenSpeakers.size === 0) return entries;
     return entries.filter(
-      (entry) => entry.segment.speaker_id === speakerFilter,
+      (entry) =>
+        !entry.segment.speaker_id ||
+        !hiddenSpeakers.has(entry.segment.speaker_id),
     );
-  }, [item.segments, speakerFilter]);
+  }, [item.segments, hiddenSpeakers]);
+
+  const speakerTurns = useMemo(
+    () => buildSpeakerTurns(item.segments ?? [], speakerById),
+    [item.segments, speakerById],
+  );
+  const speakersUsed = useMemo(
+    () =>
+      new Set(speakerTurns.map((turn) => turn.speaker).filter(Boolean)).size,
+    [speakerTurns],
+  );
+  // Edits and AI cleanup change the transcript but not the segments, so those items keep the text box.
+  const transcriptEdited = useMemo(() => {
+    if (item.transcript_edited) return true;
+    const letters = (text: string) =>
+      text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+    const segmentText = (item.segments ?? [])
+      .map((segment) => segment.text)
+      .join(" ");
+    return letters(item.transcript ?? "") !== letters(segmentText);
+  }, [item.transcript_edited, item.transcript, item.segments]);
+  const visibleTurns = useMemo(
+    () =>
+      hiddenSpeakers.size > 0
+        ? speakerTurns.filter(
+            (turn) => !turn.speaker || !hiddenSpeakers.has(turn.speaker.id),
+          )
+        : speakerTurns,
+    [speakerTurns, hiddenSpeakers],
+  );
+
+  // Each bookmark sits under the segment that was playing when it was set.
+  const bookmarksBySegment = useMemo(() => {
+    const map = new Map<number, Bookmark[]>();
+    const segments = item.segments ?? [];
+    if (!segments.length) return map;
+    for (const bookmark of bookmarks) {
+      // -1: set before the first sentence started, shown above it.
+      let index = -1;
+      for (let i = 0; i < segments.length; i += 1) {
+        if (segments[i].start_ms <= bookmark.at_ms) index = i;
+        else break;
+      }
+      const list = map.get(index) ?? [];
+      list.push(bookmark);
+      map.set(index, list);
+    }
+    return map;
+  }, [bookmarks, item.segments]);
+
+  const renderBookmarkRow = (bookmark: Bookmark) => (
+    <BookmarkRow
+      key={bookmark.id}
+      bookmark={bookmark}
+      timeWidth={timestampWidth}
+      onSeek={() => handleTimestampClick(bookmark.at_ms)}
+      onRename={(label) => void handleRenameBookmark(bookmark.id, label)}
+      onRemove={() => void handleRemoveBookmark(bookmark.id)}
+    />
+  );
 
   const handleExport = async (format: ExportFormat) => {
     setIsExporting(true);
@@ -772,12 +1205,10 @@ const LibraryDetail = ({
       const message = err instanceof Error ? err.message : String(err);
       console.error("Export failed:", message);
       const lower = message.toLowerCase();
-      let toastMessage =
-        message ||
-        t({
-          id: "library.modal.export.failed",
-          message: "Export failed. Try again.",
-        });
+      let toastMessage = t({
+        id: "library.modal.export.failed",
+        message: "Export failed. Try again.",
+      });
       if (lower.includes("no timestamp segments")) {
         toastMessage = t({
           id: "library.modal.export.no_timestamps",
@@ -805,7 +1236,26 @@ const LibraryDetail = ({
     }
   };
 
+  const handleToggleTimestamps = () => {
+    if (!canShowTimestamps) return;
+    const nextValue = !showTimestamps;
+    setShowTimestamps(nextValue);
+    Promise.resolve(onUpdate({ show_timestamps: nextValue })).catch((err) => {
+      console.error("failed to save timestamps setting:", err);
+    });
+  };
+
   const handleCopy = () => {
+    if (showSpeakerText) {
+      copyTranscript(
+        visibleTurns
+          .map((turn) =>
+            turn.speaker ? `${turn.speaker.name}: ${turn.text}` : turn.text,
+          )
+          .join("\n\n"),
+      );
+      return;
+    }
     if (transcriptDraft.trim()) copyTranscript(transcriptDraft);
   };
 
@@ -815,17 +1265,36 @@ const LibraryDetail = ({
     if (!audio.paused) {
       audio.pause();
     } else {
+      setFollowPaused(false);
       playAudio(audio);
     }
   }, [audioError, audioReady, playAudio]);
 
+  // Dragging near a bookmark lands on it.
+  const snapToBookmark = (time: number) => {
+    const window = Math.max(0.35, audioDuration * 0.012);
+    let best: number | null = null;
+    for (const bookmark of bookmarks) {
+      const at = bookmark.at_ms / 1000;
+      if (
+        Math.abs(at - time) <= window &&
+        (best === null || Math.abs(at - time) < Math.abs(best - time))
+      ) {
+        best = at;
+      }
+    }
+    return best ?? time;
+  };
+
   const handleScrubChange = (nextValue: string) => {
     const audio = audioRef.current;
     if (!audio || audioError || !audioReady) return;
-    const nextTime = Number(nextValue);
-    if (!Number.isFinite(nextTime)) return;
+    const raw = Number(nextValue);
+    if (!Number.isFinite(raw)) return;
+    const scrubbing = isScrubbingRef.current;
+    const nextTime = scrubbing ? snapToBookmark(raw) : raw;
     scrubValueRef.current = nextTime;
-    if (isScrubbing) {
+    if (scrubbing) {
       setAudioCurrentTime(nextTime);
       audio.currentTime = nextTime;
       return;
@@ -846,6 +1315,7 @@ const LibraryDetail = ({
     const audio = audioRef.current;
     if (!audio || audioError || !audioReady) return;
     updateIsScrubbing(false);
+    setFollowPaused(false);
     if (
       typeof scrubValueRef.current === "number" &&
       Number.isFinite(scrubValueRef.current)
@@ -860,27 +1330,72 @@ const LibraryDetail = ({
     scrubWasPlayingRef.current = false;
   };
 
+  const handleToggleTrackMute = (track: "primary" | "secondary") => {
+    setTrackMuted((prev) => {
+      const next = { ...prev, [track]: !prev[track] };
+      if (audioRef.current) audioRef.current.muted = next.primary;
+      if (secondaryAudioRef.current) {
+        secondaryAudioRef.current.muted = next.secondary;
+      }
+      return next;
+    });
+  };
+
+  const handleRenameBookmark = async (id: string, label: string) => {
+    await saveOrToast(
+      {
+        bookmarks: bookmarks.map((bookmark) =>
+          bookmark.id === id ? { ...bookmark, label: label || null } : bookmark,
+        ),
+      },
+      bookmarksFailedMessage,
+    );
+  };
+
+  const handleRemoveBookmark = async (id: string) => {
+    await saveOrToast(
+      { bookmarks: bookmarks.filter((bookmark) => bookmark.id !== id) },
+      bookmarksFailedMessage,
+    );
+  };
+
   const handleTimestampClick = (startMs: number) => {
     const audio = audioRef.current;
     if (!audio || audioError || !audioReady) return;
     const nextTime = Math.max(0, startMs / 1000);
     audio.currentTime = nextTime;
     setAudioCurrentTime(nextTime);
+    setFollowPaused(false);
     if (audio.paused) {
       playAudio(audio);
     }
   };
-  const scrubberMax = audioDuration > 0 ? audioDuration : 1;
-  const scrubberValue = Math.min(audioCurrentTime, scrubberMax);
-  const scrubberPercent =
-    scrubberMax > 0 ? (scrubberValue / scrubberMax) * 100 : 0;
+  const timestampWidth = audioDuration >= 3600 ? "w-14" : "w-10";
   const minPlaybackRate = PLAYBACK_RATES[0];
   const maxPlaybackRate = PLAYBACK_RATES[PLAYBACK_RATES.length - 1];
   const canDecreasePlaybackRate = playbackRate > minPlaybackRate;
   const canIncreasePlaybackRate = playbackRate < maxPlaybackRate;
   const showStreaming = item.status.type === "transcribing" && !showTimestamps;
   const showSegmentView = showTimestamps && canShowTimestamps;
-  const followTimestampsActive = followTimestamps && showSegmentView;
+  // Read-only script of speaker turns, in place of the editable textarea.
+  const showSpeakerText =
+    !showSegmentView &&
+    item.status.type === "complete" &&
+    speakersUsed >= 2 &&
+    !transcriptEdited;
+  const transcribingPlaceholder = showStreaming && streamChunks.length === 0;
+  const detectingSpeakers =
+    rediarizing ||
+    (item.status.type === "transcribing" && !!item.status.detecting_speakers);
+  // The placeholder shows progress itself until text arrives.
+  const footerStatus = transcribingPlaceholder
+    ? null
+    : rediarizing
+      ? detectingSpeakersLabel
+      : transcribingLabel;
+  // The transcript follows playback until the reader scrolls it themselves.
+  const followTimestampsActive =
+    followPlayback && showSegmentView && isPlaying && !followPaused;
   const normalizedSearchQuery = searchQuery.trim();
   const activeSegmentIndex = useMemo(() => {
     if (!showTimestamps || !canShowTimestamps) return -1;
@@ -975,72 +1490,83 @@ const LibraryDetail = ({
 
   const segmentMatchIndexes = useMemo(() => {
     if (!normalizedSearchQuery || !showSegmentView) return [];
-    const query = normalizedSearchQuery.toLowerCase();
-    const matches: number[] = [];
-    for (let i = 0; i < visibleSegments.length; i += 1) {
-      if (visibleSegments[i].segment.text.toLowerCase().includes(query)) {
-        matches.push(i);
-      }
-    }
-    return matches;
+    return findRowMatches(
+      visibleSegments.map((entry) => entry.segment.text),
+      normalizedSearchQuery,
+    );
   }, [normalizedSearchQuery, visibleSegments, showSegmentView]);
+
+  const turnMatchIndexes = useMemo(() => {
+    if (!normalizedSearchQuery || !showSpeakerText) return [];
+    return findRowMatches(
+      visibleTurns.map((turn) => turn.text),
+      normalizedSearchQuery,
+    );
+  }, [normalizedSearchQuery, visibleTurns, showSpeakerText]);
 
   const streamMatchIndexes = useMemo(() => {
     if (!normalizedSearchQuery || !showStreaming) return [];
-    const query = normalizedSearchQuery.toLowerCase();
-    const matches: number[] = [];
-    for (let i = 0; i < streamChunks.length; i += 1) {
-      if (streamChunks[i].toLowerCase().includes(query)) {
-        matches.push(i);
-      }
-    }
-    return matches;
+    return findRowMatches(streamChunks, normalizedSearchQuery);
   }, [normalizedSearchQuery, showStreaming, streamChunks]);
 
-  const textMatchIndex = useMemo(() => {
-    if (!normalizedSearchQuery || showSegmentView || showStreaming) return -1;
-    const query = normalizedSearchQuery.toLowerCase();
-    return transcriptDraft.toLowerCase().indexOf(query);
-  }, [normalizedSearchQuery, showSegmentView, showStreaming, transcriptDraft]);
-
-  const searchMatchLabel = useMemo(() => {
-    if (!normalizedSearchQuery) return null;
-    const indexed = (matches: number[]) =>
-      `${matches.length ? Math.min(activeSearchIndex, matches.length - 1) + 1 : 0}/${matches.length}`;
-    if (showSegmentView) return indexed(segmentMatchIndexes);
-    if (showStreaming) return indexed(streamMatchIndexes);
+  const textMatchIndexes = useMemo(() => {
+    if (
+      !normalizedSearchQuery ||
+      showSegmentView ||
+      showSpeakerText ||
+      showStreaming
+    ) {
+      return [];
+    }
     const query = normalizedSearchQuery.toLowerCase();
     const text = transcriptDraft.toLowerCase();
-    let count = 0;
+    const matches: number[] = [];
     let cursor = text.indexOf(query);
     while (cursor !== -1) {
-      count += 1;
+      matches.push(cursor);
       cursor = text.indexOf(query, cursor + query.length);
     }
-    return String(count);
+    return matches;
   }, [
     normalizedSearchQuery,
     showSegmentView,
+    showSpeakerText,
     showStreaming,
-    segmentMatchIndexes,
-    streamMatchIndexes,
-    activeSearchIndex,
     transcriptDraft,
   ]);
 
-  const activeSegmentMatch = segmentMatchIndexes.length
-    ? segmentMatchIndexes[
-        Math.min(activeSearchIndex, segmentMatchIndexes.length - 1)
-      ]
-    : -1;
-  const activeStreamMatch = streamMatchIndexes.length
-    ? streamMatchIndexes[
-        Math.min(activeSearchIndex, streamMatchIndexes.length - 1)
-      ]
-    : -1;
+  const searchMatchLabel = useMemo(() => {
+    if (!normalizedSearchQuery) return null;
+    const indexed = (matches: unknown[]) =>
+      `${matches.length ? Math.min(activeSearchIndex, matches.length - 1) + 1 : 0}/${matches.length}`;
+    if (showSegmentView) return indexed(segmentMatchIndexes);
+    if (showSpeakerText) return indexed(turnMatchIndexes);
+    if (showStreaming) return indexed(streamMatchIndexes);
+    return indexed(textMatchIndexes);
+  }, [
+    normalizedSearchQuery,
+    showSegmentView,
+    showSpeakerText,
+    showStreaming,
+    segmentMatchIndexes,
+    turnMatchIndexes,
+    streamMatchIndexes,
+    textMatchIndexes,
+    activeSearchIndex,
+  ]);
+
+  const pickActiveMatch = (matches: RowMatch[]) =>
+    matches.length
+      ? matches[Math.min(activeSearchIndex, matches.length - 1)]
+      : null;
+  const activeSegmentMatch = pickActiveMatch(segmentMatchIndexes);
+  const activeTurnMatch = pickActiveMatch(turnMatchIndexes);
+  const activeStreamMatch = pickActiveMatch(streamMatchIndexes);
+  const activeOccurrence = (match: RowMatch | null, row: number) =>
+    match?.row === row ? match.occurrence : -1;
 
   const renderHighlightedText = useCallback(
-    (text: string, isActive: boolean) => {
+    (text: string, activeHit: number) => {
       if (!normalizedSearchQuery) return text;
       const query = normalizedSearchQuery.toLowerCase();
       const lower = text.toLowerCase();
@@ -1057,7 +1583,7 @@ const LibraryDetail = ({
         nodes.push(
           <mark
             key={`${matchIndex}-${matchCount}`}
-            className={`transcript-search-hit${isActive ? " transcript-search-hit-active" : ""}`}
+            className={`transcript-search-hit${matchCount === activeHit ? " transcript-search-hit-active" : ""}`}
           >
             {matchText}
           </mark>,
@@ -1081,29 +1607,24 @@ const LibraryDetail = ({
 
   const handleSearchNavigate = useCallback(
     (direction: number) => {
-      if (!normalizedSearchQuery) return;
-      if (showSegmentView && segmentMatchIndexes.length > 0) {
-        setActiveSearchIndex(
-          (prev) =>
-            (prev + direction + segmentMatchIndexes.length) %
-            segmentMatchIndexes.length,
-        );
-        return;
-      }
-      if (showStreaming && streamMatchIndexes.length > 0) {
-        setActiveSearchIndex(
-          (prev) =>
-            (prev + direction + streamMatchIndexes.length) %
-            streamMatchIndexes.length,
-        );
-      }
+      const count = showSegmentView
+        ? segmentMatchIndexes.length
+        : showSpeakerText
+          ? turnMatchIndexes.length
+          : showStreaming
+            ? streamMatchIndexes.length
+            : textMatchIndexes.length;
+      if (count === 0) return;
+      setActiveSearchIndex((prev) => (prev + direction + count) % count);
     },
     [
-      normalizedSearchQuery,
       showSegmentView,
+      showSpeakerText,
       showStreaming,
       segmentMatchIndexes,
+      turnMatchIndexes,
       streamMatchIndexes,
+      textMatchIndexes,
     ],
   );
 
@@ -1153,10 +1674,38 @@ const LibraryDetail = ({
         target?.getAttribute("role") === "link" ||
         target?.getAttribute("role") === "menuitem";
 
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setSearchOpen(true);
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
       if (event.key === "Escape") {
         event.preventDefault();
+        // Closes the topmost layer only.
         if (showDeleteConfirm) {
           setShowDeleteConfirm(false);
+        } else if (showRetranscribe) {
+          setShowRetranscribe(false);
+        } else if (speakerContext) {
+          setSpeakerContext(null);
+        } else if (speakerMenuSegment !== null) {
+          setSpeakerMenuSegment(null);
+        } else if (speakersMenuOpen) {
+          setSpeakersMenuOpen(false);
+          setRenamingSpeakerId(null);
+          setSpeakerNameDraft("");
+        } else if (exportOpen) {
+          setExportOpen(false);
+        } else if (overflowOpen) {
+          setOverflowOpen(false);
+        } else if (playbackMenuOpen) {
+          setPlaybackMenuOpen(false);
+        } else if (tagMenuOpen) {
+          setTagMenuOpen(false);
+          setTagInput("");
         } else {
           onClose();
         }
@@ -1186,50 +1735,68 @@ const LibraryDetail = ({
     handleTogglePlayback,
     onClose,
     showDeleteConfirm,
+    showRetranscribe,
+    speakerContext,
+    speakerMenuSegment,
+    speakersMenuOpen,
+    exportOpen,
+    overflowOpen,
+    playbackMenuOpen,
+    tagMenuOpen,
     showSegmentView,
   ]);
 
   useEffect(() => {
     if (!normalizedSearchQuery) return;
     if (showSegmentView) {
-      if (segmentMatchIndexes.length === 0) return;
-      const targetIndex =
-        segmentMatchIndexes[
-          Math.min(activeSearchIndex, segmentMatchIndexes.length - 1)
-        ];
+      if (!activeSegmentMatch) return;
       segmentsVirtuosoRef.current?.scrollToIndex({
-        index: targetIndex,
+        index: activeSegmentMatch.row,
+        align: "center",
+        behavior: "smooth",
+      });
+      return;
+    }
+    if (showSpeakerText) {
+      if (!activeTurnMatch) return;
+      turnsVirtuosoRef.current?.scrollToIndex({
+        index: activeTurnMatch.row,
         align: "center",
         behavior: "smooth",
       });
       return;
     }
     if (showStreaming) {
-      if (streamMatchIndexes.length === 0) return;
-      const targetIndex =
-        streamMatchIndexes[
-          Math.min(activeSearchIndex, streamMatchIndexes.length - 1)
-        ];
+      if (!activeStreamMatch) return;
       streamVirtuosoRef.current?.scrollToIndex({
-        index: targetIndex,
+        index: activeStreamMatch.row,
         align: "center",
         behavior: "smooth",
       });
       return;
     }
-    if (textMatchIndex >= 0 && transcriptAreaRef.current) {
-      const endIndex = textMatchIndex + normalizedSearchQuery.length;
-      transcriptAreaRef.current.focus();
-      transcriptAreaRef.current.setSelectionRange(textMatchIndex, endIndex);
-    }
+    const scroller = transcriptScrollRef.current;
+    const activeHit =
+      transcriptHighlightsRef.current?.querySelector<HTMLElement>(
+        "[data-active]",
+      );
+    if (!scroller || !activeHit) return;
+    // Editing the transcript re-runs this; don't yank the view while typing there.
+    if (document.activeElement === transcriptAreaRef.current) return;
+    scroller.scrollTo({
+      top: activeHit.offsetTop - scroller.clientHeight / 2,
+      behavior: "smooth",
+    });
   }, [
     normalizedSearchQuery,
     showSegmentView,
+    showSpeakerText,
     showStreaming,
-    segmentMatchIndexes,
-    streamMatchIndexes,
+    activeSegmentMatch,
+    activeTurnMatch,
+    activeStreamMatch,
     activeSearchIndex,
-    textMatchIndex,
+    textMatchIndexes,
   ]);
 
   const stopFollowScroll = useCallback(() => {
@@ -1323,6 +1890,11 @@ const LibraryDetail = ({
             event.stopPropagation();
             setSpeakerMenuSegment(menuOpen ? null : idx);
           }}
+          onContextMenu={
+            speaker
+              ? (event) => openSpeakerContext(speaker.id, event, idx)
+              : undefined
+          }
           title={
             speaker
               ? speaker.name
@@ -1416,7 +1988,7 @@ const LibraryDetail = ({
               <UserPlus size={11} />
               {t({
                 id: "library.detail.assign_new_speaker",
-                message: "Assign new person",
+                message: "Assign new speaker",
               })}
             </button>
           </FloatingPortal>
@@ -1427,20 +1999,20 @@ const LibraryDetail = ({
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col">
-      <header className="shrink-0 border-b border-[var(--color-border-primary)] px-5 py-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-5 gap-y-2.5">
-          <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-1.5">
-            <button
-              onClick={onClose}
-              className="flex items-center justify-center rounded-md p-1.5 -ml-1.5 text-content-muted hover:text-content-primary hover:bg-surface-surface transition-colors"
-              aria-label={backLabel}
-            >
-              <ArrowLeft size={15} />
-            </button>
+      <header className="-mt-5 shrink-0 border-b border-[var(--color-border-primary)] px-5 pt-1.5 pb-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center rounded-md p-1.5 -ml-1.5 text-content-muted hover:text-content-primary hover:bg-surface-surface transition-colors"
+                aria-label={backLabel}
+              >
+                <ArrowLeft size={15} />
+              </button>
 
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
               {isEditingName ? (
-                <div className="flex min-w-0 items-center gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <input
                     value={nameDraft}
                     onChange={(event) => setNameDraft(event.target.value)}
@@ -1450,621 +2022,766 @@ const LibraryDetail = ({
                         event.preventDefault();
                         handleNameCommit();
                       }
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        cancelNameEdit();
+                      }
                     }}
                     className="min-w-0 flex-1 max-w-md bg-transparent border-b border-[var(--color-border-primary)] px-1 py-0.5 ui-text-body-lg font-semibold text-content-primary focus:border-[var(--color-border-hover)] outline-hidden"
                     autoFocus
                   />
                   <button
                     onClick={handleNameCommit}
+                    aria-label={t({
+                      id: "library.detail.rename_save",
+                      message: "Save name",
+                    })}
                     className="text-content-muted hover:text-content-primary"
                   >
                     <Check size={12} />
                   </button>
                 </div>
               ) : (
-                <div className="group flex min-w-0 items-center gap-1.5">
-                  <h2 className="truncate ui-text-body-lg font-semibold text-content-primary">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1 group">
+                  <h2 className="ui-text-body-lg font-semibold text-content-primary truncate">
                     {formatLibraryName(item.name)}
                   </h2>
                   <button
-                    onClick={() => setIsEditingName(true)}
-                    className="shrink-0 text-content-muted opacity-0 transition-opacity hover:text-content-primary group-hover:opacity-100"
+                    onClick={() => {
+                      nameEditCancelled.current = false;
+                      setIsEditingName(true);
+                    }}
+                    aria-label={t({
+                      id: "library.detail.rename",
+                      message: "Rename",
+                    })}
+                    className="opacity-0 group-hover:opacity-100 text-content-muted hover:text-content-primary transition-opacity shrink-0"
                   >
                     <Pencil size={11} />
                   </button>
                 </div>
               )}
-
-              <div className="flex min-w-0 items-center gap-2 overflow-hidden ui-text-meta text-content-disabled">
-                <span className="truncate">{modelLabel}</span>
-                {createdAtLabel && (
-                  <>
-                    <span className="shrink-0 opacity-40" aria-hidden="true">
-                      ·
-                    </span>
-                    <span className="shrink-0 whitespace-nowrap">
-                      {createdAtLabel}
-                    </span>
-                  </>
-                )}
-                {audioDuration > 0 && (
-                  <>
-                    <span className="shrink-0 opacity-40" aria-hidden="true">
-                      ·
-                    </span>
-                    <span className="shrink-0 tabular-nums">
-                      {formatDuration(audioDuration)}
-                    </span>
-                  </>
-                )}
-              </div>
             </div>
-          </div>
 
-          <div className="col-start-1 row-start-2 flex min-w-0 items-center gap-1.5 pl-[30px]">
-            <div className="relative flex min-w-0 flex-1 items-center gap-2 border-b border-[var(--color-border-secondary)] px-1 py-0.5 transition-colors focus-within:border-[var(--color-border-hover)]">
-              <Search
-                size={12}
-                className="text-content-disabled shrink-0"
-                aria-hidden="true"
-              />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => handleSearchChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleSearchNavigate(event.shiftKey ? -1 : 1);
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    handleSearchChange("");
-                  }
+            <div className="flex shrink-0 items-center gap-0.5">
+              {searchOpen && (
+                <div className="relative mr-1.5 flex w-52 items-center gap-2 px-1 py-0.5 border-b border-[var(--color-border-secondary)] focus-within:border-[var(--color-border-hover)] transition-colors">
+                  <Search
+                    size={12}
+                    className="text-content-disabled shrink-0"
+                    aria-hidden="true"
+                  />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    {...{ writingsuggestions: "false" }}
+                    value={searchQuery}
+                    autoFocus
+                    onChange={(event) => handleSearchChange(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleSearchNavigate(event.shiftKey ? -1 : 1);
+                      }
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        handleSearchChange("");
+                        setSearchOpen(false);
+                      }
+                    }}
+                    placeholder={t({
+                      id: "library.modal.search.placeholder",
+                      message: "Search transcript...",
+                    })}
+                    aria-label={t({
+                      id: "library.modal.search.aria",
+                      message: "Search transcript",
+                    })}
+                    className="bg-transparent ui-text-label text-content-secondary placeholder-content-disabled outline-hidden w-full"
+                  />
+                  {searchMatchLabel !== null && (
+                    <span className="ui-text-micro tabular-nums text-content-disabled shrink-0 whitespace-nowrap">
+                      {searchMatchLabel}
+                    </span>
+                  )}
+                  {searchQuery && (
+                    <button
+                      onClick={() => handleSearchChange("")}
+                      aria-label={t({
+                        id: "library.modal.search.clear",
+                        message: "Clear search",
+                      })}
+                      className="text-content-disabled hover:text-content-muted transition-colors shrink-0"
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (searchOpen) handleSearchChange("");
+                  setSearchOpen((prev) => !prev);
                 }}
-                placeholder={t({
-                  id: "library.modal.search.placeholder",
-                  message: "Search transcript...",
-                })}
+                aria-pressed={searchOpen}
                 aria-label={t({
                   id: "library.modal.search.aria",
                   message: "Search transcript",
                 })}
-                className="bg-transparent ui-text-label text-content-secondary placeholder-content-disabled outline-hidden w-full"
-              />
-              {searchMatchLabel !== null && (
-                <span className="ui-text-micro tabular-nums text-content-disabled shrink-0 whitespace-nowrap">
-                  {searchMatchLabel}
-                </span>
-              )}
-              {searchQuery && (
-                <button
-                  onClick={() => handleSearchChange("")}
-                  aria-label={t({
-                    id: "library.modal.search.clear",
-                    message: "Clear search",
-                  })}
-                  className="text-content-disabled hover:text-content-muted transition-colors shrink-0"
-                >
-                  <X size={12} aria-hidden="true" />
-                </button>
-              )}
-            </div>
-
-            <div className="relative shrink-0" ref={filterMenuRef}>
-              <button
-                type="button"
-                onClick={() => setFilterMenuOpen((prev) => !prev)}
-                aria-label={t({
-                  id: "library.detail.filter.aria",
-                  message: "Filter by person",
-                })}
                 title={t({
-                  id: "library.detail.filter.aria",
-                  message: "Filter by person",
+                  id: "library.modal.search.aria",
+                  message: "Search transcript",
                 })}
-                className={`flex items-center justify-center rounded-md p-1 transition-colors hover:bg-surface-surface ${
-                  speakerFilter
-                    ? "text-[var(--color-cloud-dark)]"
-                    : "text-content-disabled hover:text-content-primary"
+                className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-surface-surface ${
+                  searchOpen
+                    ? "text-content-primary"
+                    : "text-content-muted hover:text-content-primary"
                 }`}
               >
-                <Funnel size={13} weight={speakerFilter ? "fill" : "regular"} />
+                <Search size={14} aria-hidden="true" />
               </button>
-              {filterMenuOpen && (
-                <FloatingPortal
-                  anchorRef={filterMenuRef}
-                  ref={filterPopupRef}
-                  placement="bottom-start"
-                  className="w-40 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
+
+              <button
+                onClick={handleCopy}
+                disabled={!showSpeakerText && !transcriptDraft.trim()}
+                aria-label={t({ id: "library.modal.copy", message: "Copy" })}
+                title={t({ id: "library.modal.copy", message: "Copy" })}
+                className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-surface-surface disabled:opacity-40 ${
+                  copyConfirmed
+                    ? "ui-color-success"
+                    : "text-content-muted hover:text-content-primary"
+                }`}
+              >
+                {copyConfirmed ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  onClick={() => setExportOpen((prev) => !prev)}
+                  disabled={isExporting || !transcriptAvailable}
+                  aria-haspopup="menu"
+                  aria-expanded={exportOpen}
+                  aria-label={t({
+                    id: "library.modal.export",
+                    message: "Export",
+                  })}
+                  title={t({ id: "library.modal.export", message: "Export" })}
+                  className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-surface-surface disabled:opacity-40 ${
+                    exportOpen
+                      ? "text-content-primary"
+                      : "text-content-muted hover:text-content-primary"
+                  }`}
                 >
-                  {speakers.length === 0 ? (
-                    <div className="px-2.5 py-2 ui-text-micro text-content-muted">
-                      {t({
-                        id: "library.detail.filter.no_speakers",
-                        message: "No people yet",
-                      })}
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSpeakerFilter(null);
-                          setFilterMenuOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-1.5 ui-text-meta font-medium hover:bg-surface-elevated/70 transition-colors ${
-                          speakerFilter === null
-                            ? "text-content-primary"
-                            : "text-content-secondary hover:text-content-primary"
-                        }`}
-                      >
-                        {t({
-                          id: "library.detail.filter.all",
-                          message: "All people",
-                        })}
-                      </button>
-                      {speakers.map((speaker) => (
+                  <Export size={14} aria-hidden="true" />
+                </button>
+                <AnimatePresence>
+                  {exportOpen && (
+                    <motion.div
+                      role="menu"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      transition={{ duration: 0.1 }}
+                      className="absolute right-0 top-full mt-1 w-40 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden z-[120] py-1"
+                    >
+                      {EXPORT_FORMATS.map((format) => (
                         <button
-                          key={speaker.id}
-                          type="button"
-                          onClick={() => {
-                            setSpeakerFilter(speaker.id);
-                            setFilterMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-2 text-left px-2.5 py-1.5 ui-text-meta font-medium hover:bg-surface-elevated/70 transition-colors ${
-                            speakerFilter === speaker.id
-                              ? "text-content-primary"
-                              : "text-content-secondary hover:text-content-primary"
-                          }`}
+                          key={format.value}
+                          role="menuitem"
+                          onClick={() => handleExport(format.value)}
+                          disabled={
+                            format.needsSegments &&
+                            !(item.segments && item.segments.length)
+                          }
+                          className="w-full px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          <span
-                            className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                            style={{
-                              backgroundColor: speaker.color ?? undefined,
-                            }}
-                            aria-hidden="true"
-                          />
-                          <span className="truncate">{speaker.name}</span>
-                          {speakerFilter === speaker.id && (
-                            <Check size={10} className="ml-auto shrink-0" />
-                          )}
+                          {format.value.toUpperCase()}
                         </button>
                       ))}
-                    </>
+                    </motion.div>
                   )}
-                </FloatingPortal>
-              )}
-            </div>
-          </div>
+                </AnimatePresence>
+              </div>
 
-          <div className="col-start-2 row-start-1 flex items-center justify-end gap-1">
-            <button
-              onClick={handleCopy}
-              disabled={!transcriptDraft.trim()}
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 ui-text-meta disabled:opacity-50 transition-colors ${
-                copyConfirmed
-                  ? "ui-color-success bg-[color-mix(in_srgb,var(--color-success)_12%,transparent)]"
-                  : "text-content-secondary hover:text-content-primary hover:bg-surface-surface"
-              }`}
-            >
-              {copyConfirmed ? <Check size={10} /> : <Copy size={10} />}
-              <span className="inline-block min-w-[38px] text-left">
-                {copyConfirmed
-                  ? t({
-                      id: "library.modal.copy.copied",
-                      message: "Copied",
-                    })
-                  : t({
-                      id: "library.modal.copy",
-                      message: "Copy",
-                    })}
-              </span>
-            </button>
-
-            <div className="relative" ref={exportMenuRef}>
-              <button
-                onClick={() => setExportOpen(!exportOpen)}
-                disabled={isExporting || !transcriptAvailable}
-                className="flex items-center gap-1.5 rounded-md px-2.5 py-1 ui-text-meta text-content-secondary hover:text-content-primary hover:bg-surface-surface disabled:opacity-50"
-              >
-                {t({
-                  id: "library.modal.export",
-                  message: "Export",
-                })}
-                <ChevronDown size={10} />
-              </button>
-              {exportOpen && (
-                <FloatingPortal
-                  anchorRef={exportMenuRef}
-                  ref={exportPopupRef}
-                  placement="bottom-end"
-                  className="w-36 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden"
+              <div className="relative" ref={overflowMenuRef}>
+                <button
+                  onClick={() => setOverflowOpen((prev) => !prev)}
+                  className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-surface-surface text-content-muted hover:text-content-primary"
+                  aria-label={t({
+                    id: "library.detail.more_actions",
+                    message: "More actions",
+                  })}
                 >
-                  {(["txt", "md", "srt", "vtt"] as ExportFormat[]).map(
-                    (format) => {
-                      const requiresSegments =
-                        format === "srt" || format === "vtt";
-                      const disabled =
-                        requiresSegments &&
-                        !(item.segments && item.segments.length);
-                      return (
-                        <button
-                          key={format}
-                          onClick={() => handleExport(format)}
-                          disabled={disabled}
-                          className="w-full px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {format.toUpperCase()}
-                        </button>
-                      );
-                    },
-                  )}
-                </FloatingPortal>
-              )}
-            </div>
-
-            <div className="relative" ref={overflowMenuRef}>
-              <button
-                onClick={() => setOverflowOpen((prev) => !prev)}
-                className="flex items-center justify-center rounded-md p-1.5 text-content-muted hover:text-content-primary hover:bg-surface-surface transition-colors"
-                aria-label={t({
-                  id: "library.detail.more_actions",
-                  message: "More actions",
-                })}
-              >
-                <DotsThreeVertical size={14} weight="bold" />
-              </button>
-              {overflowOpen && (
-                <FloatingPortal
-                  anchorRef={overflowMenuRef}
-                  ref={overflowPopupRef}
-                  placement="bottom-end"
-                  className="w-44 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden"
-                >
-                  {item.status.type === "complete" &&
-                    item.transcript?.trim() && (
+                  <DotsThreeVertical size={14} weight="bold" />
+                </button>
+                <AnimatePresence>
+                  {overflowOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      transition={{ duration: 0.1 }}
+                      className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden z-[120] py-1"
+                    >
                       <button
+                        type="button"
                         onClick={() => {
                           setOverflowOpen(false);
                           void onGenerateTitle().catch(() => {});
                         }}
-                        disabled={isGeneratingTitle}
-                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary transition-colors hover:bg-surface-overlay hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={
+                          isBusy ||
+                          isGeneratingTitle ||
+                          !item.transcript?.trim()
+                        }
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay disabled:opacity-40"
                       >
                         {isGeneratingTitle ? (
                           <Loader2 size={11} className="animate-spin" />
                         ) : (
                           <Sparkle size={11} />
                         )}
-                        {isGeneratingTitle
-                          ? t({
-                              id: "library.card.title.generating",
-                              message: "Organizing...",
-                            })
-                          : t({
-                              id: "library.card.title.generate",
-                              message: "Generate title and tags",
-                            })}
+                        {t({
+                          id: "library.card.title.generate",
+                          message: "Generate title and tags",
+                        })}
                       </button>
-                    )}
-                  <button
-                    onClick={() => {
-                      setOverflowOpen(false);
-                      setShowRetranscribe(true);
-                    }}
-                    disabled={isBusy}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <RotateCw size={11} />
-                    {t({
-                      id: "library.modal.retranscribe",
-                      message: "Retranscribe",
-                    })}
-                  </button>
-                  {isBusy && (
-                    <button
-                      onClick={() => {
-                        setOverflowOpen(false);
-                        onCancel();
-                      }}
-                      className="w-full px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors"
-                    >
-                      {t({
-                        id: "library.modal.cancel",
-                        message: "Cancel",
-                      })}
-                    </button>
-                  )}
-                  {item.status.type === "error" && (
-                    <button
-                      onClick={() => {
-                        setOverflowOpen(false);
-                        Promise.resolve(onRetry()).catch((err) => {
-                          console.error("failed to retry:", err);
-                        });
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors"
-                    >
-                      <RotateCw size={11} />
-                      {t({
-                        id: "library.modal.retry",
-                        message: "Retry",
-                      })}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setOverflowOpen(false);
-                      setShowDeleteConfirm(true);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta ui-color-error-soft hover:bg-[var(--color-error)]/10 transition-colors border-t border-border-primary"
-                  >
-                    <Trash2 size={11} />
-                    {t({
-                      id: "library.modal.delete",
-                      message: "Delete",
-                    })}
-                  </button>
-                </FloatingPortal>
-              )}
-            </div>
-          </div>
-
-          <div className="col-start-2 row-start-2 flex min-w-0 items-center justify-end gap-2 self-end">
-            {item.tags.slice(0, 3).map((tag, idx) => (
-              <div
-                key={`${tag}-${idx}`}
-                className="group/tag inline-flex h-6 max-w-36 items-center rounded-md border border-[var(--color-border-secondary)] bg-[var(--color-bg-surface)] px-2 ui-text-meta text-content-secondary transition-colors hover:border-[var(--color-border-hover)] hover:text-content-primary"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleRemoveTag(tag)}
-                  aria-label={t({
-                    id: "library.modal.tags.remove",
-                    message: `Remove ${tag}`,
-                  })}
-                  className="relative mr-0.5 flex h-3 w-3 shrink-0 items-center justify-center rounded-full"
-                >
-                  <span className="opacity-40 transition-opacity group-hover/tag:opacity-0">
-                    #
-                  </span>
-                  <span className="absolute inset-0 flex items-center justify-center rounded-full border border-current opacity-0 transition-opacity group-hover/tag:opacity-100">
-                    <X size={8} weight="bold" aria-hidden="true" />
-                  </span>
-                </button>
-                <span className="min-w-0 truncate">{tag}</span>
-              </div>
-            ))}
-            {item.tags.length > 3 && (
-              <button
-                type="button"
-                onClick={() => setTagMenuOpen(true)}
-                className="ui-text-meta text-content-muted hover:text-content-primary transition-colors shrink-0"
-              >
-                +{item.tags.length - 3}
-              </button>
-            )}
-            <div ref={tagMenuRef} className="relative flex items-center">
-              <button
-                type="button"
-                onClick={() => setTagMenuOpen((prev) => !prev)}
-                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 ui-text-meta text-content-muted hover:text-content-primary hover:bg-surface-surface transition-colors"
-                aria-label={t({
-                  id: "library.detail.tags.add",
-                  message: "Add tag",
-                })}
-              >
-                <Plus size={11} />
-                {t({
-                  id: "library.detail.tags.label",
-                  message: "Tag",
-                })}
-              </button>
-              {tagMenuOpen && (
-                <FloatingPortal
-                  anchorRef={tagMenuRef}
-                  ref={tagPopupRef}
-                  placement="bottom-end"
-                  className="w-40 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
-                >
-                  <div className="px-2 py-1.5 border-b border-border-primary">
-                    <input
-                      value={tagInput}
-                      onChange={(event) => setTagInput(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          handleAddTag();
-                        }
-                        if (event.key === "Escape") {
-                          event.preventDefault();
-                          setTagMenuOpen(false);
-                          setTagInput("");
-                        }
-                      }}
-                      placeholder={t({
-                        id: "library.modal.tags.new_tag",
-                        message: "New tag...",
-                      })}
-                      className="w-full bg-transparent ui-text-meta text-content-secondary outline-hidden placeholder:text-content-disabled"
-                      autoFocus
-                    />
-                  </div>
-                  {item.tags.length > 0 && (
-                    <div className="max-h-28 overflow-y-auto border-b border-border-primary">
-                      {item.tags.map((tag) => (
-                        <div
-                          key={tag}
-                          className="flex items-center justify-between gap-2 px-2.5 py-1 group/tagrow"
-                        >
-                          <span className="ui-text-meta text-content-secondary truncate">
-                            <span className="opacity-40">#</span>
-                            {tag}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveTag(tag)}
-                            aria-label={t({
-                              id: "library.modal.tags.remove",
-                              message: `Remove ${tag}`,
-                            })}
-                            className="opacity-0 group-hover/tagrow:opacity-100 text-content-disabled hover:text-red-500 transition-opacity shrink-0"
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="max-h-36 overflow-y-auto">
-                    {filteredTagOptions.length > 0 ? (
-                      filteredTagOptions.map((tag, index) => (
-                        <button
-                          key={`tag-option-${index}-${tag || "empty"}`}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => handleAddTag(tag)}
-                          className="w-full text-left px-2.5 py-1.5 ui-text-meta font-medium text-content-secondary hover:bg-surface-elevated/70 hover:text-content-primary transition-colors"
-                        >
-                          {tag}
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-2.5 py-2 ui-text-micro text-content-muted">
-                        {availableTags.length === 0
-                          ? t({
-                              id: "library.modal.tags.no_tags_yet",
-                              message: "No tags yet",
-                            })
-                          : t({
-                              id: "library.modal.tags.no_other_tags",
-                              message: "No other tags",
-                            })}
-                      </div>
-                    )}
-                  </div>
-                </FloatingPortal>
-              )}
-            </div>
-
-            <div
-              className="h-3.5 w-px bg-[var(--color-border-primary)] mx-1"
-              aria-hidden="true"
-            />
-            <div className="relative" ref={speakersMenuRef}>
-              <button
-                type="button"
-                onClick={() => setSpeakersMenuOpen((prev) => !prev)}
-                className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 ui-text-meta text-content-secondary hover:text-content-primary hover:bg-surface-surface transition-colors"
-              >
-                <Users size={11} />
-                {t({
-                  id: "library.detail.speakers",
-                  message: "People",
-                })}
-                <span className="text-content-disabled tabular-nums">
-                  {speakers.length}
-                </span>
-                <ChevronDown
-                  size={10}
-                  className={`transition-transform duration-150 ${speakersMenuOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              {speakersMenuOpen && (
-                <FloatingPortal
-                  anchorRef={speakersMenuRef}
-                  ref={speakersPopupRef}
-                  placement="bottom-end"
-                  className="w-48 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
-                >
-                  {speakers.map((speaker) => (
-                    <div
-                      key={speaker.id}
-                      className="flex items-center gap-2 px-2.5 py-1.5 group/speaker"
-                    >
-                      <span
-                        className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                        style={{
-                          backgroundColor: speaker.color ?? undefined,
+                      <button
+                        onClick={() => {
+                          setOverflowOpen(false);
+                          setShowRetranscribe(true);
                         }}
-                        aria-hidden="true"
-                      />
-                      {renamingSpeakerId === speaker.id ? (
-                        <input
-                          value={speakerNameDraft}
-                          onChange={(event) =>
-                            setSpeakerNameDraft(event.target.value)
-                          }
-                          onBlur={() => handleRenameSpeaker(speaker.id)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              handleRenameSpeaker(speaker.id);
-                            }
-                            if (event.key === "Escape") {
-                              event.preventDefault();
-                              setRenamingSpeakerId(null);
-                              setSpeakerNameDraft("");
-                            }
-                          }}
-                          className="flex-1 min-w-0 bg-transparent border-b border-[var(--color-border-primary)] px-0.5 py-0 ui-text-meta font-medium text-content-primary focus:border-[var(--color-border-hover)] outline-hidden"
-                          autoFocus
-                        />
-                      ) : (
+                        disabled={isBusy}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <RotateCw size={11} />
+                        {t({
+                          id: "library.modal.retranscribe",
+                          message: "Retranscribe",
+                        })}
+                      </button>
+                      {diarizerInstalled && item.status.type === "complete" && (
                         <button
-                          type="button"
                           onClick={() => {
-                            setRenamingSpeakerId(speaker.id);
-                            setSpeakerNameDraft(speaker.name);
+                            setOverflowOpen(false);
+                            void onRediarize();
                           }}
-                          title={t({
-                            id: "library.detail.speaker.rename",
-                            message: "Click to rename",
-                          })}
-                          className="flex-1 min-w-0 flex items-center gap-1.5 text-left ui-text-meta font-medium text-content-secondary hover:text-content-primary transition-colors border-b border-transparent px-0.5 py-0"
+                          disabled={rediarizing}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                          <span className="truncate">{speaker.name}</span>
-                          <Pencil
-                            size={10}
-                            className="shrink-0 text-content-disabled opacity-0 group-hover/speaker:opacity-100 transition-opacity"
-                            aria-hidden="true"
-                          />
+                          <Users size={11} />
+                          {t({
+                            id: "library.modal.detect_speakers_again",
+                            message: "Detect speakers again",
+                          })}
+                        </button>
+                      )}
+                      {isBusy && (
+                        <button
+                          onClick={() => {
+                            setOverflowOpen(false);
+                            onCancel();
+                          }}
+                          className="w-full px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors"
+                        >
+                          {t({
+                            id: "library.modal.cancel",
+                            message: "Cancel",
+                          })}
+                        </button>
+                      )}
+                      {item.status.type === "error" && (
+                        <button
+                          onClick={() => {
+                            setOverflowOpen(false);
+                            Promise.resolve(onRetry()).catch((err) => {
+                              console.error("failed to retry:", err);
+                              showErrorToast(retryFailedMessage);
+                            });
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors"
+                        >
+                          <RotateCw size={11} />
+                          {t({
+                            id: "library.modal.retry",
+                            message: "Retry",
+                          })}
                         </button>
                       )}
                       <button
-                        type="button"
-                        onClick={() => handleRemoveSpeaker(speaker.id)}
-                        aria-label={t({
-                          id: "library.detail.speaker.remove",
-                          message: `Remove ${speaker.name}`,
-                        })}
-                        className="opacity-0 group-hover/speaker:opacity-100 text-content-disabled hover:text-red-500 transition-opacity shrink-0"
+                        onClick={() => {
+                          setOverflowOpen(false);
+                          setShowDeleteConfirm(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta ui-color-error-soft hover:bg-[var(--color-error)]/10 transition-colors border-t border-border-primary"
                       >
-                        <X size={10} />
+                        <Trash2 size={11} />
+                        {t({
+                          id: "library.modal.delete",
+                          message: "Delete",
+                        })}
                       </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => handleAddSpeaker()}
-                    disabled={!canAddSpeaker}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left ui-text-meta text-content-muted hover:bg-surface-elevated/70 hover:text-content-primary transition-colors border-t border-border-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-content-muted"
-                  >
-                    <UserPlus size={11} />
-                    {t({
-                      id: "library.detail.add_speaker",
-                      message: "Add person",
-                    })}
-                  </button>
-                </FloatingPortal>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 min-w-0 pl-[30px] ui-text-meta text-content-disabled whitespace-nowrap">
+              {createdAtLabel && <span>{createdAtLabel}</span>}
+              {audioDuration > 0 && (
+                <>
+                  <span className="opacity-40" aria-hidden="true">
+                    ·
+                  </span>
+                  <span className="tabular-nums">
+                    {formatDuration(audioDuration)}
+                  </span>
+                </>
               )}
+              <span className="opacity-40" aria-hidden="true">
+                ·
+              </span>
+              <span>{modelLabel}</span>
+              {item.sources &&
+                (item.sources.system_audio || item.sources.microphone) && (
+                  <>
+                    <span className="opacity-40" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                      {item.sources.system_audio &&
+                        (sourceAppNames.length > 0 ? (
+                          sourceAppNames.map((name) => {
+                            const iconPath = appIconPath(name);
+                            return (
+                              <HoverTip
+                                key={name}
+                                label={name}
+                                detail={systemAudioLabel}
+                                className="flex h-4 w-4 items-center justify-center text-content-muted"
+                              >
+                                {iconPath ? (
+                                  <img
+                                    src={convertFileSrc(iconPath)}
+                                    alt={name}
+                                    className="h-4 w-4 object-contain"
+                                  />
+                                ) : (
+                                  <AppWindow size={14} aria-label={name} />
+                                )}
+                              </HoverTip>
+                            );
+                          })
+                        ) : (
+                          <HoverTip
+                            label={entireSystemLabel}
+                            detail={systemAudioLabel}
+                            className="flex h-4 w-4 items-center justify-center text-content-muted"
+                          >
+                            <Monitor size={14} aria-label={entireSystemLabel} />
+                          </HoverTip>
+                        ))}
+                      {item.sources.microphone && (
+                        <HoverTip
+                          label={item.sources.microphone}
+                          detail={microphoneLabel}
+                          className="flex h-4 w-4 items-center justify-center text-content-muted"
+                        >
+                          <Microphone size={14} aria-label={microphoneLabel} />
+                        </HoverTip>
+                      )}
+                    </span>
+                  </>
+                )}
+            </div>
+
+            <div className="flex shrink-0 items-center justify-end gap-2">
+              {item.tags.slice(0, 3).map((tag, idx) => (
+                <span
+                  key={`${tag}-${idx}`}
+                  onClick={() => {
+                    if (shiftHeld) {
+                      handleRemoveTag(tag);
+                    }
+                  }}
+                  title={
+                    shiftHeld
+                      ? t({
+                          id: "library.modal.tags.remove",
+                          message: `Remove ${tag}`,
+                        })
+                      : undefined
+                  }
+                  className={`inline-flex items-center cursor-pointer ui-text-meta transition-colors duration-100 ease-out whitespace-nowrap text-content-secondary hover:text-content-primary ${
+                    shiftHeld ? "hover:!text-red-500 hover:line-through" : ""
+                  }`}
+                >
+                  <span className="opacity-40 mr-[1px]">#</span>
+                  <span>
+                    {tag.length > 12 ? `${tag.slice(0, 12)}...` : tag}
+                  </span>
+                </span>
+              ))}
+              {item.tags.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setTagMenuOpen(true)}
+                  className="ui-text-meta text-content-muted hover:text-content-primary transition-colors shrink-0"
+                >
+                  +{item.tags.length - 3}
+                </button>
+              )}
+              <div ref={tagMenuRef} className="relative flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setTagMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-1 rounded-md px-1.5 py-0.5 ui-text-meta text-content-muted hover:text-content-primary hover:bg-surface-surface transition-colors"
+                  aria-label={t({
+                    id: "library.detail.tags.add",
+                    message: "Add tag",
+                  })}
+                >
+                  <Plus size={11} />
+                  {t({
+                    id: "library.detail.tags.label",
+                    message: "Tag",
+                  })}
+                </button>
+                <AnimatePresence>
+                  {tagMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.98, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.98, y: -4 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute right-0 top-full mt-1 z-[120] w-40 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
+                    >
+                      <div className="px-2 py-1.5 border-b border-border-primary">
+                        <input
+                          value={tagInput}
+                          onChange={(event) => setTagInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleAddTag();
+                            }
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              setTagMenuOpen(false);
+                              setTagInput("");
+                            }
+                          }}
+                          placeholder={t({
+                            id: "library.modal.tags.new_tag",
+                            message: "New tag...",
+                          })}
+                          className="w-full bg-transparent ui-text-meta text-content-secondary outline-hidden placeholder:text-content-disabled"
+                          autoFocus
+                        />
+                      </div>
+                      {item.tags.length > 0 && (
+                        <div className="max-h-28 overflow-y-auto border-b border-border-primary">
+                          {item.tags.map((tag) => (
+                            <div
+                              key={tag}
+                              className="flex items-center justify-between gap-2 px-2.5 py-1 group/tagrow"
+                            >
+                              <span className="ui-text-meta text-content-secondary truncate">
+                                <span className="opacity-40">#</span>
+                                {tag}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTag(tag)}
+                                aria-label={t({
+                                  id: "library.modal.tags.remove",
+                                  message: `Remove ${tag}`,
+                                })}
+                                className="opacity-0 group-hover/tagrow:opacity-100 text-content-disabled hover:text-red-500 transition-opacity shrink-0"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="max-h-36 overflow-y-auto">
+                        {filteredTagOptions.length > 0 ? (
+                          filteredTagOptions.map((tag, index) => (
+                            <button
+                              key={`tag-option-${index}-${tag || "empty"}`}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => handleAddTag(tag)}
+                              className="w-full text-left px-2.5 py-1.5 ui-text-meta font-medium text-content-secondary hover:bg-surface-elevated/70 hover:text-content-primary transition-colors"
+                            >
+                              {tag}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-2.5 py-2 ui-text-micro text-content-muted">
+                            {availableTags.length === 0
+                              ? t({
+                                  id: "library.modal.tags.no_tags_yet",
+                                  message: "No tags yet",
+                                })
+                              : t({
+                                  id: "library.modal.tags.no_other_tags",
+                                  message: "No other tags",
+                                })}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div
+                className="h-3.5 w-px bg-[var(--color-border-primary)] mx-1"
+                aria-hidden="true"
+              />
+              <div className="relative" ref={speakersMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setSpeakersMenuOpen((prev) => !prev)}
+                  aria-haspopup="menu"
+                  aria-expanded={speakersMenuOpen}
+                  className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 ui-text-meta hover:bg-surface-surface transition-colors ${
+                    hiddenSpeakers.size > 0
+                      ? "text-[var(--color-cloud-dark)]"
+                      : "text-content-secondary hover:text-content-primary"
+                  }`}
+                >
+                  {hiddenSpeakers.size > 0 ? (
+                    <EyeSlash size={11} />
+                  ) : (
+                    <Users size={11} />
+                  )}
+                  {t({
+                    id: "library.detail.speakers",
+                    message: "Speakers",
+                  })}
+                  <span
+                    className={`tabular-nums ${
+                      hiddenSpeakers.size > 0 ? "" : "text-content-disabled"
+                    }`}
+                  >
+                    {hiddenSpeakers.size > 0
+                      ? `${speakers.length - hiddenSpeakers.size}/${speakers.length}`
+                      : speakers.length}
+                  </span>
+                  <ChevronDown
+                    size={10}
+                    className={`transition-transform duration-150 ${speakersMenuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                <AnimatePresence>
+                  {speakersMenuOpen && (
+                    <motion.div
+                      role="menu"
+                      initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                      transition={{ duration: 0.12 }}
+                      className="ui-surface-menu absolute right-0 top-full mt-1 z-[120] w-56 origin-top-right py-1"
+                    >
+                      {speakers.length > 1 && (
+                        <>
+                          <SpeakerMenuItem
+                            icon={
+                              <Eye
+                                size={12}
+                                className="shrink-0 ui-color-muted"
+                              />
+                            }
+                            label={t({
+                              id: "library.detail.speaker_menu.show_all",
+                              message: "Show all speakers",
+                            })}
+                            disabled={hiddenSpeakers.size === 0}
+                            onClick={() => setHiddenSpeakerIds([])}
+                          />
+                          <div className="my-1 h-px bg-[var(--border-subtle)]" />
+                        </>
+                      )}
+                      {speakers.length === 0 && (
+                        <div className="px-3 py-2 ui-text-menu-item ui-color-muted">
+                          {t({
+                            id: "library.detail.filter.no_speakers",
+                            message: "No speakers yet",
+                          })}
+                        </div>
+                      )}
+                      <div className="max-h-72 overflow-y-auto custom-scrollbar">
+                        {speakers.map((speaker) => {
+                          const hidden = hiddenSpeakers.has(speaker.id);
+                          return (
+                            <div
+                              key={speaker.id}
+                              onContextMenu={(event) =>
+                                openSpeakerContext(speaker.id, event)
+                              }
+                              className="group/speaker flex items-center gap-1.5 pr-3 hover:bg-surface-elevated transition-colors"
+                            >
+                              {renamingSpeakerId === speaker.id ? (
+                                <div className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-3">
+                                  <span
+                                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                                    style={{
+                                      backgroundColor:
+                                        speaker.color ?? undefined,
+                                    }}
+                                    aria-hidden="true"
+                                  />
+                                  <input
+                                    value={speakerNameDraft}
+                                    onChange={(event) =>
+                                      setSpeakerNameDraft(event.target.value)
+                                    }
+                                    onFocus={(event) => event.target.select()}
+                                    onBlur={() =>
+                                      handleRenameSpeaker(speaker.id)
+                                    }
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        handleRenameSpeaker(speaker.id);
+                                      }
+                                      if (event.key === "Escape") {
+                                        event.preventDefault();
+                                        setRenamingSpeakerId(null);
+                                        setSpeakerNameDraft("");
+                                      }
+                                    }}
+                                    className="min-w-0 flex-1 border-0 bg-transparent p-0 ui-text-menu-item ui-color-primary shadow-[inset_0_-1px_0_0_var(--color-border-hover)] outline-hidden"
+                                    autoFocus
+                                  />
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRenamingSpeakerId(speaker.id);
+                                    setSpeakerNameDraft(speaker.name);
+                                  }}
+                                  title={t({
+                                    id: "library.detail.speaker_menu.rename",
+                                    message: "Rename",
+                                  })}
+                                  className={`flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-3 text-left ui-text-menu-item ui-color-secondary transition-opacity ${
+                                    hidden ? "opacity-45" : ""
+                                  }`}
+                                >
+                                  <span
+                                    className="inline-block h-2 w-2 shrink-0 rounded-full"
+                                    style={{
+                                      backgroundColor:
+                                        speaker.color ?? undefined,
+                                    }}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate">
+                                    {speaker.name}
+                                  </span>
+                                  <Pencil
+                                    size={11}
+                                    className="shrink-0 ui-color-muted opacity-0 transition-opacity group-hover/speaker:opacity-100"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => toggleSpeakerHidden(speaker.id)}
+                                aria-pressed={hidden}
+                                aria-label={
+                                  hidden
+                                    ? t({
+                                        id: "library.detail.speaker_menu.show",
+                                        message: "Show speaker",
+                                      })
+                                    : t({
+                                        id: "library.detail.speaker_menu.hide",
+                                        message: "Hide speaker",
+                                      })
+                                }
+                                title={
+                                  hidden
+                                    ? t({
+                                        id: "library.detail.speaker_menu.show",
+                                        message: "Show speaker",
+                                      })
+                                    : t({
+                                        id: "library.detail.speaker_menu.hide",
+                                        message: "Hide speaker",
+                                      })
+                                }
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ui-color-muted transition-opacity hover:text-content-primary focus-visible:opacity-100 ${
+                                  hidden
+                                    ? ""
+                                    : "opacity-0 group-hover/speaker:opacity-100"
+                                }`}
+                              >
+                                {hidden ? (
+                                  <EyeSlash size={13} />
+                                ) : (
+                                  <Eye size={13} />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSpeaker(speaker.id)}
+                                aria-label={t({
+                                  id: "library.detail.speaker.remove",
+                                  message: `Remove ${speaker.name}`,
+                                })}
+                                title={t({
+                                  id: "library.detail.speaker.remove",
+                                  message: `Remove ${speaker.name}`,
+                                })}
+                                className="shrink-0 p-0.5 ui-color-muted opacity-0 transition-opacity hover:text-red-500 group-hover/speaker:opacity-100 focus-visible:opacity-100"
+                              >
+                                <X size={11} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {speakers.length > 0 && (
+                        <div className="my-1 h-px bg-[var(--border-subtle)]" />
+                      )}
+                      <SpeakerMenuItem
+                        icon={
+                          <UserPlus
+                            size={12}
+                            className="shrink-0 ui-color-muted"
+                          />
+                        }
+                        label={t({
+                          id: "library.detail.add_speaker",
+                          message: "Add speaker",
+                        })}
+                        disabled={!canAddSpeaker}
+                        onClick={() => void handleAddSpeaker()}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-hidden px-4">
+      <main className="flex-1 min-h-0 overflow-hidden">
         {item.status.type === "error" ? (
           <div className="flex h-full items-center justify-center">
             {(() => {
@@ -2074,10 +2791,15 @@ const LibraryDetail = ({
                   <div className="flex items-center justify-center gap-2 ui-color-error-tint">
                     <AlertTriangle size={14} />
                     <span className="ui-text-label font-medium">
-                      {t({
-                        id: "library.modal.import_failed",
-                        message: "Import failed",
-                      })}
+                      {item.kind === "import"
+                        ? t({
+                            id: "library.modal.import_failed",
+                            message: "Import failed",
+                          })
+                        : t({
+                            id: "library.modal.transcription_failed",
+                            message: "Transcription failed",
+                          })}
                     </span>
                   </div>
                   <p className="mt-2 ui-text-meta leading-[14px] ui-color-error-tint select-text cursor-text">
@@ -2102,7 +2824,7 @@ const LibraryDetail = ({
             })()}
           </div>
         ) : (
-          <div className="relative h-full mx-auto w-full max-w-3xl">
+          <div className="relative flex h-full w-full flex-col">
             <div
               className="pointer-events-none absolute left-0 right-3 bottom-0 h-6 z-10"
               style={{
@@ -2111,146 +2833,257 @@ const LibraryDetail = ({
               }}
               aria-hidden="true"
             />
-            {showSegmentView ? (
-              <Virtuoso
-                ref={segmentsVirtuosoRef}
-                scrollerRef={(ref) => {
-                  segmentsScrollerRef.current = (ref as HTMLElement) ?? null;
-                }}
-                style={{ height: "100%" }}
-                data={visibleSegments}
-                overscan={200}
-                className="custom-scrollbar ui-text-body text-content-secondary leading-relaxed"
-                computeItemKey={(
-                  _index: number,
-                  entry: { segment: TranscriptSegment; index: number },
-                ) => `${entry.segment.start_ms}-${entry.index}`}
-                components={{
-                  Header: () => <div className="h-2" />,
-                  Footer: () => <div className="h-2" />,
-                }}
-                itemContent={(idx, entry) => {
-                  const segment = entry.segment;
-                  const isActive = entry.index === activeSegmentIndex;
-                  const wordSpans =
-                    isActive && !normalizedSearchQuery
-                      ? renderSegmentWords(segment, entry.index)
-                      : null;
-                  return (
-                    <div className="pb-1.5 pr-4">
-                      <div
-                        className={`group/seg grid w-full grid-cols-[auto_1fr] gap-3 rounded-md px-2 py-1 select-none transcript-segment${
-                          isActive ? " transcript-segment-active" : ""
-                        }`}
-                      >
-                        <div className="relative flex items-center gap-1.5 self-start">
-                          <span
-                            className="transcript-segment-time text-content-disabled font-mono ui-text-label pt-0.5 select-none cursor-pointer hover:text-content-primary transition-colors"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() =>
-                              handleTimestampClick(segment.start_ms)
-                            }
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                handleTimestampClick(segment.start_ms);
-                              }
-                            }}
-                          >
-                            {formatTimestamp(segment.start_ms)}
-                          </span>
-                          {renderSpeakerChip(segment, entry.index)}
-                        </div>
-                        <div className="min-w-0 select-none w-fit">
-                          <span className="select-text">
-                            {wordSpans ??
-                              renderHighlightedText(
-                                segment.text,
-                                idx === activeSegmentMatch,
-                              )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }}
-              />
-            ) : showStreaming ? (
-              streamChunks.length === 0 ? (
-                <div className="flex flex-col h-full w-full items-center justify-center gap-5">
-                  <IntelligencePixel active size="md" />
-                  <div className="ui-text-label font-medium text-content-disabled">
-                    {t({
-                      id: "library.modal.transcribing",
-                      message: "Transcribing...",
-                    })}
-                  </div>
-                </div>
-              ) : (
+            {!showSegmentView && bookmarks.length > 0 && (
+              <div
+                className={`${CONTENT_COLUMN} max-h-[152px] shrink-0 overflow-y-auto pt-2 pb-1 custom-scrollbar`}
+              >
+                {bookmarks.map(renderBookmarkRow)}
+              </div>
+            )}
+            <div className="relative flex-1 min-h-0">
+              {showSegmentView ? (
                 <Virtuoso
-                  ref={streamVirtuosoRef}
+                  ref={segmentsVirtuosoRef}
+                  scrollerRef={(ref) => {
+                    segmentsScrollerRef.current = (ref as HTMLElement) ?? null;
+                  }}
+                  onWheel={() => {
+                    if (isPlaying) setFollowPaused(true);
+                  }}
                   style={{ height: "100%" }}
-                  data={streamChunks}
+                  data={visibleSegments}
                   overscan={200}
                   className="custom-scrollbar ui-text-body text-content-secondary leading-relaxed"
-                  computeItemKey={(index: number) =>
-                    `${item.id}-chunk-${index}`
-                  }
+                  computeItemKey={(
+                    _index: number,
+                    entry: { segment: TranscriptSegment; index: number },
+                  ) => `${entry.segment.start_ms}-${entry.index}`}
                   components={{
                     Header: () => <div className="h-2" />,
                     Footer: () => <div className="h-2" />,
                   }}
-                  itemContent={(idx, chunk) => (
-                    <div className="pb-2 pr-4">
-                      <motion.p
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="select-text"
-                      >
-                        {renderHighlightedText(
-                          chunk,
-                          idx === activeStreamMatch,
+                  itemContent={(idx, entry) => {
+                    const segment = entry.segment;
+                    const isActive = entry.index === activeSegmentIndex;
+                    const wordSpans =
+                      isActive && !normalizedSearchQuery
+                        ? renderSegmentWords(segment, entry.index)
+                        : null;
+                    return (
+                      <div className={`${CONTENT_COLUMN} pb-1.5`}>
+                        {entry.index === 0 &&
+                          bookmarksBySegment.get(-1)?.map(renderBookmarkRow)}
+                        <div
+                          className={`group/seg grid w-full grid-cols-[auto_1fr] gap-3 rounded-md px-2 py-1 select-none transcript-segment${
+                            isActive ? " transcript-segment-active" : ""
+                          }`}
+                        >
+                          <div className="relative flex items-center gap-1.5 self-start">
+                            <span
+                              className={`transcript-segment-time ${timestampWidth} shrink-0 text-right text-content-disabled font-mono ui-text-label tabular-nums pt-0.5 select-none cursor-pointer hover:text-content-primary transition-colors`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() =>
+                                handleTimestampClick(segment.start_ms)
+                              }
+                              onKeyDown={(event) => {
+                                if (
+                                  event.key === "Enter" ||
+                                  event.key === " "
+                                ) {
+                                  event.preventDefault();
+                                  handleTimestampClick(segment.start_ms);
+                                }
+                              }}
+                            >
+                              {formatTimestamp(segment.start_ms)}
+                            </span>
+                            {renderSpeakerChip(segment, entry.index)}
+                          </div>
+                          <div className="min-w-0 select-none w-fit">
+                            <span className="select-text">
+                              {wordSpans ??
+                                renderHighlightedText(
+                                  segment.text,
+                                  activeOccurrence(activeSegmentMatch, idx),
+                                )}
+                            </span>
+                          </div>
+                        </div>
+                        {bookmarksBySegment
+                          .get(entry.index)
+                          ?.map(renderBookmarkRow)}
+                      </div>
+                    );
+                  }}
+                />
+              ) : showStreaming ? (
+                transcribingPlaceholder ? (
+                  <div className="flex flex-col h-full w-full items-center justify-center gap-5">
+                    <IntelligencePixel active size="md" />
+                    <div className="ui-text-label font-medium tabular-nums text-content-disabled">
+                      {transcribingLabel}
+                    </div>
+                  </div>
+                ) : (
+                  <Virtuoso
+                    ref={streamVirtuosoRef}
+                    style={{ height: "100%" }}
+                    data={streamChunks}
+                    overscan={200}
+                    className="custom-scrollbar ui-text-body text-content-secondary leading-relaxed"
+                    computeItemKey={(index: number) =>
+                      `${item.id}-chunk-${index}`
+                    }
+                    components={{
+                      Header: () => <div className="h-2" />,
+                      Footer: () => <div className="h-2" />,
+                    }}
+                    itemContent={(idx, chunk) => (
+                      <div className={`${CONTENT_COLUMN} pb-2`}>
+                        <motion.p
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="select-text"
+                        >
+                          {renderHighlightedText(
+                            chunk,
+                            activeOccurrence(activeStreamMatch, idx),
+                          )}
+                        </motion.p>
+                      </div>
+                    )}
+                  />
+                )
+              ) : item.status.type === "importing" ||
+                item.status.type === "pending" ? (
+                <div className="flex flex-col h-full w-full items-center justify-center gap-5">
+                  <IntelligencePixel active size="md" />
+                  <div className="ui-text-label font-medium text-content-disabled">
+                    {importStatusText}
+                  </div>
+                </div>
+              ) : showSpeakerText ? (
+                <Virtuoso
+                  ref={turnsVirtuosoRef}
+                  style={{ height: "100%" }}
+                  data={visibleTurns}
+                  overscan={200}
+                  className="custom-scrollbar ui-text-body text-content-secondary leading-relaxed"
+                  computeItemKey={(_index: number, turn: SpeakerTurn) =>
+                    turn.key
+                  }
+                  components={{
+                    Header: () => <div className="h-2" />,
+                    Footer: () => <div className="h-4" />,
+                  }}
+                  itemContent={(idx, turn) => (
+                    <div className={`${CONTENT_COLUMN} pb-4`}>
+                      <div className="px-2">
+                        {turn.speaker && (
+                          <div
+                            onContextMenu={(event) =>
+                              turn.speaker &&
+                              openSpeakerContext(turn.speaker.id, event)
+                            }
+                            className="flex w-fit max-w-full items-center gap-2 ui-text-label font-medium text-content-primary"
+                          >
+                            <span
+                              className="inline-block h-2 w-2 rounded-full shrink-0"
+                              style={{
+                                backgroundColor:
+                                  turn.speaker.color ?? undefined,
+                              }}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">
+                              {turn.speaker.name}
+                            </span>
+                          </div>
                         )}
-                      </motion.p>
+                        <p className="select-text">
+                          {renderHighlightedText(
+                            turn.text,
+                            activeOccurrence(activeTurnMatch, idx),
+                          )}
+                        </p>
+                      </div>
                     </div>
                   )}
                 />
-              )
-            ) : item.status.type === "importing" ||
-              item.status.type === "pending" ? (
-              <div className="flex flex-col h-full w-full items-center justify-center gap-5">
-                <IntelligencePixel active size="md" />
-                <div className="ui-text-label font-medium text-content-disabled">
-                  {importStatusText}
+              ) : (
+                // The textarea grows with the text so it scrolls together with the highlight layer.
+                <div
+                  ref={transcriptScrollRef}
+                  className="h-full w-full overflow-y-scroll custom-scrollbar"
+                >
+                  <div className="relative grid min-h-full">
+                    <div
+                      key={normalizedSearchQuery}
+                      ref={transcriptHighlightsRef}
+                      aria-hidden="true"
+                      className="pointer-events-none col-start-1 row-start-1 whitespace-pre-wrap [overflow-wrap:break-word] px-[max(1.75rem,calc((100%-48rem)/2+1.75rem))] ui-text-body leading-relaxed text-transparent pt-2 pb-4"
+                    >
+                      {textMatchIndexes.map((start, idx) => {
+                        const prevEnd =
+                          idx === 0
+                            ? 0
+                            : textMatchIndexes[idx - 1] +
+                              normalizedSearchQuery.length;
+                        const end = start + normalizedSearchQuery.length;
+                        const isActive =
+                          idx ===
+                          Math.min(
+                            activeSearchIndex,
+                            textMatchIndexes.length - 1,
+                          );
+                        return (
+                          <Fragment key={start}>
+                            {transcriptDraft.slice(prevEnd, start)}
+                            <mark
+                              data-active={isActive || undefined}
+                              className={`transcript-search-hit${isActive ? " transcript-search-hit-active" : ""}`}
+                            >
+                              {transcriptDraft.slice(start, end)}
+                            </mark>
+                          </Fragment>
+                        );
+                      })}
+                      {transcriptDraft.slice(
+                        textMatchIndexes.length > 0
+                          ? textMatchIndexes[textMatchIndexes.length - 1] +
+                              normalizedSearchQuery.length
+                          : 0,
+                      )}{" "}
+                    </div>
+                    <textarea
+                      ref={transcriptAreaRef}
+                      value={transcriptDraft}
+                      onChange={(event) =>
+                        setTranscriptDraft(event.target.value)
+                      }
+                      disabled={!transcriptEditable}
+                      placeholder={t({
+                        id: "library.modal.transcript_placeholder",
+                        message: "Transcript will appear here.",
+                      })}
+                      className="col-start-1 row-start-1 w-full resize-none overflow-hidden bg-transparent px-[max(1.75rem,calc((100%-48rem)/2+1.75rem))] ui-text-body text-content-secondary leading-relaxed outline-hidden disabled:opacity-60 select-text pt-2 pb-4"
+                    />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <textarea
-                ref={transcriptAreaRef}
-                value={transcriptDraft}
-                onChange={(event) => setTranscriptDraft(event.target.value)}
-                disabled={!transcriptEditable}
-                placeholder={t({
-                  id: "library.modal.transcript_placeholder",
-                  message: "Transcript will appear here.",
-                })}
-                className="h-full w-full resize-none bg-transparent ui-text-body text-content-secondary leading-relaxed outline-hidden disabled:opacity-60 custom-scrollbar select-text pr-4 pt-2 pb-4"
-              />
-            )}
+              )}
+            </div>
           </div>
         )}
       </main>
 
-      <footer className="shrink-0 border-t border-[var(--color-border-primary)] px-4 pt-2.5 pb-1">
-        <div className="flex items-center gap-4">
+      <footer className="shrink-0 border-t border-[var(--color-border-primary)] px-5 pt-2.5 pb-1">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleTogglePlayback}
             disabled={!audioReady || !!audioError}
-            className={`text-content-primary hover:text-content-secondary transition-colors shrink-0 translate-y-[2px] ${
-              !audioReady || audioError ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-text-primary)] text-[var(--color-bg-secondary)] transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={
               isPlaying
                 ? t({
@@ -2264,50 +3097,44 @@ const LibraryDetail = ({
             }
           >
             {isPlaying ? (
-              <Pause size={16} className="fill-current" />
+              <Pause size={13} weight="fill" />
             ) : (
-              <Play size={16} className="fill-current" />
+              <Play size={13} weight="fill" />
             )}
           </button>
 
-          <span className="ui-text-micro tabular-nums text-content-disabled font-medium tracking-wide shrink-0">
-            {formatDuration(audioCurrentTime)}{" "}
-            <span className="opacity-50">
-              / {formatDuration(audioDuration)}
-            </span>
+          <span className="w-11 shrink-0 text-right ui-text-meta font-medium tabular-nums text-content-secondary">
+            {formatDuration(audioCurrentTime)}
           </span>
 
-          <div className="flex-1 min-w-0">
+          <div className="relative flex h-8 min-w-0 flex-1 items-center">
             {audioError ? (
               <span className="ui-text-meta text-content-disabled">
                 {audioError}
               </span>
             ) : (
-              <input
-                type="range"
-                min={0}
-                max={scrubberMax}
-                step={0.01}
-                value={scrubberValue}
-                onChange={(event) => handleScrubChange(event.target.value)}
-                onMouseDown={handleScrubStart}
-                onTouchStart={handleScrubStart}
-                onMouseUp={handleScrubEnd}
-                onTouchEnd={handleScrubEnd}
-                className="library-scrubber w-full"
-                disabled={!audioReady || !!audioError}
-                style={{
-                  background: `linear-gradient(to right, var(--color-toggle-on) 0%, var(--color-toggle-on) ${scrubberPercent}%, var(--color-border-secondary) ${scrubberPercent}%, var(--color-border-secondary) 100%)`,
-                }}
-                aria-label={t({
+              <AudioScrubber
+                duration={audioDuration}
+                currentTime={audioCurrentTime}
+                bookmarks={bookmarks}
+                disabled={!audioReady}
+                ariaLabel={t({
                   id: "library.modal.audio_scrubber",
                   message: "Audio scrubber",
                 })}
+                onScrubStart={handleScrubStart}
+                onScrub={(time) => handleScrubChange(String(time))}
+                onScrubEnd={handleScrubEnd}
+                onSeek={handleTimestampClick}
               />
             )}
           </div>
 
-          <div className="flex items-center gap-0.5 ui-text-micro leading-none shrink-0">
+          <span className="w-11 shrink-0 ui-text-meta tabular-nums text-content-disabled">
+            {formatDuration(audioDuration)}
+          </span>
+
+          <div className="flex h-7 shrink-0 items-center gap-0.5 ui-text-meta leading-none">
             <button
               type="button"
               onClick={() => handlePlaybackRateStep(-1)}
@@ -2316,11 +3143,7 @@ const LibraryDetail = ({
                 id: "library.modal.playback.decrease",
                 message: "Decrease playback speed",
               })}
-              className={`transition-colors p-0.5 ${
-                !audioReady || audioError || !canDecreasePlaybackRate
-                  ? "text-content-disabled"
-                  : "text-content-muted hover:text-content-primary"
-              }`}
+              className="p-0.5 text-content-muted transition-colors hover:text-content-primary disabled:text-content-disabled"
             >
               <ChevronLeft size={10} />
             </button>
@@ -2333,7 +3156,7 @@ const LibraryDetail = ({
                 transition={{ duration: 0.16, ease: "easeOut" }}
                 onMouseDown={handleRateScrubStart}
                 onTouchStart={handleRateScrubStart}
-                className="w-[26px] min-w-[26px] text-center font-medium text-content-secondary tabular-nums cursor-ew-resize select-none"
+                className="w-[30px] min-w-[30px] text-center font-medium text-content-secondary tabular-nums cursor-ew-resize select-none"
               >
                 {formatPlaybackRate(playbackRate)}x
               </motion.span>
@@ -2346,156 +3169,225 @@ const LibraryDetail = ({
                 id: "library.modal.playback.increase",
                 message: "Increase playback speed",
               })}
-              className={`transition-colors p-0.5 ${
-                !audioReady || audioError || !canIncreasePlaybackRate
-                  ? "text-content-disabled"
-                  : "text-content-muted hover:text-content-primary"
-              }`}
+              className="p-0.5 text-content-muted transition-colors hover:text-content-primary disabled:text-content-disabled"
             >
               <ChevronRight size={10} />
             </button>
           </div>
 
-          <div
-            className="h-4 w-px bg-[var(--color-border-primary)] shrink-0"
-            aria-hidden="true"
-          />
+          {secondaryAudioUrl && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleToggleTrackMute("primary")}
+                aria-pressed={!trackMuted.primary}
+                title={t({
+                  id: "library.tracks.microphone",
+                  message: "Microphone track",
+                })}
+                className={`rounded-md p-1.5 transition-colors hover:bg-surface-surface ${
+                  trackMuted.primary
+                    ? "text-content-disabled"
+                    : "text-content-secondary hover:text-content-primary"
+                }`}
+              >
+                {trackMuted.primary ? (
+                  <MicrophoneSlash size={14} />
+                ) : (
+                  <Microphone size={14} />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleTrackMute("secondary")}
+                aria-pressed={!trackMuted.secondary}
+                title={t({
+                  id: "library.tracks.system_audio",
+                  message: "System audio track",
+                })}
+                className={`rounded-md p-1.5 transition-colors hover:bg-surface-surface ${
+                  trackMuted.secondary
+                    ? "text-content-disabled"
+                    : "text-content-secondary hover:text-content-primary"
+                }`}
+              >
+                {trackMuted.secondary ? (
+                  <SpeakerSlash size={14} />
+                ) : (
+                  <SpeakerHigh size={14} />
+                )}
+              </button>
+            </>
+          )}
 
-          <div className="flex items-center gap-2 shrink-0 translate-y-[2px]">
-            <span
-              className={`ui-text-meta ${canShowTimestamps ? "text-content-secondary" : "text-content-disabled"}`}
+          <div className="relative shrink-0" ref={playbackMenuRef}>
+            <button
+              type="button"
+              onClick={() => setPlaybackMenuOpen((prev) => !prev)}
+              aria-haspopup="menu"
+              aria-expanded={playbackMenuOpen}
+              aria-label={t({
+                id: "library.detail.playback_settings",
+                message: "Playback settings",
+              })}
+              title={t({
+                id: "library.detail.playback_settings",
+                message: "Playback settings",
+              })}
+              className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-surface-surface ${
+                playbackMenuOpen
+                  ? "text-content-primary"
+                  : "text-content-muted hover:text-content-primary"
+              }`}
             >
-              {t({
-                id: "library.modal.timestamps",
-                message: "Timestamps",
-              })}
-            </span>
-            <ToggleSwitch
-              enabled={showTimestamps}
-              onToggle={() => {
-                if (!canShowTimestamps) return;
-                const nextValue = !showTimestamps;
-                setShowTimestamps(nextValue);
-                if (!nextValue) {
-                  onFollowTimestampsChange(false);
-                }
-                Promise.resolve(onUpdate({ show_timestamps: nextValue })).catch(
-                  (err) => {
-                    console.error("failed to save timestamps setting:", err);
-                  },
-                );
-              }}
-              ariaLabel={t({
-                id: "library.modal.timestamps",
-                message: "Timestamps",
-              })}
-              disabled={!canShowTimestamps}
-              size="sm"
-            />
+              <GearSix size={15} aria-hidden="true" />
+            </button>
+            <AnimatePresence>
+              {playbackMenuOpen && (
+                <motion.div
+                  role="menu"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.1 }}
+                  className="absolute right-0 bottom-full mb-2 w-52 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden z-[120] py-1"
+                >
+                  {[
+                    {
+                      key: "timestamps",
+                      label: t({
+                        id: "library.detail.show_timestamps",
+                        message: "Show timestamps",
+                      }),
+                      checked: showSegmentView,
+                      disabled: !canShowTimestamps,
+                      onSelect: handleToggleTimestamps,
+                    },
+                    {
+                      key: "follow",
+                      label: t({
+                        id: "library.detail.follow_playback",
+                        message: "Scroll with playback",
+                      }),
+                      checked: followPlayback && showSegmentView,
+                      disabled: !showSegmentView,
+                      onSelect: () => {
+                        const next = !followPlayback;
+                        setFollowPlayback(next);
+                        localStorage.setItem(
+                          FOLLOW_PLAYBACK_KEY,
+                          next ? "on" : "off",
+                        );
+                      },
+                    },
+                  ].map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={option.checked}
+                      disabled={option.disabled}
+                      onClick={option.onSelect}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <span className="flex w-3 shrink-0 justify-center">
+                        {option.checked && <Check size={11} />}
+                      </span>
+                      {option.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0 translate-y-[2px]">
-            <span
-              className={`ui-text-meta ${showSegmentView ? "text-content-secondary" : "text-content-disabled"}`}
-            >
-              {t({
-                id: "library.modal.follow_timestamp",
-                message: "Follow timestamp",
-              })}
-            </span>
-            <ToggleSwitch
-              enabled={followTimestampsActive}
-              onToggle={() => {
-                if (!showSegmentView) return;
-                onFollowTimestampsChange((prev) => !prev);
-              }}
-              ariaLabel={t({
-                id: "library.modal.follow_timestamp",
-                message: "Follow timestamp",
-              })}
-              disabled={!showSegmentView}
-              size="sm"
-            />
-          </div>
+        </div>
+        <div
+          aria-live="polite"
+          className={`h-4 truncate text-center ui-text-meta tabular-nums ${
+            detectingSpeakers ? "text-local" : "text-content-disabled"
+          }`}
+        >
+          {footerStatus}
         </div>
       </footer>
 
+      <LibraryDeleteDialog
+        open={showDeleteConfirm}
+        onCancel={closeDeleteConfirm}
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          const audio = releaseAudioSource();
+          void onDelete().catch(() => {
+            if (audio) {
+              audio.src = audioUrl;
+              audioRef.current = audio;
+              audio.load();
+            }
+          });
+        }}
+      />
+
       {createPortal(
         <AnimatePresence>
-          {showDeleteConfirm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xs px-6"
-              onClick={(event) => {
-                event.stopPropagation();
-                setShowDeleteConfirm(false);
+          {contextSpeaker && speakerContext && (
+            <SpeakerContextMenu
+              key={`${contextSpeaker.id}-${speakerContext.x}-${speakerContext.y}`}
+              speaker={contextSpeaker}
+              speakers={speakers}
+              x={speakerContext.x}
+              y={speakerContext.y}
+              canAddSpeaker={canAddSpeaker}
+              onMoveLine={
+                lineIndex === undefined
+                  ? undefined
+                  : (speakerId) => {
+                      closeSpeakerContext();
+                      void handleAssignSpeaker(lineIndex, speakerId);
+                    }
+              }
+              onMoveLineToNew={
+                lineIndex === undefined
+                  ? undefined
+                  : async () => {
+                      closeSpeakerContext();
+                      const created = await handleAddSpeaker();
+                      if (created) {
+                        await handleAssignSpeaker(lineIndex, created.id);
+                      }
+                    }
+              }
+              filtered={
+                hiddenSpeakers.size > 0 &&
+                !hiddenSpeakers.has(contextSpeaker.id) &&
+                hiddenSpeakers.size === speakers.length - 1
+              }
+              onRename={(name) =>
+                void handleUpdateSpeaker(contextSpeaker.id, { name })
+              }
+              onRecolor={(color) =>
+                void handleUpdateSpeaker(contextSpeaker.id, { color })
+              }
+              onMerge={(intoId) => {
+                closeSpeakerContext();
+                void handleMergeSpeaker(contextSpeaker.id, intoId);
               }}
-            >
-              <motion.div
-                initial={{ scale: 0.96, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.96, opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                className="w-full max-w-sm rounded-2xl border border-border-primary bg-surface-tertiary p-5 ui-shadow-modal-deep"
-                onClick={(event) => event.stopPropagation()}
-                role="dialog"
-                aria-modal="true"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <AlertTriangle
-                    size={20}
-                    className="ui-color-warning-strong shrink-0"
-                  />
-                  <div>
-                    <p className="ui-text-body-lg font-semibold text-content-primary">
-                      {t({
-                        id: "library.modal.delete_confirm.title",
-                        message: "Delete this item?",
-                      })}
-                    </p>
-                    <p className="ui-text-label text-content-disabled">
-                      {t({
-                        id: "library.modal.delete_confirm.description",
-                        message:
-                          "This removes the transcript and audio from your library.",
-                      })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="rounded-lg border border-border-secondary px-4 py-2 ui-text-body-sm font-medium text-content-secondary hover:border-border-hover transition-colors"
-                  >
-                    {t({
-                      id: "library.modal.cancel",
-                      message: "Cancel",
-                    })}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowDeleteConfirm(false);
-                      const audio = releaseAudioSource();
-                      void onDelete().catch(() => {
-                        if (audio) {
-                          audio.src = audioUrl;
-                          audioRef.current = audio;
-                          audio.load();
-                        }
-                      });
-                    }}
-                    className="rounded-lg bg-red-500/90 px-4 py-2 ui-text-body-sm font-semibold ui-color-on-solid hover:bg-red-500 transition-colors"
-                  >
-                    {t({
-                      id: "library.modal.delete",
-                      message: "Delete",
-                    })}
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
+              onToggleFilter={() => {
+                closeSpeakerContext();
+                setHiddenSpeakerIds(
+                  hiddenSpeakers.size === speakers.length - 1 &&
+                    !hiddenSpeakers.has(contextSpeaker.id)
+                    ? []
+                    : speakers
+                        .filter((entry) => entry.id !== contextSpeaker.id)
+                        .map((entry) => entry.id),
+                );
+              }}
+              onRemove={() => {
+                closeSpeakerContext();
+                void handleRemoveSpeaker(contextSpeaker.id);
+              }}
+              onClose={closeSpeakerContext}
+            />
           )}
         </AnimatePresence>,
         document.body,
@@ -2509,18 +3401,8 @@ const LibraryDetail = ({
               models={models}
               onCancel={() => setShowRetranscribe(false)}
               onConfirm={async (options) => {
-                try {
-                  await onUpdate({
-                    speech_model: options.model_key,
-                    llm_cleanup_enabled: false,
-                    show_timestamps: options.show_timestamps,
-                    detect_speakers: options.detect_speakers,
-                  });
-                  await onRetry();
-                  setShowRetranscribe(false);
-                } catch (err) {
-                  console.error("Failed to retranscribe:", err);
-                }
+                await onRetranscribe(options);
+                setShowRetranscribe(false);
               }}
             />
           )}

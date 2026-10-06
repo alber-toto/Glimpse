@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not};
+use std::ops::{BitOr, BitOrAssign};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -184,12 +184,6 @@ impl Modifiers {
     }
 }
 
-impl Default for Modifiers {
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-
 impl BitOr for Modifiers {
     type Output = Self;
 
@@ -201,28 +195,6 @@ impl BitOr for Modifiers {
 impl BitOrAssign for Modifiers {
     fn bitor_assign(&mut self, rhs: Self) {
         self.0 |= rhs.0;
-    }
-}
-
-impl BitAnd for Modifiers {
-    type Output = Self;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Self(self.0 & rhs.0)
-    }
-}
-
-impl BitAndAssign for Modifiers {
-    fn bitand_assign(&mut self, rhs: Self) {
-        self.0 &= rhs.0;
-    }
-}
-
-impl Not for Modifiers {
-    type Output = Self;
-
-    fn not(self) -> Self::Output {
-        Self(!self.0)
     }
 }
 
@@ -731,6 +703,8 @@ impl FromStr for Hotkey {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct KeyEvent {
+    // Timestamp before queueing so microphone startup cannot lengthen a tap.
+    pub(crate) occurred_at: std::time::Instant,
     pub(crate) modifiers: Modifiers,
     pub(crate) key: Option<Key>,
     pub(crate) is_key_down: bool,
@@ -755,11 +729,26 @@ pub(crate) fn empty_blocking_hotkeys() -> BlockingHotkeys {
     blocking_hotkeys(Vec::new())
 }
 
-pub(crate) fn should_block_event(blocking_hotkeys: &BlockingHotkeys, event: &KeyEvent) -> bool {
+// `swallowed` holds the modifiers whose key-down was blocked. Only the modifier that
+// completes a modifier-only shortcut is blocked, so an earlier one (Ctrl in Ctrl+Alt)
+// still reaches other apps and Ctrl+C keeps working while Glimpse runs.
+pub(crate) fn should_block_event(
+    blocking_hotkeys: &BlockingHotkeys,
+    swallowed: Modifiers,
+    event: &KeyEvent,
+) -> bool {
     if let Some(changed_modifier) = event.changed_modifier {
+        // A swallowed modifier stays swallowed through its auto-repeats and release, or
+        // the OS would see a key-down whose key-up never arrives.
+        if swallowed.contains(changed_modifier) {
+            return true;
+        }
+        if !event.is_key_down || event.repeat {
+            return false;
+        }
         return blocking_hotkeys
             .iter()
-            .any(|hotkey| hotkey.key.is_none() && hotkey.modifiers.contains(changed_modifier));
+            .any(|hotkey| hotkey.key.is_none() && hotkey.modifiers.matches(event.modifiers));
     }
 
     event.key.is_some_and(|_| {
@@ -818,7 +807,9 @@ mod tests {
         let hotkeys = blocking_hotkeys(vec![hotkey]);
         assert!(should_block_event(
             &hotkeys,
+            Modifiers::empty(),
             &KeyEvent {
+                occurred_at: std::time::Instant::now(),
                 modifiers: Modifiers::empty(),
                 key: Some(Key::Dictation),
                 is_key_down: true,
@@ -834,7 +825,9 @@ mod tests {
 
         assert!(should_block_event(
             &hotkeys,
+            Modifiers::empty(),
             &KeyEvent {
+                occurred_at: std::time::Instant::now(),
                 modifiers: Modifiers::OPT_RIGHT,
                 key: None,
                 is_key_down: true,
@@ -844,7 +837,9 @@ mod tests {
         ));
         assert!(should_block_event(
             &hotkeys,
+            Modifiers::OPT_RIGHT,
             &KeyEvent {
+                occurred_at: std::time::Instant::now(),
                 modifiers: Modifiers::empty(),
                 key: None,
                 is_key_down: false,

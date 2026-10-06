@@ -98,6 +98,7 @@ const LANGUAGE_NAMES: &[(&str, &str)] = &[
     ("my", "Myanmar"),
     ("bo", "Tibetan"),
     ("tl", "Tagalog"),
+    ("fil", "Filipino"),
     ("mg", "Malagasy"),
     ("as", "Assamese"),
     ("tt", "Tatar"),
@@ -110,27 +111,34 @@ const LANGUAGE_NAMES: &[(&str, &str)] = &[
     ("yue", "Cantonese"),
 ];
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+const QWEN3_ASR_LANGUAGE_CODES: &[&str] = &[
+    "zh", "en", "yue", "ar", "de", "fr", "es", "pt", "id", "it", "ko", "ru", "th", "vi", "ja",
+    "tr", "hi", "ms", "nl", "sv", "da", "fi", "pl", "cs", "fil", "fa", "el", "ro", "hu", "mk",
+];
+
 const NVIDIA_PARAKEET_V3_LANGUAGE_CODES: &[&str] = &[
     "bg", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "de", "el", "hu", "it", "lv", "lt", "mt",
     "pl", "pt", "ro", "sk", "sl", "es", "sv", "ru", "uk",
 ];
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+// The languages the Nemotron 3.5 GGUF lists; it detects anything else.
 const NVIDIA_NEMOTRON_35_LANGUAGE_CODES: &[&str] = &[
-    "ar", "bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "he", "hi", "hr", "hu", "it",
-    "ja", "ko", "lt", "lv", "mt", "nb", "nl", "nn", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "th",
-    "tr", "uk", "vi", "zh",
+    "ar", "bg", "cs", "da", "de", "en", "es", "et", "fi", "fr", "hi", "hr", "hu", "it", "ja", "ko",
+    "nb", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "tr", "uk", "vi", "zh",
 ];
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
 fn language_name(code: &str) -> Option<&'static str> {
     LANGUAGE_NAMES
         .iter()
         .find_map(|(c, name)| if *c == code { Some(*name) } else { None })
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+pub(crate) fn known_language_code(code: &str) -> Option<&'static str> {
+    LANGUAGE_NAMES
+        .iter()
+        .find_map(|(c, _)| (*c == code).then_some(*c))
+}
+
 fn supported_languages_for_codes(codes: &[&str]) -> Vec<SupportedLanguageInfo> {
     codes
         .iter()
@@ -162,6 +170,10 @@ pub fn whisper_supported_languages() -> Vec<SupportedLanguageInfo> {
         .collect()
 }
 
+pub fn qwen3_asr_supported_languages() -> Vec<SupportedLanguageInfo> {
+    supported_languages_for_codes(QWEN3_ASR_LANGUAGE_CODES)
+}
+
 pub fn english_supported_languages() -> Vec<SupportedLanguageInfo> {
     vec![SupportedLanguageInfo {
         code: "en".to_string(),
@@ -169,17 +181,10 @@ pub fn english_supported_languages() -> Vec<SupportedLanguageInfo> {
     }]
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
 pub fn parakeet_v3_supported_languages() -> Vec<SupportedLanguageInfo> {
     supported_languages_for_codes(NVIDIA_PARAKEET_V3_LANGUAGE_CODES)
 }
 
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
-pub fn nemotron_supported_languages() -> Vec<SupportedLanguageInfo> {
-    english_supported_languages()
-}
-
-#[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
 pub fn nemotron_35_supported_languages() -> Vec<SupportedLanguageInfo> {
     supported_languages_for_codes(NVIDIA_NEMOTRON_35_LANGUAGE_CODES)
 }

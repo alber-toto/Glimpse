@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -33,6 +34,7 @@ export const libraryKeys = {
   tags: () => [...libraryKeys.all, "tags"] as const,
   meeting: () => [...libraryKeys.all, "meeting"] as const,
   meetingLevels: () => [...libraryKeys.meeting(), "levels"] as const,
+  item: (id: string) => [...libraryKeys.all, "item", id] as const,
 };
 
 type LibraryInfiniteData = { pages: LibraryItemsPage[]; pageParams: number[] };
@@ -42,7 +44,8 @@ function patchItemInCache(
   filter: LibraryFilter,
   id: string,
   updater: (item: LibraryItem) => LibraryItem,
-) {
+): boolean {
+  let found = false;
   queryClient.setQueryData<LibraryInfiniteData>(
     libraryKeys.list(filter),
     (old) => {
@@ -51,13 +54,22 @@ function patchItemInCache(
         ...old,
         pages: old.pages.map((page) => ({
           ...page,
-          items: page.items.map((item) =>
-            item.id === id ? updater(item) : item,
-          ),
+          items: page.items.map((item) => {
+            if (item.id !== id) return item;
+            found = true;
+            return updater(item);
+          }),
         })),
       };
     },
   );
+  // An open item that left the filtered list reads its own query, which may
+  // already hold the saved transcript, so refetch it instead of appending.
+  void queryClient.invalidateQueries({
+    queryKey: libraryKeys.item(id),
+    exact: true,
+  });
+  return found;
 }
 
 export function useLibraryItems(
@@ -77,6 +89,15 @@ export function useLibraryItems(
       status.type === "importing" ||
       status.type === "transcribing";
 
+    // Items created outside this view (e.g. CLI imports) are missing from a
+    // cached list; refetch once per unknown id.
+    const refetchedIds = new Set<string>();
+    const refetchIfMissing = (id: string, found: boolean) => {
+      if (found || refetchedIds.has(id)) return;
+      refetchedIds.add(id);
+      queryClient.invalidateQueries({ queryKey: libraryKeys.list(filter) });
+    };
+
     listen<LibraryProgressPayload>(
       "library:transcription_progress",
       (event) => {
@@ -88,8 +109,9 @@ export function useLibraryItems(
           chunk_segments,
           current_chunk,
           total_chunks,
+          detecting_speakers,
         } = event.payload;
-        patchItemInCache(queryClient, filter, id, (item) => {
+        const found = patchItemInCache(queryClient, filter, id, (item) => {
           if (!isProgressable(item.status)) return item;
           let nextTranscript = item.transcript;
           let updateTranscript = false;
@@ -117,11 +139,17 @@ export function useLibraryItems(
           }
           return {
             ...item,
-            status: { type: "transcribing" as const, progress },
+            status: {
+              type: "transcribing" as const,
+              progress,
+              detecting_speakers,
+            },
+            ...(isReset ? { transcript_edited: false } : {}),
             ...(updateTranscript ? { transcript: nextTranscript } : {}),
             ...(updateSegments ? { segments: nextSegments } : {}),
           };
         });
+        refetchIfMissing(id, found);
       },
     ).then((fn) => {
       if (cancelled) fn();
@@ -174,7 +202,7 @@ export function useLibraryItems(
     listen<LibraryImportProgressPayload>("library:import_progress", (event) => {
       if (cancelled) return;
       const { id, progress } = event.payload;
-      patchItemInCache(queryClient, filter, id, (item) => {
+      const found = patchItemInCache(queryClient, filter, id, (item) => {
         if (
           item.status.type === "transcribing" ||
           item.status.type === "complete" ||
@@ -185,6 +213,7 @@ export function useLibraryItems(
         }
         return { ...item, status: { type: "importing" as const, progress } };
       });
+      refetchIfMissing(id, found);
     }).then((fn) => {
       if (cancelled) fn();
       else unlisteners.push(fn);
@@ -203,6 +232,8 @@ export function useLibraryItems(
     enabled,
     gcTime: 60_000,
     staleTime: LIBRARY_STALE_TIME,
+    // Keep the current results on screen while a new search loads.
+    placeholderData: keepPreviousData,
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       if (!lastPage.has_more) return undefined;
@@ -249,6 +280,15 @@ export function useLibraryMetadataProcessing(enabled: boolean) {
   return processingIds;
 }
 
+// One item by id, for an open item that has left the filtered list.
+export function useLibraryItem(id: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: libraryKeys.item(id ?? ""),
+    queryFn: () => libraryApi.getLibraryItem(id ?? ""),
+    enabled: enabled && id !== null,
+  });
+}
+
 export function useCreateLibraryItem() {
   const queryClient = useQueryClient();
 
@@ -272,7 +312,20 @@ export function useUpdateLibraryItem() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: LibraryItemPatch }) =>
       libraryApi.updateLibraryItem(id, patch),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      queryClient.setQueriesData<LibraryInfiniteData>(
+        { queryKey: [...libraryKeys.all, "list"] },
+        (old) =>
+          old && {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.id === updated.id ? updated : item,
+              ),
+            })),
+          },
+      );
       queryClient.invalidateQueries({ queryKey: libraryKeys.all });
     },
   });
@@ -316,6 +369,17 @@ export function useRetryLibraryTranscription() {
 
   return useMutation({
     mutationFn: libraryApi.retryLibraryTranscription,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: libraryKeys.all });
+    },
+  });
+}
+
+export function useRediarizeLibraryItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: libraryApi.rediarizeLibraryItem,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: libraryKeys.all });
     },
@@ -370,7 +434,8 @@ export function useMeetingState(enabled: boolean = true) {
     queryKey: libraryKeys.meeting(),
     queryFn: libraryApi.getMeetingState,
     enabled,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 

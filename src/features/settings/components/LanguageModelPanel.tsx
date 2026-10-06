@@ -8,6 +8,7 @@ import {
 } from "../../../shared/lib/llmProviders";
 import type { LlmProvider } from "../../../types";
 import { Dropdown } from "../../../shared/ui/Dropdown";
+import ApiKeyField from "../../../shared/ui/ApiKeyField";
 import { detectAppPlatform } from "../../../platform/service";
 
 type AppleLlmAvailability =
@@ -97,23 +98,12 @@ const LanguageModelPanel = ({
   return (
     <div className="grid row-span-4 [grid-template-rows:subgrid] gap-3 rounded-lg bg-surface-surface p-2.5">
       <div className="px-2 py-1.5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h3 className="ui-text-label-strong ui-color-primary">
-              {t({
-                id: "settings.language_model.title",
-                message: "Writing Model Provider",
-              })}
-            </h3>
-            <p className="mt-0.5 ui-text-meta ui-color-muted">
-              {t({
-                id: "settings.language_model.subtitle",
-                message:
-                  "Used by shortcuts with the writing model turned on, and by Personalization.",
-              })}
-            </p>
-          </div>
-        </div>
+        <h3 className="ui-text-label-strong ui-color-primary">
+          {t({
+            id: "settings.language_model.title",
+            message: "Writing Model Provider",
+          })}
+        </h3>
       </div>
 
       <div className="px-2">
@@ -222,20 +212,11 @@ const LanguageModelPanel = ({
             {t({
               id: "settings.language_model.api_key",
               message: "API Key",
-            })}{" "}
-            {!providerPreset?.apiKeyRequired && (
-              <span className="ui-color-disabled">
-                {t({
-                  id: "settings.language_model.api_key.optional_hint",
-                  message: "(if required)",
-                })}
-              </span>
-            )}
+            })}
           </span>
-          <input
-            type="password"
+          <ApiKeyField
             value={llmApiKey}
-            onChange={(e) => setLlmApiKey(e.target.value)}
+            onChange={setLlmApiKey}
             placeholder={
               providerPreset?.apiKeyRequired
                 ? t({
@@ -247,11 +228,10 @@ const LanguageModelPanel = ({
                     message: "Optional",
                   })
             }
-            aria-label={t({
+            ariaLabel={t({
               id: "settings.language_model.api_key.aria",
               message: "LLM API Key",
             })}
-            className="mt-2 w-full border-b border-border-secondary bg-transparent px-0.5 py-1 ui-text-body-sm ui-color-primary placeholder-content-disabled focus:outline-none focus:border-content-primary transition-colors"
           />
         </div>
       )}

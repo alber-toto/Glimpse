@@ -14,10 +14,23 @@ export type Speaker = {
 export type LibraryItemKind =
   "import" | "recording" | "meeting" | "recovered_meeting";
 
+// Inputs a recording captured. `system_audio` lists app names, or is empty
+// when the whole system was captured.
+export type AudioSources = {
+  microphone?: string | null;
+  system_audio?: string[] | null;
+};
+
+export type Bookmark = {
+  id: string;
+  at_ms: number;
+  label?: string | null;
+};
+
 export type LibraryItemStatus =
   | { type: "pending" }
   | { type: "importing"; progress: number }
-  | { type: "transcribing"; progress: number }
+  | { type: "transcribing"; progress: number; detecting_speakers?: boolean }
   | { type: "complete" }
   | { type: "cancelling" }
   | { type: "cancelled" }
@@ -31,6 +44,7 @@ export type LibraryItem = {
   store_original: boolean;
   status: LibraryItemStatus;
   transcript?: string | null;
+  transcript_edited: boolean;
   segments?: TranscriptSegment[] | null;
   words?: TranscriptSegment[] | null;
   duration_seconds: number;
@@ -45,6 +59,9 @@ export type LibraryItem = {
   detect_speakers: boolean;
   kind: LibraryItemKind;
   speakers?: Speaker[] | null;
+  secondary_audio_path?: string | null;
+  sources?: AudioSources | null;
+  bookmarks?: Bookmark[] | null;
 };
 
 export type LibraryItemsPage = {
@@ -63,6 +80,7 @@ export type LibraryFilter = {
 export type LibraryItemPatch = {
   name?: string | null;
   transcript?: string | null;
+  transcript_edited?: boolean | null;
   segments?: TranscriptSegment[] | null;
   tags?: string[] | null;
   status?: LibraryItemStatus | null;
@@ -74,6 +92,7 @@ export type LibraryItemPatch = {
   duration_seconds?: number | null;
   kind?: LibraryItemKind | null;
   speakers?: Speaker[] | null;
+  bookmarks?: Bookmark[] | null;
 };
 
 export type LibraryImportOptions = {
@@ -91,11 +110,13 @@ export type MeetingState = {
   microphone_name?: string | null;
   source_app_name?: string | null;
   application_isolated: boolean;
+  capture_error?: string | null;
 };
 
 export type MeetingLevels = {
   microphone_level: number;
   system_level: number;
+  capture_error?: string | null;
 };
 
 export type ExportFormat = "txt" | "md" | "srt" | "vtt";
@@ -107,6 +128,7 @@ export type LibraryProgressPayload = {
   total_chunks: number;
   chunk_text?: string | null;
   chunk_segments?: TranscriptSegment[] | null;
+  detecting_speakers?: boolean;
 };
 
 export type LibraryImportProgressPayload = {

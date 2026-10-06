@@ -1,21 +1,30 @@
 use crate::AppRuntime;
-use crate::audio;
 use crate::native_i18n::MenuStrings;
-use crate::recent_transcriptions::build_recent_transcriptions_menu;
 use crate::settings::UserSettings;
 use crate::speech::menu::{build_model_status_items, build_models_submenu};
+use crate::tray::{MENU_ID_CHECK_UPDATES, build_microphone_submenu};
 use tauri::AppHandle;
-use tauri::menu::{
-    CheckMenuItemBuilder, Menu, MenuBuilder, MenuItem, MenuItemBuilder, PredefinedMenuItem,
-    SubmenuBuilder,
-};
+use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 
-// Shared menu IDs - also used by lib.rs event handler
-pub const MENU_ID_CHECK_UPDATES: &str = "menu_check_updates";
-pub const MENU_ID_WEBSITE: &str = "menu_website";
-pub const MENU_ID_REPORT_ISSUE: &str = "menu_report_issue";
-pub const MENU_ID_MIC_DEFAULT: &str = "menu_mic_default";
-pub const MENU_ID_MIC_PREFIX: &str = "menu_mic_";
+const MENU_ID_WEBSITE: &str = "menu_website";
+const MENU_ID_REPORT_ISSUE: &str = "menu_report_issue";
+
+/// Items only the app menu has; the rest are handled in `tray::handle_menu_event`.
+pub(crate) fn handle_app_menu_event(app: &AppHandle<AppRuntime>, id: &str) {
+    use tauri_plugin_opener::OpenerExt;
+
+    match id {
+        MENU_ID_WEBSITE => {
+            let _ = app
+                .opener()
+                .open_url("https://tryglimpse.cc/", None::<&str>);
+        }
+        MENU_ID_REPORT_ISSUE => {
+            let _ = app.opener().open_url(crate::FEEDBACK_URL, None::<&str>);
+        }
+        _ => {}
+    }
+}
 
 pub fn build_app_menu(
     app: &AppHandle<AppRuntime>,
@@ -24,6 +33,7 @@ pub fn build_app_menu(
     let app_name = app.package_info().name.clone();
     let strings = MenuStrings::resolve(settings);
 
+    // Everyday actions live in the tray menu; this one holds setup and app-level items.
     let mut app_submenu = SubmenuBuilder::new(app, &app_name)
         .item(
             &MenuItemBuilder::with_id(
@@ -33,77 +43,12 @@ pub fn build_app_menu(
             .build(app)?,
         )
         .separator();
-
-    let status_items = build_model_status_items(app, settings)?;
-    for item in &status_items {
-        app_submenu = app_submenu.item(item);
+    for item in build_model_status_items(app, settings)? {
+        app_submenu = app_submenu.item(&item);
     }
-    if !status_items.is_empty() {
-        app_submenu = app_submenu.separator();
-    }
-
-    app_submenu = app_submenu.item(&build_models_submenu(app, settings)?);
-
-    // Microphone submenu
-    let mut mic_submenu = SubmenuBuilder::new(app, strings.get("native.menu.microphone"));
-    let default_mic = CheckMenuItemBuilder::with_id(
-        MENU_ID_MIC_DEFAULT,
-        strings.get("native.menu.mic_system_default"),
-    )
-    .checked(settings.microphone_device.is_none())
-    .build(app)?;
-    mic_submenu = mic_submenu.item(&default_mic);
-
-    match audio::list_input_devices() {
-        Ok(devices) => {
-            if devices.is_empty() {
-                let unavailable = MenuItem::with_id(
-                    app,
-                    "menu_mic_none",
-                    strings.get("native.menu.mic_none"),
-                    false,
-                    None::<&str>,
-                )?;
-                mic_submenu = mic_submenu.item(&unavailable);
-            } else {
-                for device in devices {
-                    let label = if device.is_default {
-                        strings.format("native.menu.mic_default_suffix", &[("name", &device.name)])
-                    } else {
-                        device.name.clone()
-                    };
-                    let checked = settings.microphone_device.as_deref() == Some(device.id.as_str());
-                    let item = CheckMenuItemBuilder::with_id(
-                        format!("{MENU_ID_MIC_PREFIX}dev:{}", device.id),
-                        label,
-                    )
-                    .checked(checked)
-                    .build(app)?;
-                    mic_submenu = mic_submenu.item(&item);
-                }
-            }
-        }
-        Err(err) => {
-            let unavailable = MenuItem::with_id(
-                app,
-                "menu_mic_error",
-                strings.format(
-                    "native.menu.mic_unavailable",
-                    &[("error", &err.to_string())],
-                ),
-                false,
-                None::<&str>,
-            )?;
-            mic_submenu = mic_submenu.item(&unavailable);
-        }
-    }
-    app_submenu = app_submenu.item(&mic_submenu.build()?);
-
-    let recent_submenu = build_recent_transcriptions_menu(app, &strings)?;
-
-    app_submenu = app_submenu
-        .separator()
-        .item(&recent_submenu)
+    let app_menu = app_submenu
+        .item(&build_models_submenu(app, settings)?)
+        .item(&build_microphone_submenu(app, settings, &strings)?)
         .separator()
         .item(&PredefinedMenuItem::services(
             app,
@@ -126,8 +71,8 @@ pub fn build_app_menu(
         .item(&PredefinedMenuItem::quit(
             app,
             Some(&strings.format("native.menu.quit", &[("app", &app_name)])),
-        )?);
-    let app_menu = app_submenu.build()?;
+        )?)
+        .build()?;
 
     // View menu
     let view_menu = SubmenuBuilder::new(app, strings.get("native.menu.view"))

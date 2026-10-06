@@ -4,13 +4,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "./app/App";
 import { AppProviders } from "./app/providers";
-import { localeReady } from "./i18n";
+import { msg } from "@lingui/core/macro";
+import { i18n, localeReady } from "./i18n";
 import { detectAppPlatform } from "./platform/service";
 import {
   parseTextSizeMode,
   resolveTextScale,
   TEXT_SIZE_MODE_STORAGE_KEY,
 } from "./shared/lib/textSize";
+import { parseThemeMode, resolveThemeAttribute } from "./shared/lib/theme";
 
 type CrashSource = "render" | "window_error" | "unhandled_rejection";
 
@@ -130,8 +132,9 @@ class CrashBoundary extends React.Component<
           display: "grid",
           placeItems: "center",
           padding: 24,
-          background: "#f7f5f0",
-          color: "#181713",
+          colorScheme: "light dark",
+          background: "Canvas",
+          color: "CanvasText",
           fontFamily:
             '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           textAlign: "center",
@@ -139,10 +142,14 @@ class CrashBoundary extends React.Component<
       >
         <div>
           <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-            Glimpse hit an error
+            {i18n._(
+              msg({ id: "crash.title", message: "Glimpse hit an error" }),
+            )}
           </h1>
           <p style={{ margin: "8px 0 0", fontSize: 14 }}>
-            Please restart the app.
+            {i18n._(
+              msg({ id: "crash.body", message: "Please restart the app." }),
+            )}
           </p>
         </div>
       </main>
@@ -161,25 +168,38 @@ window.addEventListener("unhandledrejection", (event) => {
   }
 });
 
-const applyInitialTextScale = () => {
-  if (getCurrentWindow().label !== "settings") return;
+// Settings load over IPC after the first paint, so the saved copies
+// decide how that paint looks.
+const applyInitialAppearance = () => {
+  const label = getCurrentWindow().label;
+  if (label !== "settings" && label !== "live") return;
 
-  const mode = parseTextSizeMode(
+  const root = document.documentElement;
+  const textSizeMode = parseTextSizeMode(
     localStorage.getItem(TEXT_SIZE_MODE_STORAGE_KEY),
   );
-  document.documentElement.style.setProperty(
+  root.style.setProperty(
     "--ui-text-scale",
-    resolveTextScale(mode, detectAppPlatform()),
+    resolveTextScale(textSizeMode, detectAppPlatform()),
+  );
+  root.dataset.theme = resolveThemeAttribute(
+    parseThemeMode(window.__GLIMPSE_BOOT__?.theme ?? null),
   );
 };
 
-applyInitialTextScale();
+document.documentElement.dataset.platform = detectAppPlatform();
+applyInitialAppearance();
 
 // Catalogs load on demand, so the first one has to land before the first
 // render or every window would paint untranslated and then swap.
 localeReady
   .finally(() => {
-    ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    // HMR can re-run this module; a second root on #root breaks the DOM.
+    const root: ReactDOM.Root =
+      import.meta.hot?.data.root ??
+      ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
+    if (import.meta.hot) import.meta.hot.data.root = root;
+    root.render(
       <React.StrictMode>
         <CrashBoundary>
           <AppProviders>

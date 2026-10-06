@@ -127,8 +127,8 @@ impl LocalApiController {
             crate::model_manager::model_cache_dir(&app).map_err(|err| err.to_string())?;
         let api_models_dir = model_cache_dir.clone();
         let service = Arc::new(SpeechService::new(SpeechConfig {
+            resolver: crate::model_manager::local_resolver(model_cache_dir.clone()),
             model_cache_dir,
-            resolver: crate::model_manager::local_resolver(),
         }));
         if let Some(warm_id) = warm_model.as_deref() {
             let warm = Arc::clone(&service);
@@ -184,6 +184,9 @@ impl LocalApiController {
             }
             if event.message.starts_with(TRANSCRIBE_REQUEST_LOG) {
                 controller.note_request(&sink_app);
+            }
+            if let Some(endpoint) = api_endpoint(&event.message) {
+                crate::analytics::track_integration_used(&sink_app, "api", endpoint);
             }
             controller.push_log(&sink_app, event.level, event.message);
         });
@@ -326,6 +329,21 @@ impl LocalApiController {
 
     fn emit_status(&self, app: &AppHandle<AppRuntime>) {
         let _ = app.emit(EVENT_LOCAL_API_STATUS, self.status());
+    }
+}
+
+/// Maps glimpse-speech's per-request log line to its route, without the model id.
+fn api_endpoint(message: &str) -> Option<&'static str> {
+    if message.starts_with(TRANSCRIBE_REQUEST_LOG) {
+        Some("transcriptions")
+    } else if message.starts_with("GET /v1/models") {
+        Some("models.list")
+    } else if message.starts_with("POST /v1/models/") {
+        Some("models.install")
+    } else if message.starts_with("DELETE /v1/models/") {
+        Some("models.delete")
+    } else {
+        None
     }
 }
 

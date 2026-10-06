@@ -59,6 +59,7 @@ import {
   useCliInstallStatus,
   useInstallCli,
   useDiarizationModel,
+  useDiarizerModel,
   useModelCatalog,
   useModelStatuses,
   useRemoveCli,
@@ -399,6 +400,7 @@ export function useSettingsForm({
   const inputDevicesQuery = useInputDevices(isOpen);
   const modelCatalogQuery = useModelCatalog(isOpen);
   const diarizationModelQuery = useDiarizationModel(isOpen);
+  const diarizerModel = useDiarizerModel(isOpen).data ?? null;
   const cliInstallQuery = useCliInstallStatus(isOpen);
   const installCliMutation = useInstallCli();
   const removeCliMutation = useRemoveCli();
@@ -428,8 +430,9 @@ export function useSettingsForm({
     () => [
       ...modelCatalog.map((model) => model.key),
       ...(diarizationModel ? [diarizationModel.key] : []),
+      ...(diarizerModel ? [diarizerModel.key] : []),
     ],
-    [diarizationModel, modelCatalog],
+    [modelCatalog, diarizerModel, diarizationModel],
   );
   const modelStatusesQuery = useModelStatuses(
     modelKeysForStatus,
@@ -437,6 +440,7 @@ export function useSettingsForm({
   );
   const modelStatus = modelStatusesQuery.statusByModel;
   const appInfo = appInfoQuery.data ?? null;
+  const appInfoFailed = appInfoQuery.isError;
   const platformCapabilities = useMemo(() => getPlatformCapabilities(), []);
   const loading =
     isOpen &&
@@ -1065,7 +1069,7 @@ export function useSettingsForm({
 
   const refreshPermissionState = useCallback(async () => {
     const [nativeMic, acc, inputMonitoring] = await Promise.allSettled([
-      platformCapabilities.requiresNativeMicrophonePermission
+      platformCapabilities.showsMicrophonePermission
         ? invoke<boolean>("check_microphone_permission")
         : Promise.resolve<boolean | null>(null),
       platformCapabilities.requiresAccessibilityPermission
@@ -1161,7 +1165,15 @@ export function useSettingsForm({
 
     if (settingsQuery.error) {
       console.error("Failed to load settings:", settingsQuery.error);
-      showSettingsError("Failed to load settings", "general");
+      showSettingsError(
+        i18n._(
+          msg({
+            id: "settings.error.load_failed",
+            message: "Couldn't load settings.",
+          }),
+        ),
+        "general",
+      );
       return;
     }
 
@@ -1285,12 +1297,13 @@ export function useSettingsForm({
       }));
       invalidateModelStatus(model);
     },
-    onError: ({ model, error }) => {
+    onError: ({ model, error, reason }) => {
       setDownloadState((prev) => ({
         ...prev,
         [model]: {
           status: "error",
           message: error,
+          reason,
           percent: prev[model]?.percent ?? 0,
         },
       }));
@@ -1607,7 +1620,16 @@ export function useSettingsForm({
         applyModelDiscoveryFailure(state, requestSeq),
       );
       if (next === previous) return;
-      showSettingsError(`Failed to load writing models: ${err}`, "providers");
+      const detail = String(err);
+      showSettingsError(
+        i18n._(
+          msg({
+            id: "settings.error.writing_models_failed",
+            message: `Couldn't load writing models: ${detail}`,
+          }),
+        ),
+        "providers",
+      );
     }
   }, [
     clearSettingsError,
@@ -1643,7 +1665,16 @@ export function useSettingsForm({
         applyModelDiscoveryFailure(state, requestSeq),
       );
       if (next === previous) return;
-      showSettingsError(`Failed to load speech models: ${err}`, "providers");
+      const detail = String(err);
+      showSettingsError(
+        i18n._(
+          msg({
+            id: "settings.error.speech_models_failed",
+            message: `Couldn't load speech models: ${detail}`,
+          }),
+        ),
+        "providers",
+      );
     }
   }, [
     clearSettingsError,
@@ -1676,14 +1707,20 @@ export function useSettingsForm({
         void queryClient.invalidateQueries({ queryKey: modelKeys.speech() });
       } catch (err) {
         console.error(err);
-        setDownloadState((prev) => ({
-          ...prev,
-          [modelKey]: {
-            status: "error",
-            message: String(err),
-            percent: prev[modelKey]?.percent ?? 0,
-          },
-        }));
+        // download:error usually lands first and carries the reason.
+        setDownloadState((prev) =>
+          prev[modelKey]?.status === "error"
+            ? prev
+            : {
+                ...prev,
+                [modelKey]: {
+                  status: "error",
+                  message: String(err),
+                  reason: "failed",
+                  percent: prev[modelKey]?.percent ?? 0,
+                },
+              },
+        );
       }
     },
     [queryClient],
@@ -1801,7 +1838,10 @@ export function useSettingsForm({
       clearSettingsError();
     } catch (err) {
       console.error(err);
-      showSettingsError(String(err), "local-api");
+      showSettingsError(
+        err instanceof Error ? err.message : String(err),
+        "local-api",
+      );
     } finally {
       setLocalApiBusy(false);
     }
@@ -1825,7 +1865,10 @@ export function useSettingsForm({
       clearSettingsError();
     } catch (err) {
       console.error(err);
-      showSettingsError(String(err), "local-api");
+      showSettingsError(
+        err instanceof Error ? err.message : String(err),
+        "local-api",
+      );
     } finally {
       setLocalApiBusy(false);
     }
@@ -1838,7 +1881,14 @@ export function useSettingsForm({
       await modelsApi.stopLocalApi();
       const stopped = await waitForLocalApiStopped();
       if (stopped.running) {
-        throw new Error("API server did not stop before restart");
+        throw new Error(
+          i18n._(
+            msg({
+              id: "settings.error.api_server_restart",
+              message: "The API server didn't stop, so it couldn't restart.",
+            }),
+          ),
+        );
       }
       const status = await modelsApi.startLocalApi({
         host: localApiHost,
@@ -1851,7 +1901,10 @@ export function useSettingsForm({
       clearSettingsError();
     } catch (err) {
       console.error(err);
-      showSettingsError(String(err), "local-api");
+      showSettingsError(
+        err instanceof Error ? err.message : String(err),
+        "local-api",
+      );
     } finally {
       setLocalApiBusy(false);
     }
@@ -1871,7 +1924,10 @@ export function useSettingsForm({
       setLocalApiStatus(status);
     } catch (err) {
       console.error(err);
-      showSettingsError(String(err), "local-api");
+      showSettingsError(
+        err instanceof Error ? err.message : String(err),
+        "local-api",
+      );
     }
   }, [showSettingsError]);
 
@@ -1935,9 +1991,11 @@ export function useSettingsForm({
     inputDevices,
     modelCatalog,
     diarizationModel,
+    diarizerModel,
     modelStatus,
     downloadState,
     appInfo,
+    appInfoFailed,
 
     captureActive,
     capturePreview,

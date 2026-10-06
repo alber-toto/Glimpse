@@ -94,7 +94,8 @@ jobs:
           - platform: blacksmith-4vcpu-windows-2025
             os: windows
             rust-targets: x86_64-pc-windows-msvc
-            tauri-args: ""
+            # Verbose shows WiX's own errors when the MSI step fails.
+            tauri-args: --verbose
             cargo-cache-dir: C:\t
 
     runs-on: ${{ matrix.platform }}
@@ -116,29 +117,39 @@ jobs:
         with:
           bun-version-file: package.json
 
-      - name: install LLVM
-        if: matrix.os == 'windows'
-        uses: KyleMayes/install-llvm-action@ebc0426251bc40c7cd31162802432c68818ab8f0 # v2
-        with:
-          version: "20.1.8"
-          directory: ${{ runner.temp }}/llvm
-
       - name: configure Windows build paths
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
           $cargoTargetDir = "C:\t"
-          $libclangPath = Join-Path $env:RUNNER_TEMP "llvm\bin"
           New-Item -ItemType Directory -Force $cargoTargetDir | Out-Null
           "CARGO_TARGET_DIR=$cargoTargetDir" >> $env:GITHUB_ENV
-          "LIBCLANG_PATH=$libclangPath" >> $env:GITHUB_ENV
+
+      - name: cache Vulkan SDK installer
+        if: matrix.os == 'windows'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/VulkanSDK-Installer.exe
+          key: vulkan-sdk-installer-1.4.357.0
 
       - name: install Vulkan SDK
         if: matrix.os == 'windows'
-        uses: humbletim/install-vulkan-sdk@30ba978f977e81b72d091fc8888feb1fb26f9aff # v1.2
-        with:
-          version: 1.4.309.0
-          cache: true
+        shell: pwsh
+        run: |
+          $version = "1.4.357.0"
+          $sha256 = "81f474711e9042f4cd22b31b2f7a8870db2e428b21586fb43dd80150be97310d"
+          $installer = Join-Path $env:RUNNER_TEMP "VulkanSDK-Installer.exe"
+          if (-not (Test-Path $installer)) {
+            curl.exe -L -o $installer "https://sdk.lunarg.com/sdk/download/$version/windows/vulkansdk-windows-X64-$version.exe"
+          }
+          $actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $sha256) {
+            Remove-Item $installer
+            throw "Vulkan SDK installer hash mismatch: $actual"
+          }
+          & $installer --accept-licenses --default-answer --confirm-command install
+          "VULKAN_SDK=C:\VulkanSDK\$version" >> $env:GITHUB_ENV
+          "C:\VulkanSDK\$version\Bin" >> $env:GITHUB_PATH
 
       - name: cache bun
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -161,10 +172,17 @@ jobs:
       - name: cache rust
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          key: ${{ matrix.platform }}
+          key: ${{ matrix.platform }}-vulkan-1.4.357.0
           workspaces: src-tauri -> target
           cache-directories: ${{ matrix.cargo-cache-dir }}
           cache-on-failure: true
+
+      # The MSI bundler packs every DLL next to the exe, and the cached target
+      # dir still has ones from older builds. Glimpse.exe needs none.
+      - name: remove cached DLLs
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: Remove-Item "$env:CARGO_TARGET_DIR\release\*.dll" -Force -ErrorAction SilentlyContinue
 
       - name: install frontend dependencies
         run: bun ci
@@ -209,19 +227,12 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "14.0"
           CMAKE_OSX_DEPLOYMENT_TARGET: "14.0"
           # Apple Clang still defines __ARM_FEATURE_MATMUL_INT8 for ggml's +noi8mm build,
-          # which makes whisper-rs-sys compile the wrong ARM path on GitHub's arm64 runner.
+          # which makes ggml compile the wrong ARM path on GitHub's arm64 runner.
           CFLAGS_aarch64_apple_darwin: "-U__ARM_FEATURE_MATMUL_INT8"
           CXXFLAGS_aarch64_apple_darwin: "-U__ARM_FEATURE_MATMUL_INT8"
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
-          VITE_GLIMPSE_PERSONAL_CHECKOUT_URL: ${{ secrets.VITE_GLIMPSE_PERSONAL_CHECKOUT_URL }}
-          VITE_GLIMPSE_COMMERCIAL_CHECKOUT_URL: ${{ secrets.VITE_GLIMPSE_COMMERCIAL_CHECKOUT_URL }}
-          VITE_GLIMPSE_FOUNDER_CHECKOUT_URL: ${{ secrets.VITE_GLIMPSE_FOUNDER_CHECKOUT_URL }}
-          VITE_GLIMPSE_CUSTOMER_PORTAL: ${{ secrets.VITE_GLIMPSE_CUSTOMER_PORTAL }}
-          GLIMPSE_POLAR_BENEFIT_PERSONAL: ${{ secrets.GLIMPSE_POLAR_BENEFIT_PERSONAL }}
-          GLIMPSE_POLAR_BENEFIT_COMMERCIAL: ${{ secrets.GLIMPSE_POLAR_BENEFIT_COMMERCIAL }}
-          GLIMPSE_POLAR_BENEFIT_FOUNDER: ${{ secrets.GLIMPSE_POLAR_BENEFIT_FOUNDER }}
-          GLIMPSE_POLAR_BENEFIT_CONTRIBUTOR: ${{ secrets.GLIMPSE_POLAR_BENEFIT_CONTRIBUTOR }}
+          GLIMPSE_API_FALLBACK_BASE: ${{ secrets.GLIMPSE_API_FALLBACK_BASE }}
         with:
           releaseId: ${{ needs.create-release.outputs.release-id }}
           tagName: v__VERSION__
@@ -232,26 +243,34 @@ jobs:
           uploadUpdaterJson: false
           args: ${{ matrix.tauri-args }}
 
+      # Debug symbols for symbolicating crash reports. Kept as a workflow
+      # artifact, never shipped in the bundle.
+      - name: archive macOS dSYMs
+        if: matrix.os == 'macos'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: glimpse-${{ needs.create-release.outputs.version }}-macos-dsym
+          path: |
+            src-tauri/target/aarch64-apple-darwin/release/Glimpse.dSYM
+            src-tauri/target/x86_64-apple-darwin/release/Glimpse.dSYM
+          if-no-files-found: error
+          retention-days: 90
+
       - name: build and publish Windows
         if: matrix.os == 'windows'
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
-          # Build whisper.cpp/ggml for a portable AVX2 baseline, not the build host
-          GGML_NATIVE: "OFF"
-          GGML_AVX2: "ON"
+          # `strip` makes the MSVC linker skip the PDB; a PE never embeds
+          # debug info, so the exe stays the same.
+          CARGO_PROFILE_RELEASE_STRIP: "none"
+          # Build ggml for a portable AVX2 baseline, not the build host
+          TRANSCRIBE_CMAKE_ARGS: "-DGGML_NATIVE=OFF -DGGML_AVX2=ON"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
-          VITE_GLIMPSE_PERSONAL_CHECKOUT_URL: ${{ secrets.VITE_GLIMPSE_PERSONAL_CHECKOUT_URL }}
-          VITE_GLIMPSE_COMMERCIAL_CHECKOUT_URL: ${{ secrets.VITE_GLIMPSE_COMMERCIAL_CHECKOUT_URL }}
-          VITE_GLIMPSE_FOUNDER_CHECKOUT_URL: ${{ secrets.VITE_GLIMPSE_FOUNDER_CHECKOUT_URL }}
-          VITE_GLIMPSE_CUSTOMER_PORTAL: ${{ secrets.VITE_GLIMPSE_CUSTOMER_PORTAL }}
-          GLIMPSE_POLAR_BENEFIT_PERSONAL: ${{ secrets.GLIMPSE_POLAR_BENEFIT_PERSONAL }}
-          GLIMPSE_POLAR_BENEFIT_COMMERCIAL: ${{ secrets.GLIMPSE_POLAR_BENEFIT_COMMERCIAL }}
-          GLIMPSE_POLAR_BENEFIT_FOUNDER: ${{ secrets.GLIMPSE_POLAR_BENEFIT_FOUNDER }}
-          GLIMPSE_POLAR_BENEFIT_CONTRIBUTOR: ${{ secrets.GLIMPSE_POLAR_BENEFIT_CONTRIBUTOR }}
+          GLIMPSE_API_FALLBACK_BASE: ${{ secrets.GLIMPSE_API_FALLBACK_BASE }}
         with:
           releaseId: ${{ needs.create-release.outputs.release-id }}
           tagName: v__VERSION__
@@ -261,6 +280,15 @@ jobs:
           prerelease: ${{ needs.create-release.outputs.prerelease == 'true' }}
           uploadUpdaterJson: false
           args: ${{ matrix.tauri-args }}
+
+      - name: archive Windows PDB
+        if: matrix.os == 'windows'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: glimpse-${{ needs.create-release.outputs.version }}-windows-pdb
+          path: ${{ env.CARGO_TARGET_DIR }}/release/Glimpse.pdb
+          if-no-files-found: error
+          retention-days: 90
 
       # Wraps the already-built exe into an unsigned MSIX for Partner Center
       # (the Store signs it on publish). Identity values come from the

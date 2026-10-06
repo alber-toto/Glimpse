@@ -2,8 +2,61 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-pub mod overlay;
-pub mod toast;
+/// Forwarders for a native panel (NSPanel on macOS, tool window on Windows).
+macro_rules! native_panel {
+    ($name:ident, $label:literal) => {
+        pub mod $name {
+            use crate::AppRuntime;
+            use tauri::{AppHandle, WebviewWindow};
+
+            pub fn init(app: &AppHandle<AppRuntime>, window: &WebviewWindow<AppRuntime>) {
+                #[cfg(target_os = "macos")]
+                if let Err(err) = crate::platform::macos::$name::init(app, window) {
+                    tracing::error!("Failed to initialize macOS {} panel: {err}", $label);
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = app;
+                    if let Err(err) = crate::platform::windows::$name::init(window) {
+                        tracing::error!("Failed to initialize Windows {} surface: {err}", $label);
+                    }
+                }
+            }
+
+            pub fn show(app: &AppHandle<AppRuntime>, window: &WebviewWindow<AppRuntime>) {
+                #[cfg(target_os = "macos")]
+                if let Err(err) = crate::platform::macos::$name::show(app, window) {
+                    tracing::error!("Failed to show macOS {} panel: {err}", $label);
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = app;
+                    if let Err(err) = crate::platform::windows::$name::show(window) {
+                        tracing::error!("Failed to show Windows {} surface: {err}", $label);
+                    }
+                }
+            }
+
+            pub fn hide(app: &AppHandle<AppRuntime>, window: &WebviewWindow<AppRuntime>) {
+                #[cfg(target_os = "macos")]
+                if let Err(err) = crate::platform::macos::$name::hide(app, window) {
+                    tracing::error!("Failed to hide macOS {} panel: {err}", $label);
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = app;
+                    if let Err(err) = crate::platform::windows::$name::hide(window) {
+                        tracing::error!("Failed to hide Windows {} surface: {err}", $label);
+                    }
+                }
+            }
+        }
+    };
+}
+
+native_panel!(live, "live view");
+native_panel!(overlay, "overlay");
+native_panel!(toast, "toast");
 
 #[cfg(target_os = "macos")]
 pub mod macos;
@@ -38,6 +91,58 @@ fn install_type_for_store_build(store_build: bool) -> &'static str {
     }
 }
 
+/// Bytes the current user can still write on the volume holding `path`.
+pub fn available_space(path: &Path) -> io::Result<u64> {
+    // statfs leaves out purgeable space, which macOS frees on demand; Finder counts it.
+    #[cfg(target_os = "macos")]
+    {
+        use objc2_foundation::{
+            NSArray, NSNumber, NSString, NSURL, NSURLVolumeAvailableCapacityForImportantUsageKey,
+        };
+        // Callers run on worker threads, which have no autorelease pool.
+        let important = objc2::rc::autoreleasepool(|_| {
+            let url = NSURL::fileURLWithPath(&NSString::from_str(&path.to_string_lossy()));
+            let key = unsafe { NSURLVolumeAvailableCapacityForImportantUsageKey };
+            url.resourceValuesForKeys_error(&NSArray::from_slice(&[key]))
+                .ok()
+                .and_then(|values| values.objectForKey(key))
+                .and_then(|value| value.downcast::<NSNumber>().ok())
+                .map(|number| number.longLongValue())
+                .filter(|&bytes| bytes > 0)
+        });
+        match important {
+            Some(bytes) => Ok(bytes as u64),
+            None => fs2::available_space(path),
+        }
+    }
+    // fs2 uses GetDiskFreeSpaceW, which ignores per-user quotas.
+    #[cfg(target_os = "windows")]
+    {
+        use ::windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+        let mut available = 0u64;
+        unsafe {
+            GetDiskFreeSpaceExW(
+                &::windows::core::HSTRING::from(path),
+                Some(&mut available),
+                None,
+                None,
+            )
+        }?;
+        Ok(available)
+    }
+}
+
+pub fn is_disk_full(err: &anyhow::Error) -> bool {
+    err.chain()
+        .filter_map(|cause| cause.downcast_ref::<io::Error>())
+        .any(|io| {
+            matches!(
+                io.kind(),
+                io::ErrorKind::StorageFull | io::ErrorKind::QuotaExceeded
+            )
+        })
+}
+
 /// `std::fs::remove_dir_all` deletes through handle-based NT calls that the
 /// MSIX file system filter can reject, so Store builds fail to remove
 /// directories. `remove_file` and `remove_dir` use the ordinary Win32 calls.
@@ -59,6 +164,44 @@ pub fn remove_dir_all_compat(dir: &Path) -> io::Result<()> {
     }
 
     fs::remove_dir(dir)
+}
+
+/// Moves a file or folder to the Trash (Recycle Bin on Windows).
+#[cfg(target_os = "macos")]
+pub fn move_to_trash(path: &Path) -> io::Result<()> {
+    use objc2_foundation::{NSFileManager, NSString, NSURL};
+
+    let url = NSURL::fileURLWithPath(&NSString::from_str(&path.to_string_lossy()));
+    NSFileManager::defaultManager()
+        .trashItemAtURL_resultingItemURL_error(&url, None)
+        .map_err(|err| io::Error::other(err.localizedDescription().to_string()))
+}
+
+/// Moves a file or folder to the Trash (Recycle Bin on Windows).
+#[cfg(target_os = "windows")]
+pub fn move_to_trash(path: &Path) -> io::Result<()> {
+    use ::windows::Win32::UI::Shell::{
+        FO_DELETE, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_NOERRORUI, FOF_SILENT, SHFILEOPSTRUCTW,
+        SHFileOperationW,
+    };
+    use ::windows::core::PCWSTR;
+    use std::os::windows::ffi::OsStrExt;
+
+    // pFrom is a list of paths, so it ends with two nulls.
+    let from: Vec<u16> = path.as_os_str().encode_wide().chain([0, 0]).collect();
+    let mut op = SHFILEOPSTRUCTW {
+        wFunc: FO_DELETE,
+        pFrom: PCWSTR(from.as_ptr()),
+        fFlags: (FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT).0 as u16,
+        ..Default::default()
+    };
+    match unsafe { SHFileOperationW(&mut op) } {
+        0 if op.fAnyOperationsAborted.as_bool() => Err(io::Error::other("Recycle aborted")),
+        0 => Ok(()),
+        code => Err(io::Error::other(format!(
+            "SHFileOperationW failed: {code:#x}"
+        ))),
+    }
 }
 
 fn remove_file_compat(path: &Path) -> io::Result<()> {

@@ -46,7 +46,7 @@ pub const EVENT_LIBRARY_OPEN_IMPORT: &str = "library:open_import";
 pub const EVENT_LIBRARY_RENDERER_READY: &str = "library:renderer_ready";
 pub const EVENT_LIBRARY_IMPORT_PROGRESS: &str = "library:import_progress";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TranscriptSegment {
     pub start_ms: u64,
     pub end_ms: u64,
@@ -55,7 +55,7 @@ pub struct TranscriptSegment {
     pub speaker_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Speaker {
     pub id: String,
     pub name: String,
@@ -69,6 +69,83 @@ pub(crate) fn default_item_kind() -> String {
 
 pub(crate) fn is_meeting_item_kind(kind: &str) -> bool {
     matches!(kind, "meeting" | "recovered_meeting")
+}
+
+/// Where a Library job's audio came from, as reported in analytics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobSource {
+    Upload,
+    Recording,
+    Cli,
+}
+
+impl JobSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            JobSource::Upload => "uploaded_file",
+            JobSource::Recording => "recording",
+            JobSource::Cli => "cli",
+        }
+    }
+
+    /// Source for a job rebuilt from a stored item (retry, launch recovery).
+    pub(crate) fn of_item(item: &LibraryItem) -> Self {
+        if item.kind == "recording" || is_meeting_item_kind(&item.kind) {
+            JobSource::Recording
+        } else {
+            JobSource::Upload
+        }
+    }
+}
+
+/// Which inputs a recording captured. `system_audio` lists app names, or is
+/// empty when the whole system was captured.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AudioSources {
+    #[serde(default)]
+    pub microphone: Option<String>,
+    #[serde(default)]
+    pub system_audio: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Bookmark {
+    pub id: String,
+    pub at_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+}
+
+/// A system-audio stretch attributed to one live speaker during recording.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LiveTurn {
+    pub start_ms: u64,
+    pub end_ms: u64,
+    pub speaker_id: String,
+}
+
+/// Live speaker edits and system-track turns, so the final labels keep the edits.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct LiveSpeakerHints {
+    #[serde(default)]
+    pub speakers: Vec<Speaker>,
+    #[serde(default)]
+    pub turns: Vec<LiveTurn>,
+    /// Live speakers another live speaker was merged into.
+    #[serde(default)]
+    pub merged_into: Vec<String>,
+}
+
+/// A finished recording session ready to become a Library item.
+pub(crate) struct RecordingOutput {
+    pub name: String,
+    pub started_at: chrono::DateTime<chrono::Local>,
+    pub duration_seconds: f32,
+    pub microphone_path: Option<std::path::PathBuf>,
+    pub system_path: Option<std::path::PathBuf>,
+    pub sources: AudioSources,
+    pub bookmarks: Vec<Bookmark>,
+    pub live: LiveSpeakerHints,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -127,6 +204,9 @@ pub struct LibraryItem {
     pub store_original: bool,
     pub status: LibraryItemStatus,
     pub transcript: Option<String>,
+    /// Set when the user edits the transcript, cleared by a new transcription.
+    #[serde(default)]
+    pub transcript_edited: bool,
     pub segments: Option<Vec<TranscriptSegment>>,
     pub words: Option<Vec<TranscriptSegment>>,
     pub duration_seconds: f32,
@@ -144,6 +224,13 @@ pub struct LibraryItem {
     pub kind: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub speakers: Option<Vec<Speaker>>,
+    /// Second track of a recording (system audio next to the microphone).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secondary_audio_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sources: Option<AudioSources>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bookmarks: Option<Vec<Bookmark>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -165,6 +252,7 @@ pub struct LibraryItemsPage {
 pub struct LibraryItemPatch {
     pub name: Option<String>,
     pub transcript: Option<String>,
+    pub transcript_edited: Option<bool>,
     pub segments: Option<Vec<TranscriptSegment>>,
     pub words: Option<Vec<TranscriptSegment>>,
     pub tags: Option<Vec<String>>,
@@ -177,6 +265,7 @@ pub struct LibraryItemPatch {
     pub duration_seconds: Option<f32>,
     pub kind: Option<String>,
     pub speakers: Option<Option<Vec<Speaker>>>,
+    pub bookmarks: Option<Vec<Bookmark>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,6 +288,9 @@ pub struct LibraryProgressPayload {
     pub chunk_text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_segments: Option<Vec<TranscriptSegment>>,
+    /// Transcription is done and the diarizer is labeling speakers.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub detecting_speakers: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -235,7 +327,7 @@ impl LibraryProgressUpdate {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct LibraryTranscriptionResult {
     pub transcript: String,
     pub segments: Option<Vec<TranscriptSegment>>,

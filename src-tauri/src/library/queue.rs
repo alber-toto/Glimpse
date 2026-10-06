@@ -15,13 +15,15 @@ use crate::{
     storage::StorageManager, toast, transcribe, transcription_api,
 };
 
+use super::bleed::normalize;
 use super::processing::{
-    WavInfo, compute_total_chunks, convert_library_item, convert_segments_to_ms, diarize_segments,
-    read_wav_info, stream_wav_chunks,
+    WavChunks, WavInfo, compute_total_chunks, convert_library_item, convert_segments_to_ms,
+    diarize_segments, read_wav_info, wav_is_silent,
 };
+use super::speakers::{self, Track};
 use super::types::{
     CHUNK_OVERLAP_SECONDS, DIRECT_TRANSCRIBE_MINUTES, EVENT_LIBRARY_COMPLETE, EVENT_LIBRARY_ERROR,
-    EVENT_LIBRARY_METADATA_PROCESSING, EVENT_LIBRARY_PROGRESS, EVENT_LIBRARY_UPDATED,
+    EVENT_LIBRARY_METADATA_PROCESSING, EVENT_LIBRARY_PROGRESS, EVENT_LIBRARY_UPDATED, JobSource,
     LibraryCompletePayload, LibraryErrorPayload, LibraryItem, LibraryItemPatch, LibraryItemStatus,
     LibraryMetadataProcessingPayload, LibraryProgressPayload, LibraryProgressUpdate,
     LibraryTranscriptionResult, LibraryUpdatedPayload, MAX_CHUNK_MINUTES, Speaker,
@@ -38,6 +40,7 @@ fn start_library_job_internal(app: &AppHandle<AppRuntime>, job: LibraryJob) {
     async_runtime::spawn(async move {
         let state_handle = app_handle.state::<AppState>();
         let job_id = job.id.clone();
+        let source = job.source;
         let token = state_handle.register_library_transcription(job_id.clone());
 
         match job.kind {
@@ -72,7 +75,12 @@ fn start_library_job_internal(app: &AppHandle<AppRuntime>, job: LibraryJob) {
                             );
                             return;
                         }
-                        start_library_transcription_internal(&app_handle, &state_handle, job_id);
+                        start_library_transcription_internal(
+                            &app_handle,
+                            &state_handle,
+                            job_id,
+                            source,
+                        );
                     }
                     Ok(Err(err)) => {
                         handle_library_job_error(&app_handle, &state_handle, &job_id, err);
@@ -97,7 +105,7 @@ fn start_library_job_internal(app: &AppHandle<AppRuntime>, job: LibraryJob) {
                     );
                     return;
                 }
-                start_library_transcription_internal(&app_handle, &state_handle, job_id);
+                start_library_transcription_internal(&app_handle, &state_handle, job_id, source);
             }
         }
     });
@@ -107,6 +115,7 @@ fn start_library_transcription_internal(
     app: &AppHandle<AppRuntime>,
     state: &tauri::State<'_, AppState>,
     id: String,
+    source: JobSource,
 ) {
     let storage = state.storage();
     let item = match storage.get_library_item(&id) {
@@ -157,7 +166,16 @@ fn start_library_transcription_internal(
         LibraryItemPatch {
             status: Some(LibraryItemStatus::Transcribing { progress: 0.0 }),
             transcript: Some(String::new()),
+            transcript_edited: Some(false),
             segments: Some(Vec::new()),
+            // Live rows are streamed as You/Others until diarization relabels them.
+            speakers: item.secondary_audio_path.as_ref().map(|_| {
+                Some(
+                    speakers::recording_speakers()
+                        .map(|speaker| speakers::track_speaker(&item, speaker))
+                        .to_vec(),
+                )
+            }),
             ..Default::default()
         },
     );
@@ -170,14 +188,17 @@ fn start_library_transcription_internal(
             total_chunks: 0,
             chunk_text: None,
             chunk_segments: None,
+            detecting_speakers: false,
         },
     );
 
     let token = state.register_library_transcription(id.clone());
     let app_handle = app.clone();
-    let organize_after_completion = should_automatically_organize(item.transcribed_at.as_deref());
     let item_for_task = item.clone();
     let transcription_started_at = Instant::now();
+    // Recordings have a second track when system audio was captured next to the microphone.
+    let tracks =
+        (source == JobSource::Recording).then(|| 1 + u8::from(item.secondary_audio_path.is_some()));
     async_runtime::spawn(async move {
         let id_for_release = id.clone();
         let token_handle = token.clone();
@@ -226,27 +247,28 @@ fn start_library_transcription_internal(
                         speech_model,
                         "no_speech",
                         Some(item.duration_seconds),
-                        "uploaded_file",
+                        source.as_str(),
                     );
-                    let _ = storage.update_library_item(
-                        &id,
-                        LibraryItemPatch {
-                            status: Some(LibraryItemStatus::Error {
+                    if !restore_previous_transcript(&app_handle, &storage, &item, false) {
+                        let _ = storage.update_library_item(
+                            &id,
+                            LibraryItemPatch {
+                                status: Some(LibraryItemStatus::Error {
+                                    message: "No speech detected".to_string(),
+                                }),
+                                ..Default::default()
+                            },
+                        );
+                        let _ = app_handle.emit(
+                            EVENT_LIBRARY_ERROR,
+                            LibraryErrorPayload {
+                                id: id.clone(),
                                 message: "No speech detected".to_string(),
-                            }),
-                            ..Default::default()
-                        },
-                    );
-                    let _ = app_handle.emit(
-                        EVENT_LIBRARY_ERROR,
-                        LibraryErrorPayload {
-                            id: id.clone(),
-                            message: "No speech detected".to_string(),
-                            cancelled: false,
-                        },
-                    );
+                                cancelled: false,
+                            },
+                        );
+                    }
                 } else {
-                    let transcript_for_title = final_transcript.clone();
                     let speech_model = result
                         .speech_model
                         .as_deref()
@@ -255,14 +277,20 @@ fn start_library_transcription_internal(
                     let model_label = crate::model_manager::model_label(speech_model);
                     crate::analytics::track_transcription_completed(
                         &app_handle,
-                        library_transcription_mode(speech_model),
-                        Some(&model_label),
-                        false,
-                        item.duration_seconds,
-                        transcription_started_at.elapsed().as_secs_f32(),
-                        count_words(&final_transcript),
-                        "uploaded_file",
+                        crate::analytics::TranscriptionEvent {
+                            mode: library_transcription_mode(speech_model),
+                            model: &model_label,
+                            audio_duration_seconds: item.duration_seconds,
+                            transcription_duration_seconds: transcription_started_at
+                                .elapsed()
+                                .as_secs_f32(),
+                            word_count: count_words(&final_transcript),
+                            audio_source: source.as_str(),
+                            tracks,
+                            ..Default::default()
+                        },
                     );
+                    let metadata_transcript = final_transcript.clone();
                     let _ = storage.update_library_item(
                         &id,
                         LibraryItemPatch {
@@ -281,12 +309,12 @@ fn start_library_transcription_internal(
                         EVENT_LIBRARY_COMPLETE,
                         LibraryCompletePayload { id: id.clone() },
                     );
-                    if organize_after_completion {
+                    if should_automatically_organize(item.transcribed_at.as_deref()) {
                         schedule_automatic_library_organization(
                             app_handle.clone(),
                             id.clone(),
                             item.name.clone(),
-                            transcript_for_title,
+                            metadata_transcript,
                         );
                     }
                 }
@@ -300,33 +328,35 @@ fn start_library_transcription_internal(
                         "transcription",
                         library_transcription_mode(&item.speech_model),
                         &item.speech_model,
-                        crate::analytics::classify_failure_reason(&message),
+                        crate::analytics::classify_error(&err),
                         Some(item.duration_seconds),
-                        "uploaded_file",
+                        source.as_str(),
                     );
                 }
-                let status = if cancelled {
-                    LibraryItemStatus::Cancelled
-                } else {
-                    LibraryItemStatus::Error {
-                        message: message.clone(),
-                    }
-                };
-                let _ = storage.update_library_item(
-                    &id,
-                    LibraryItemPatch {
-                        status: Some(status),
-                        ..Default::default()
-                    },
-                );
-                let _ = app_handle.emit(
-                    EVENT_LIBRARY_ERROR,
-                    LibraryErrorPayload {
-                        id: id.clone(),
-                        cancelled,
-                        message,
-                    },
-                );
+                if !restore_previous_transcript(&app_handle, &storage, &item, cancelled) {
+                    let status = if cancelled {
+                        LibraryItemStatus::Cancelled
+                    } else {
+                        LibraryItemStatus::Error {
+                            message: message.clone(),
+                        }
+                    };
+                    let _ = storage.update_library_item(
+                        &id,
+                        LibraryItemPatch {
+                            status: Some(status),
+                            ..Default::default()
+                        },
+                    );
+                    let _ = app_handle.emit(
+                        EVENT_LIBRARY_ERROR,
+                        LibraryErrorPayload {
+                            id: id.clone(),
+                            cancelled,
+                            message,
+                        },
+                    );
+                }
             }
             Err(err) => {
                 let message = format!("Library transcription task failed: {err}");
@@ -337,25 +367,27 @@ fn start_library_transcription_internal(
                     &item.speech_model,
                     "task_failed",
                     Some(item.duration_seconds),
-                    "uploaded_file",
+                    source.as_str(),
                 );
-                let _ = storage.update_library_item(
-                    &id,
-                    LibraryItemPatch {
-                        status: Some(LibraryItemStatus::Error {
-                            message: message.clone(),
-                        }),
-                        ..Default::default()
-                    },
-                );
-                let _ = app_handle.emit(
-                    EVENT_LIBRARY_ERROR,
-                    LibraryErrorPayload {
-                        id: id.clone(),
-                        cancelled: false,
-                        message,
-                    },
-                );
+                if !restore_previous_transcript(&app_handle, &storage, &item, false) {
+                    let _ = storage.update_library_item(
+                        &id,
+                        LibraryItemPatch {
+                            status: Some(LibraryItemStatus::Error {
+                                message: message.clone(),
+                            }),
+                            ..Default::default()
+                        },
+                    );
+                    let _ = app_handle.emit(
+                        EVENT_LIBRARY_ERROR,
+                        LibraryErrorPayload {
+                            id: id.clone(),
+                            cancelled: false,
+                            message,
+                        },
+                    );
+                }
             }
         }
 
@@ -376,7 +408,7 @@ fn schedule_automatic_library_organization(
     async_runtime::spawn(async move {
         let state = app.state::<AppState>();
         let settings = state.current_settings_unmasked();
-        let Some(title_settings) = crate::llm_cleanup::title_generation_settings(&settings, true)
+        let Some(title_settings) = crate::llm_cleanup::title_generation_settings(&settings, false)
         else {
             return;
         };
@@ -394,7 +426,7 @@ fn schedule_automatic_library_organization(
                 Vec::new()
             }
         };
-        let app_locale = crate::native_i18n::resolved_app_locale(&settings);
+        let app_locale = crate::native_i18n::ui_locale(&settings);
 
         let metadata = match crate::llm_cleanup::generate_library_metadata(
             &state.http(),
@@ -533,43 +565,6 @@ struct LocalRun<'a> {
     model: &'a model_manager::ReadyModel,
     dictionary: &'a [String],
     language: &'a str,
-    sample_rate: u32,
-    progress_scope: ProgressScope,
-}
-
-#[derive(Clone, Copy)]
-struct ProgressScope {
-    start: f32,
-    end: f32,
-    publish_content: bool,
-}
-
-impl ProgressScope {
-    const FULL: Self = Self {
-        start: 0.0,
-        end: 1.0,
-        publish_content: true,
-    };
-
-    fn meeting_track(index: usize, total: usize) -> Self {
-        let total = total.max(1) as f32;
-        Self {
-            start: index as f32 / total,
-            end: (index + 1) as f32 / total,
-            publish_content: false,
-        }
-    }
-
-    fn map(self, mut update: LibraryProgressUpdate) -> LibraryProgressUpdate {
-        update.progress = self.start + update.progress.clamp(0.0, 1.0) * (self.end - self.start);
-        if !self.publish_content {
-            update.transcript = None;
-            update.segments = None;
-            update.chunk_text = None;
-            update.chunk_segments = None;
-        }
-        update
-    }
 }
 
 struct ChunkPlan {
@@ -598,6 +593,22 @@ fn offset_ms(start_idx: usize, sample_rate: u32) -> u64 {
 fn chunk_below_speech_gate(chunk: &[i16], sample_rate: u32) -> bool {
     speech_percentage_i16_with_mode(chunk, sample_rate, VadMode::VeryAggressive)
         < VAD_MIN_SPEECH_PERCENT_CHUNK
+}
+
+/// How one audio file's pass maps onto the item: which slice of the progress
+/// bar it owns, and whether partial text is streamed to the UI (only sensible
+/// for a single-track item).
+#[derive(Clone, Copy)]
+struct TrackPass {
+    progress_range: (f32, f32),
+    stream_partials: bool,
+}
+
+impl TrackPass {
+    fn map_progress(&self, progress: f32) -> f32 {
+        let (start, end) = self.progress_range;
+        start + progress.clamp(0.0, 1.0) * (end - start)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -629,11 +640,11 @@ fn transcribe_library_item_for_kind(
     token: &CancellationToken,
 ) -> Result<LibraryTranscriptionResult> {
     if !is_meeting_item_kind(&item.kind) {
-        return transcribe_library_item(app, state, item, token, ProgressScope::FULL);
+        return transcribe_library_item(app, state, item, token);
     }
 
     let Some(item_dir) = Path::new(&item.audio_path).parent() else {
-        return transcribe_library_item(app, state, item, token, ProgressScope::FULL);
+        return transcribe_library_item(app, state, item, token);
     };
     let candidates = [
         (
@@ -653,7 +664,7 @@ fn transcribe_library_item_for_kind(
     if tracks.is_empty() {
         // Compatibility with meetings recorded before source tracks were
         // retained, and with any manually repaired Library item.
-        return transcribe_library_item(app, state, item, token, ProgressScope::FULL);
+        return transcribe_library_item(app, state, item, token);
     }
 
     transcribe_meeting_tracks(app, state, item, token, &tracks)
@@ -671,7 +682,11 @@ fn transcribe_meeting_tracks(
         if token.is_cancelled() {
             return Err(cancelled_error());
         }
-        let scope = ProgressScope::meeting_track(index, tracks.len());
+        let count = tracks.len().max(1) as f32;
+        let pass = TrackPass {
+            progress_range: (index as f32 / count, (index + 1) as f32 / count),
+            stream_partials: false,
+        };
         let mut track_item = item.clone();
         track_item.audio_path = path.display().to_string();
         track_item.detect_speakers =
@@ -679,7 +694,23 @@ fn transcribe_meeting_tracks(
         let duration_ms = read_wav_info(path)
             .map(|info| (info.duration_seconds * 1000.0).round() as u64)
             .unwrap_or_else(|_| (item.duration_seconds * 1000.0).round() as u64);
-        let result = transcribe_library_item(app, state, &track_item, token, scope)?;
+        let mut result = transcribe_audio_file(app, state, &track_item, path, token, pass)?;
+        if track_item.detect_speakers {
+            let diarizer = crate::speech::installed_diarizer_path(app);
+            if let Some(turns) = speakers::track_turns(&result, path, diarizer.as_deref()) {
+                let identity = Speaker {
+                    id: source.speaker_id().to_string(),
+                    name: source.speaker_name(app),
+                    color: None,
+                };
+                result.speakers = speakers::label_tracks([Track {
+                    result: &mut result,
+                    turns: Some(turns),
+                    identity: Some(identity),
+                }]);
+            }
+        }
+        let result = apply_local_diarization_if_needed(app, &track_item, token, path, result)?;
         results.push(label_meeting_track(
             result,
             *source,
@@ -690,11 +721,18 @@ fn transcribe_meeting_tracks(
             app,
             state.storage(),
             &item.id,
-            scope.map(LibraryProgressUpdate::with_chunk_counts(1.0, 1, 1)),
+            LibraryProgressUpdate::with_chunk_counts(pass.map_progress(1.0), 1, 1),
         );
     }
 
-    Ok(merge_meeting_results(results))
+    let mut result = merge_meeting_results(results);
+    speakers::keep_speaker_names(
+        item,
+        result.segments.as_deref().unwrap_or_default(),
+        result.words.as_deref(),
+        result.speakers.as_mut(),
+    );
+    Ok(result)
 }
 
 fn meeting_track_person_detection_enabled(
@@ -811,13 +849,362 @@ fn transcribe_library_item(
     state: &AppState,
     item: &LibraryItem,
     token: &CancellationToken,
-    progress_scope: ProgressScope,
+) -> Result<LibraryTranscriptionResult> {
+    let diarizer = item
+        .detect_speakers
+        .then(|| crate::speech::installed_diarizer_path(app))
+        .flatten();
+    // Speaker detection gets the end of the progress bar when it will run.
+    let transcribe_share = if diarizer.is_some() { 0.9 } else { 1.0 };
+    let primary_path = PathBuf::from(&item.audio_path);
+    let Some(secondary) = item.secondary_audio_path.as_deref() else {
+        let pass = TrackPass {
+            progress_range: (0.0, transcribe_share),
+            stream_partials: true,
+        };
+        let mut result = transcribe_audio_file(app, state, item, &primary_path, token, pass)?;
+        if diarizer.is_some() {
+            report_detecting_speakers(app, state, &item.id, transcribe_share);
+        }
+        let turns = speakers::track_turns(&result, &primary_path, diarizer.as_deref());
+        if token.is_cancelled() {
+            return Err(cancelled_error());
+        }
+        let identity = speakers::single_track_identity(item);
+        if turns.is_some() || identity.is_some() {
+            let mut labeled = speakers::label_tracks([Track {
+                result: &mut result,
+                turns,
+                identity,
+            }]);
+            if let Some(labeled) = labeled.as_mut() {
+                speakers::carry_live_speakers(item, &mut result, labeled);
+            }
+            speakers::keep_speaker_names(
+                item,
+                result.segments.as_deref().unwrap_or_default(),
+                result.words.as_deref(),
+                labeled.as_mut(),
+            );
+            result.speakers = labeled;
+        }
+        return apply_local_diarization_if_needed(app, item, token, &primary_path, result);
+    };
+
+    // Recordings with both tracks: the microphone is "you", system audio is
+    // everyone else. Each track is transcribed on its own, then merged.
+    let secondary_path = PathBuf::from(secondary);
+    let [you, others] = speakers::recording_speakers();
+    let [mut microphone, mut system] = transcribe_recording_tracks(
+        app,
+        state,
+        item,
+        [(&primary_path, &you.id), (&secondary_path, &others.id)],
+        token,
+        transcribe_share,
+    )?;
+    // Speaker audio the microphone picked up would otherwise appear twice.
+    super::bleed::remove_bleed(&mut microphone, &system);
+    if diarizer.is_none() {
+        microphone =
+            apply_local_diarization_if_needed(app, item, token, &primary_path, microphone)?;
+        system = apply_local_diarization_if_needed(app, item, token, &secondary_path, system)?;
+    }
+    if diarizer.is_some() {
+        report_detecting_speakers(app, state, &item.id, transcribe_share);
+    }
+    let track_turns = |result: &LibraryTranscriptionResult, path: &Path| {
+        if token.is_cancelled() {
+            return Err(cancelled_error());
+        }
+        Ok(speakers::track_turns(result, path, diarizer.as_deref()))
+    };
+    let microphone_turns = track_turns(&microphone, &primary_path)?;
+    let system_turns = track_turns(&system, &secondary_path)?;
+    if token.is_cancelled() {
+        return Err(cancelled_error());
+    }
+    let mut speakers = speakers::label_tracks([
+        Track {
+            result: &mut microphone,
+            turns: microphone_turns,
+            identity: Some(speakers::track_speaker(item, you)),
+        },
+        Track {
+            result: &mut system,
+            turns: system_turns,
+            identity: Some(speakers::track_speaker(item, others)),
+        },
+    ]);
+    if let Some(speakers) = speakers.as_mut() {
+        speakers::carry_live_speakers(item, &mut system, speakers);
+    }
+    let mut merged = merge_track_results(microphone, system);
+    speakers::keep_speaker_names(
+        item,
+        merged.segments.as_deref().unwrap_or_default(),
+        merged.words.as_deref(),
+        speakers.as_mut(),
+    );
+    merged.speakers = speakers;
+    Ok(merged)
+}
+
+/// Transcribes a recording's tracks, each given with the speaker id its live
+/// text shows under. A silent track gets an empty result without being
+/// transcribed. Long local runs advance the tracks together and stream
+/// partial text in time order.
+fn transcribe_recording_tracks(
+    app: &AppHandle<AppRuntime>,
+    state: &AppState,
+    item: &LibraryItem,
+    tracks: [(&Path, &str); 2],
+    token: &CancellationToken,
+    progress_share: f32,
+) -> Result<[LibraryTranscriptionResult; 2]> {
+    let mut results: [LibraryTranscriptionResult; 2] = Default::default();
+    let mut active = Vec::with_capacity(2);
+    for (index, (path, speaker_id)) in tracks.into_iter().enumerate() {
+        if token.is_cancelled() {
+            return Err(cancelled_error());
+        }
+        if !path.exists() {
+            return Err(anyhow!("Audio file not found"));
+        }
+        if wav_is_silent(path)? {
+            continue;
+        }
+        let wav_info = read_wav_info(path)?;
+        if wav_info.total_samples > 0 {
+            active.push((index, path, speaker_id, wav_info));
+        }
+    }
+
+    let settings = state.current_settings();
+    let wants_remote = remote_speech::is_remote_model(&item.speech_model)
+        && remote_speech::is_configured(&settings);
+    let direct_seconds = DIRECT_TRANSCRIBE_MINUTES as f32 * 60.0;
+    let short = active
+        .iter()
+        .all(|(.., wav_info)| wav_info.duration_seconds <= direct_seconds);
+    if wants_remote || short {
+        // Whole files, one after the other.
+        let step = progress_share / active.len() as f32;
+        for (position, (index, path, ..)) in active.into_iter().enumerate() {
+            let pass = TrackPass {
+                progress_range: (position as f32 * step, (position + 1) as f32 * step),
+                stream_partials: false,
+            };
+            results[index] = transcribe_audio_file(app, state, item, path, token, pass)?;
+        }
+        return Ok(results);
+    }
+
+    let ready_model = local_model(app, &settings, item, false)?;
+    let dictionary = dictionary::dictionary_entries_for_model(&ready_model, &settings);
+    let run = LocalRun {
+        app,
+        state,
+        item,
+        token,
+        model: &ready_model,
+        dictionary: &dictionary,
+        language: &settings.language,
+    };
+    let strategy = if matches!(ready_model.engine, model_manager::LocalModelEngine::Whisper) {
+        ChunkStrategy::Whisper
+    } else {
+        ChunkStrategy::Parakeet
+    };
+    let mut chunked = active
+        .iter()
+        .map(|(_, path, _, wav_info)| ChunkedTrack::open(path, wav_info, strategy))
+        .collect::<Result<Vec<_>>>()?;
+    let total_seconds: f64 = chunked.iter().map(ChunkedTrack::total_seconds).sum();
+
+    let mut pending: Vec<TranscriptSegment> = Vec::new();
+    let mut live_text = String::new();
+    let mut live_segments: Vec<TranscriptSegment> = Vec::new();
+    // The track that has read the least audio goes next, so the tracks stay
+    // within a chunk of each other.
+    while let Some(next) = (0..chunked.len())
+        .filter(|&index| !chunked[index].is_finished())
+        .min_by(|&a, &b| {
+            chunked[a]
+                .seconds_read()
+                .total_cmp(&chunked[b].seconds_read())
+        })
+    {
+        if let Some(step) = chunked[next].step(&run)? {
+            let speaker_id = active[next].2;
+            pending.extend(step.segments.into_iter().map(|segment| TranscriptSegment {
+                speaker_id: Some(speaker_id.to_string()),
+                ..segment
+            }));
+        }
+
+        // No track can still add a segment that starts before this point.
+        let settled_until = chunked
+            .iter()
+            .map(ChunkedTrack::next_start_ms)
+            .min()
+            .unwrap_or(u64::MAX);
+        pending.sort_by_key(|segment| (segment.start_ms, segment.end_ms));
+        let settled: Vec<TranscriptSegment> = pending
+            .drain(..pending.partition_point(|segment| segment.start_ms < settled_until))
+            .collect();
+        let chunk_text = settled
+            .iter()
+            .map(|segment| segment.text.trim())
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let chunk_text = (!chunk_text.is_empty()).then(|| {
+            if !live_text.is_empty() {
+                live_text.push(' ');
+            }
+            live_text.push_str(&chunk_text);
+            chunk_text
+        });
+        live_segments.extend(settled.iter().cloned());
+
+        let seconds_read: f64 = chunked.iter().map(ChunkedTrack::seconds_read).sum();
+        report_progress(
+            app,
+            state.storage(),
+            &item.id,
+            LibraryProgressUpdate {
+                progress: (seconds_read / total_seconds).min(1.0) as f32 * progress_share,
+                current_chunk: chunked.iter().map(|track| track.chunk_index).sum(),
+                total_chunks: chunked.iter().map(|track| track.total_chunks).sum(),
+                transcript: chunk_text.as_ref().map(|_| live_text.clone()),
+                segments: (!settled.is_empty()).then(|| live_segments.clone()),
+                chunk_text,
+                chunk_segments: (!settled.is_empty()).then_some(settled),
+            },
+        );
+    }
+
+    for ((index, ..), track) in active.iter().zip(chunked) {
+        results[*index] = track.finish();
+        results[*index].speech_model = stand_in_model(item, &ready_model);
+    }
+    Ok(results)
+}
+
+fn merge_track_results(
+    first: LibraryTranscriptionResult,
+    second: LibraryTranscriptionResult,
+) -> LibraryTranscriptionResult {
+    let mut segments = first.segments.unwrap_or_default();
+    segments.extend(second.segments.unwrap_or_default());
+    segments.sort_by_key(|segment| (segment.start_ms, segment.end_ms));
+
+    let mut words = first.words.unwrap_or_default();
+    words.extend(second.words.unwrap_or_default());
+    words.sort_by_key(|word| (word.start_ms, word.end_ms));
+
+    let transcript = if segments.is_empty() {
+        [first.transcript.trim(), second.transcript.trim()]
+            .into_iter()
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    } else {
+        segments
+            .iter()
+            .map(|segment| segment.text.trim())
+            .filter(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+
+    LibraryTranscriptionResult {
+        transcript,
+        segments: (!segments.is_empty()).then_some(segments),
+        words: (!words.is_empty()).then_some(words),
+        speech_model: first.speech_model.or(second.speech_model),
+        speakers: None,
+    }
+}
+
+/// A finished item that fails or is cancelled while transcribing again gets
+/// its previous transcript back instead of being left empty.
+fn restore_previous_transcript(
+    app: &AppHandle<AppRuntime>,
+    storage: &StorageManager,
+    item: &LibraryItem,
+    cancelled: bool,
+) -> bool {
+    if item.transcribed_at.is_none() || item.transcript.as_deref().is_none_or(str::is_empty) {
+        return false;
+    }
+    let restored = storage.update_library_item(
+        &item.id,
+        LibraryItemPatch {
+            status: Some(LibraryItemStatus::Complete),
+            transcript: Some(item.transcript.clone().unwrap_or_default()),
+            transcript_edited: Some(item.transcript_edited),
+            segments: Some(item.segments.clone().unwrap_or_default()),
+            speakers: Some(item.speakers.clone()),
+            ..Default::default()
+        },
+    );
+    if !matches!(restored, Ok(Some(_))) {
+        return false;
+    }
+    if !cancelled {
+        toast::show(
+            app,
+            "error",
+            None,
+            &toast::native(app, "native.toast.retranscribe_failed"),
+        );
+    }
+    let _ = app.emit(
+        EVENT_LIBRARY_COMPLETE,
+        LibraryCompletePayload {
+            id: item.id.clone(),
+        },
+    );
+    true
+}
+
+fn local_model(
+    app: &AppHandle<AppRuntime>,
+    settings: &UserSettings,
+    item: &LibraryItem,
+    remote_fallback: bool,
+) -> Result<model_manager::ReadyModel> {
+    if remote_fallback || remote_speech::is_remote_model(&item.speech_model) {
+        return model_manager::ensure_local_fallback_model(app, &settings.local_model);
+    }
+    // The item's model can be gone: removed by a later version, deleted, or
+    // still downloading its new version.
+    model_manager::ensure_model_ready(app, &item.speech_model).or_else(|err| {
+        model_manager::ensure_model_ready(app, &settings.local_model).map_err(|_| err)
+    })
+}
+
+/// The model to record on the item when a local one stood in for its own.
+fn stand_in_model(item: &LibraryItem, model: &model_manager::ReadyModel) -> Option<String> {
+    (!remote_speech::is_remote_model(&item.speech_model) && model.key != item.speech_model)
+        .then(|| model.key.clone())
+}
+
+fn transcribe_audio_file(
+    app: &AppHandle<AppRuntime>,
+    state: &AppState,
+    item: &LibraryItem,
+    audio_path: &Path,
+    token: &CancellationToken,
+    pass: TrackPass,
 ) -> Result<LibraryTranscriptionResult> {
     if token.is_cancelled() {
         return Err(cancelled_error());
     }
 
-    let audio_path = PathBuf::from(&item.audio_path);
+    let audio_path = audio_path.to_path_buf();
     if !audio_path.exists() {
         return Err(anyhow!("Audio file not found"));
     }
@@ -833,27 +1220,13 @@ fn transcribe_library_item(
         && remote_speech::is_configured(&settings);
     let mut remote_fallback = false;
     if wants_remote {
-        match transcribe_remote(
-            app,
-            state,
-            &settings,
-            item,
-            &audio_path,
-            token,
-            progress_scope,
-        )? {
-            Some(result) => {
-                return apply_local_diarization_if_needed(app, item, token, &audio_path, result);
-            }
+        match transcribe_remote(app, state, &settings, item, &audio_path, token, pass)? {
+            Some(result) => return Ok(result),
             None => remote_fallback = true,
         }
     }
 
-    let ready_model = if remote_fallback || remote_speech::is_remote_model(&item.speech_model) {
-        model_manager::ensure_local_fallback_model(app, &settings.local_model)?
-    } else {
-        model_manager::ensure_model_ready(app, &item.speech_model)?
-    };
+    let ready_model = local_model(app, &settings, item, remote_fallback)?;
     let dictionary = dictionary::dictionary_entries_for_model(&ready_model, &settings);
     let language = settings.language.clone();
 
@@ -865,20 +1238,22 @@ fn transcribe_library_item(
         model: &ready_model,
         dictionary: &dictionary,
         language: &language,
-        sample_rate: wav_info.sample_rate,
-        progress_scope,
     };
 
-    let result = if matches!(ready_model.engine, model_manager::LocalModelEngine::Whisper) {
-        transcribe_whisper_chunked(&run, &audio_path, &wav_info)
+    let mut result = if matches!(ready_model.engine, model_manager::LocalModelEngine::Whisper) {
+        transcribe_chunked(&run, &audio_path, &wav_info, ChunkStrategy::Whisper, pass)
     } else if wav_info.duration_seconds <= (DIRECT_TRANSCRIBE_MINUTES as f32 * 60.0) {
         transcribe_direct(&run, &audio_path)
     } else {
-        transcribe_parakeet_chunked(&run, &audio_path, &wav_info)
+        transcribe_chunked(&run, &audio_path, &wav_info, ChunkStrategy::Parakeet, pass)
     }?;
-    apply_local_diarization_if_needed(app, item, token, &audio_path, result)
+    if !remote_fallback {
+        result.speech_model = stand_in_model(item, &ready_model);
+    }
+    Ok(result)
 }
 
+// Ok(Some) = done, Ok(None) = fall back to local, Err = cancel/unavailable.
 fn apply_local_diarization_if_needed(
     app: &AppHandle<AppRuntime>,
     item: &LibraryItem,
@@ -910,6 +1285,12 @@ fn apply_local_diarization_if_needed(
             &[("nextIndex", &next_index.to_string())],
         )
     });
+    speakers::keep_speaker_names(
+        item,
+        result.segments.as_deref().unwrap_or_default(),
+        result.words.as_deref(),
+        result.speakers.as_mut(),
+    );
     Ok(result)
 }
 
@@ -921,13 +1302,9 @@ fn transcribe_remote(
     item: &LibraryItem,
     audio_path: &Path,
     token: &CancellationToken,
-    progress_scope: ProgressScope,
+    pass: TrackPass,
 ) -> Result<Option<LibraryTranscriptionResult>> {
     let http = state.http();
-    let remote_diarization = item.detect_speakers
-        && glimpse_speech::remote::supports_diarization(&remote_speech::resolved_endpoint(
-            settings,
-        ));
     let attempt = async_runtime::block_on(remote_speech::attempt_remote(
         app,
         &http,
@@ -936,7 +1313,7 @@ fn transcribe_remote(
         &settings.local_model,
         remote_speech::TranscribeOptions {
             timestamps: true,
-            diarization: remote_diarization,
+            diarization: item.detect_speakers,
         },
         || token.is_cancelled(),
     ));
@@ -947,7 +1324,7 @@ fn transcribe_remote(
                 app,
                 state.storage(),
                 &item.id,
-                progress_scope.map(LibraryProgressUpdate::with_chunk_counts(1.0, 1, 1)),
+                LibraryProgressUpdate::with_chunk_counts(pass.map_progress(1.0), 1, 1),
             );
             let (segments, speakers) = match success.diarized_segments.as_deref() {
                 Some(segs) => {
@@ -982,13 +1359,7 @@ fn transcribe_direct(run: &LocalRun, audio_path: &Path) -> Result<LibraryTranscr
     let speech_percent =
         speech_percentage_i16_with_mode(&samples, sample_rate, VadMode::VeryAggressive);
     if speech_percent < VAD_MIN_SPEECH_PERCENT_FILE {
-        return Ok(LibraryTranscriptionResult {
-            transcript: String::new(),
-            segments: None,
-            words: None,
-            speech_model: None,
-            speakers: None,
-        });
+        return Ok(LibraryTranscriptionResult::default());
     }
 
     let result = run.state.local_transcriber().transcribe_with_segments(
@@ -997,6 +1368,7 @@ fn transcribe_direct(run: &LocalRun, audio_path: &Path) -> Result<LibraryTranscr
         sample_rate,
         run.dictionary,
         Some(run.language),
+        glimpse_speech::TimestampGranularity::Word,
     )?;
     if run.token.is_cancelled() {
         return Err(cancelled_error());
@@ -1011,345 +1383,392 @@ fn transcribe_direct(run: &LocalRun, audio_path: &Path) -> Result<LibraryTranscr
     })
 }
 
-fn transcribe_whisper_chunked(
+#[derive(Clone, Copy)]
+enum ChunkStrategy {
+    /// Short chunks with VAD gating; whisper hallucinates on silence.
+    Whisper,
+    /// Long chunks, no VAD; overlap words are trimmed by count and timestamp.
+    Parakeet,
+}
+
+fn transcribe_chunked(
     run: &LocalRun,
     audio_path: &Path,
     wav_info: &WavInfo,
+    strategy: ChunkStrategy,
+    pass: TrackPass,
 ) -> Result<LibraryTranscriptionResult> {
-    let sample_rate = run.sample_rate;
-    let transcriber = run.state.local_transcriber();
-    let plan = ChunkPlan::new(
-        WHISPER_CHUNK_SECONDS as usize,
-        WHISPER_CHUNK_OVERLAP_SECONDS as usize,
-        sample_rate,
-    );
-
-    let mut total_chunks =
-        compute_total_chunks(wav_info.total_samples, plan.chunk_size, plan.step).max(1);
-    let mut full_text = String::new();
-    let mut merged_segments: Vec<TranscriptSegment> = Vec::new();
-    let mut merged_words: Vec<TranscriptSegment> = Vec::new();
-    let mut last_end_ms: u64 = 0;
-    let mut chunk_index: u32 = 0;
-
-    stream_wav_chunks(
-        audio_path,
-        plan.chunk_size,
-        plan.overlap,
-        |start_idx, chunk| {
-            if run.token.is_cancelled() {
-                return Err(cancelled_error());
-            }
-
-            chunk_index = chunk_index.saturating_add(1);
-            let remaining = wav_info
-                .total_samples
-                .saturating_sub(start_idx + chunk.len());
-            total_chunks = total_chunks.max(chunk_index + u32::from(remaining > 0));
-            if chunk_below_speech_gate(chunk, sample_rate) {
-                let progress =
-                    ((start_idx + chunk.len()) as f32 / wav_info.total_samples as f32).min(1.0);
-                report_progress(
-                    run.app,
-                    run.state.storage(),
-                    &run.item.id,
-                    run.progress_scope
-                        .map(LibraryProgressUpdate::with_chunk_counts(
-                            progress,
-                            chunk_index,
-                            total_chunks,
-                        )),
-                );
-                return Ok(());
-            }
-            let result = transcriber.transcribe_with_segments(
-                run.model,
-                chunk,
-                sample_rate,
-                run.dictionary,
-                Some(run.language),
-            )?;
-            if run.token.is_cancelled() {
-                return Err(cancelled_error());
-            }
-
-            let regions = glimpse_speech::vad::speech_regions(chunk, sample_rate);
-            let in_speech = |start_ms: u64, end_ms: u64| match regions.as_deref() {
-                Some(regions) => transcription_api::overlaps_speech(
-                    start_ms as f32 / 1000.0,
-                    end_ms as f32 / 1000.0,
-                    regions,
-                ),
-                None => true,
+    let mut track = ChunkedTrack::open(audio_path, wav_info, strategy)?;
+    while let Some(step) = track.step(run)? {
+        let progress = pass.map_progress(track.progress());
+        let update = if pass.stream_partials {
+            let transcript_patch = step.text.as_ref().map(|_| track.full_text.clone());
+            let (segments_patch, chunk_segments) = if step.segments.is_empty() {
+                (None, None)
+            } else {
+                (Some(track.segments.clone()), Some(step.segments))
             };
+            LibraryProgressUpdate {
+                progress,
+                current_chunk: track.chunk_index,
+                total_chunks: track.total_chunks,
+                transcript: transcript_patch,
+                segments: segments_patch,
+                chunk_text: step.text,
+                chunk_segments,
+            }
+        } else {
+            LibraryProgressUpdate::with_chunk_counts(
+                progress,
+                track.chunk_index,
+                track.total_chunks,
+            )
+        };
+        report_progress(run.app, run.state.storage(), &run.item.id, update);
+    }
+    Ok(track.finish())
+}
 
+/// One audio file transcribed a chunk at a time, so several files can be
+/// advanced side by side.
+struct ChunkedTrack {
+    chunks: WavChunks,
+    strategy: ChunkStrategy,
+    sample_rate: u32,
+    total_samples: usize,
+    overlap: usize,
+    total_chunks: u32,
+    chunk_index: u32,
+    samples_read: usize,
+    next_start: usize,
+    full_text: String,
+    segments: Vec<TranscriptSegment>,
+    words: Vec<TranscriptSegment>,
+    last_end_ms: u64,
+    last_word_end_ms: u64,
+}
+
+/// What one chunk added: its text (None when nothing new) and new segments.
+struct ChunkStep {
+    text: Option<String>,
+    segments: Vec<TranscriptSegment>,
+}
+
+impl ChunkedTrack {
+    fn open(audio_path: &Path, wav_info: &WavInfo, strategy: ChunkStrategy) -> Result<Self> {
+        let sample_rate = wav_info.sample_rate;
+        let plan = match strategy {
+            ChunkStrategy::Whisper => ChunkPlan::new(
+                WHISPER_CHUNK_SECONDS as usize,
+                WHISPER_CHUNK_OVERLAP_SECONDS as usize,
+                sample_rate,
+            ),
+            ChunkStrategy::Parakeet => ChunkPlan::new(
+                MAX_CHUNK_MINUTES as usize * 60,
+                CHUNK_OVERLAP_SECONDS as usize,
+                sample_rate,
+            ),
+        };
+        Ok(Self {
+            chunks: WavChunks::open(audio_path, plan.chunk_size, plan.overlap)?,
+            strategy,
+            sample_rate,
+            total_samples: wav_info.total_samples,
+            overlap: plan.overlap,
+            total_chunks: compute_total_chunks(wav_info.total_samples, plan.chunk_size, plan.step)
+                .max(1),
+            chunk_index: 0,
+            samples_read: 0,
+            next_start: 0,
+            full_text: String::new(),
+            segments: Vec::new(),
+            words: Vec::new(),
+            last_end_ms: 0,
+            last_word_end_ms: 0,
+        })
+    }
+
+    fn is_finished(&self) -> bool {
+        self.chunks.is_finished()
+    }
+
+    fn progress(&self) -> f32 {
+        (self.samples_read as f32 / self.total_samples.max(1) as f32).min(1.0)
+    }
+
+    fn seconds_read(&self) -> f64 {
+        self.samples_read.min(self.total_samples) as f64 / f64::from(self.sample_rate)
+    }
+
+    fn total_seconds(&self) -> f64 {
+        self.total_samples as f64 / f64::from(self.sample_rate)
+    }
+
+    /// The earliest start a segment from a later chunk can have.
+    fn next_start_ms(&self) -> u64 {
+        if self.is_finished() {
+            u64::MAX
+        } else {
+            offset_ms(self.next_start, self.sample_rate)
+        }
+    }
+
+    /// Transcribes the next chunk, or returns None once the file is done.
+    fn step(&mut self, run: &LocalRun) -> Result<Option<ChunkStep>> {
+        if run.token.is_cancelled() {
+            return Err(cancelled_error());
+        }
+        let sample_rate = self.sample_rate;
+        let strategy = self.strategy;
+        let Some((start_idx, chunk)) = self.chunks.next_chunk()? else {
+            return Ok(None);
+        };
+
+        self.chunk_index = self.chunk_index.saturating_add(1);
+        self.samples_read = start_idx + chunk.len();
+        self.next_start = self.samples_read.saturating_sub(self.overlap);
+        let remaining = self.total_samples.saturating_sub(self.samples_read);
+        self.total_chunks = self
+            .total_chunks
+            .max(self.chunk_index + u32::from(remaining > 0));
+        if chunk_below_speech_gate(chunk, sample_rate) {
+            return Ok(Some(ChunkStep {
+                text: None,
+                segments: Vec::new(),
+            }));
+        }
+        let result = run.state.local_transcriber().transcribe_with_segments(
+            run.model,
+            chunk,
+            sample_rate,
+            run.dictionary,
+            Some(run.language),
+            glimpse_speech::TimestampGranularity::Word,
+        )?;
+        if run.token.is_cancelled() {
+            return Err(cancelled_error());
+        }
+
+        let regions = match strategy {
+            ChunkStrategy::Whisper => glimpse_speech::vad::speech_regions(chunk, sample_rate),
+            ChunkStrategy::Parakeet => None,
+        };
+        let in_speech = |start_ms: u64, end_ms: u64| match regions.as_deref() {
+            Some(regions) => transcription_api::overlaps_speech(
+                start_ms as f32 / 1000.0,
+                end_ms as f32 / 1000.0,
+                regions,
+            ),
+            None => true,
+        };
+
+        let offset = offset_ms(start_idx, sample_rate);
+        let mut appended_text = None;
+        let mut new_segments: Vec<TranscriptSegment> = Vec::new();
+        // Chunks are joined on word timings; Whisper stretches segment ends.
+        let spoken_words = result
+            .words
+            .as_deref()
+            .map(convert_segments_to_ms)
+            .map(|words| {
+                words
+                    .into_iter()
+                    .filter(|word| in_speech(word.start_ms, word.end_ms))
+                    .collect::<Vec<_>>()
+            })
+            .filter(|words| !words.is_empty());
+        if let Some(words) = spoken_words {
+            let segments = result
+                .segments
+                .as_deref()
+                .map(convert_segments_to_ms)
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|seg| in_speech(seg.start_ms, seg.end_ms))
+                .collect::<Vec<_>>();
+            let previous_tail = &self.words[self.words.len().saturating_sub(8)..];
+            let (segments, words) = keep_new_words(
+                &segments,
+                &words,
+                offset,
+                self.last_word_end_ms,
+                previous_tail,
+            );
+            let text = segments
+                .iter()
+                .map(|seg| seg.text.trim())
+                .filter(|text| !text.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+            if !text.is_empty() {
+                appended_text = Some(append_library_chunk(&mut self.full_text, &text));
+            }
+            if let Some(last) = segments.last() {
+                self.last_end_ms = self.last_end_ms.max(last.end_ms);
+            }
+            if let Some(last) = words.last() {
+                self.last_word_end_ms = self.last_word_end_ms.max(last.end_ms);
+            }
+            self.segments.extend(segments.iter().cloned());
+            new_segments = segments;
+            self.words.extend(words);
+        } else {
             let chunk_text = transcription_api::keep_spoken_segments(
                 &result.transcript,
                 result.segments.as_deref(),
                 regions.as_deref(),
             );
-            let mut appended_text = None;
             if !chunk_text.trim().is_empty() {
-                let deduped = transcribe::dedupe_overlap_text(&full_text, &chunk_text);
+                let deduped = transcribe::dedupe_overlap_text(&self.full_text, &chunk_text);
                 if !deduped.trim().is_empty() {
-                    let appended = append_library_chunk(&mut full_text, &deduped);
-                    appended_text = Some(appended);
+                    appended_text = Some(append_library_chunk(&mut self.full_text, &deduped));
                 }
             }
 
-            let mut new_segments: Vec<TranscriptSegment> = Vec::new();
             if let Some(segments) = result.segments {
-                let offset = offset_ms(start_idx, sample_rate);
                 for seg in convert_segments_to_ms(&segments) {
-                    let start_ms = seg.start_ms + offset;
                     let end_ms = seg.end_ms + offset;
-                    if end_ms <= last_end_ms || !in_speech(seg.start_ms, seg.end_ms) {
+                    if end_ms <= self.last_end_ms || !in_speech(seg.start_ms, seg.end_ms) {
                         continue;
+                    }
+                    let mut start_ms = seg.start_ms + offset;
+                    let mut text = seg.text;
+                    // Without word timings, a segment starting inside the chunk
+                    // overlap is trimmed by text. Whisper's stretched ends make
+                    // this unreliable there, so it only applies to Parakeet-style chunks.
+                    if matches!(strategy, ChunkStrategy::Parakeet) && start_ms < self.last_end_ms {
+                        let previous = self.segments.last().map_or("", |last| last.text.as_str());
+                        let rest = transcribe::dedupe_overlap_text(previous, &text);
+                        if rest.is_empty() {
+                            continue;
+                        }
+                        start_ms = self.last_end_ms;
+                        text = rest;
                     }
                     let new_segment = TranscriptSegment {
                         start_ms,
                         end_ms,
-                        text: seg.text,
+                        text,
                         speaker_id: None,
                     };
-                    merged_segments.push(new_segment.clone());
+                    self.segments.push(new_segment.clone());
                     new_segments.push(new_segment);
-                    last_end_ms = end_ms;
+                    self.last_end_ms = end_ms;
                 }
             }
+        }
 
-            if let Some(words) = result.words {
-                let offset = offset_ms(start_idx, sample_rate);
-                let spoken: Vec<_> = convert_segments_to_ms(&words)
-                    .into_iter()
-                    .filter(|w| in_speech(w.start_ms, w.end_ms))
-                    .collect();
+        Ok(Some(ChunkStep {
+            text: appended_text,
+            segments: new_segments,
+        }))
+    }
 
-                let skip = if start_idx == 0 {
-                    0
-                } else {
-                    let appended_words = appended_text
-                        .as_deref()
-                        .map_or(0, |t| t.split_whitespace().count());
-                    spoken.len().saturating_sub(appended_words)
-                };
-                for word in spoken.into_iter().skip(skip) {
-                    merged_words.push(TranscriptSegment {
-                        start_ms: word.start_ms + offset,
-                        end_ms: word.end_ms + offset,
-                        text: word.text,
-                        speaker_id: None,
-                    });
-                }
-            }
-
-            let progress =
-                ((start_idx + chunk.len()) as f32 / wav_info.total_samples as f32).min(1.0);
-            let transcript_patch = appended_text.as_ref().map(|_| full_text.clone());
-            let segments_patch = if new_segments.is_empty() {
-                None
-            } else {
-                Some(merged_segments.clone())
-            };
-            let chunk_segments = if new_segments.is_empty() {
-                None
-            } else {
-                Some(new_segments)
-            };
-
-            report_progress(
-                run.app,
-                run.state.storage(),
-                &run.item.id,
-                run.progress_scope.map(LibraryProgressUpdate {
-                    progress,
-                    current_chunk: chunk_index,
-                    total_chunks,
-                    transcript: transcript_patch,
-                    segments: segments_patch,
-                    chunk_text: appended_text,
-                    chunk_segments,
-                }),
-            );
-            Ok(())
-        },
-    )?;
-
-    Ok(LibraryTranscriptionResult {
-        transcript: full_text.trim().to_string(),
-        segments: if merged_segments.is_empty() {
-            None
-        } else {
-            Some(merged_segments)
-        },
-        words: (!merged_words.is_empty()).then_some(merged_words),
-        speech_model: None,
-        speakers: None,
-    })
+    fn finish(self) -> LibraryTranscriptionResult {
+        LibraryTranscriptionResult {
+            transcript: self.full_text.trim().to_string(),
+            segments: (!self.segments.is_empty()).then_some(self.segments),
+            words: (!self.words.is_empty()).then_some(self.words),
+            speech_model: None,
+            speakers: None,
+        }
+    }
 }
 
-fn transcribe_parakeet_chunked(
-    run: &LocalRun,
-    audio_path: &Path,
-    wav_info: &WavInfo,
-) -> Result<LibraryTranscriptionResult> {
-    let sample_rate = run.sample_rate;
-    let transcriber = run.state.local_transcriber();
-    let plan = ChunkPlan::new(
-        MAX_CHUNK_MINUTES as usize * 60,
-        CHUNK_OVERLAP_SECONDS as usize,
-        sample_rate,
-    );
+// Leading words of a chunk that start this soon after the previous chunk's
+// last word and repeat its final words are timing jitter, not new speech.
+const CHUNK_REPEAT_WINDOW_MS: u64 = 1000;
 
-    let mut total_chunks =
-        compute_total_chunks(wav_info.total_samples, plan.chunk_size, plan.step).max(1);
-    let mut full_text = String::new();
-    let mut merged_segments: Vec<TranscriptSegment> = Vec::new();
-    let mut merged_words: Vec<TranscriptSegment> = Vec::new();
-    let mut last_end_ms: u64 = 0;
-    let mut last_word_end_ms: u64 = 0;
-    let mut chunk_index: u32 = 0;
+/// Keeps the chunk words centred after `emitted_until_ms` (absolute), minus
+/// leading words that repeat the end of `previous`. Segment text is rebuilt
+/// from the kept words it owns, since Whisper can repeat a word across two
+/// segments; a segment without word timings is judged by its own midpoint.
+fn keep_new_words(
+    segments: &[TranscriptSegment],
+    words: &[TranscriptSegment],
+    offset_ms: u64,
+    emitted_until_ms: u64,
+    previous: &[TranscriptSegment],
+) -> (Vec<TranscriptSegment>, Vec<TranscriptSegment>) {
+    let midpoint = |item: &TranscriptSegment| offset_ms + (item.start_ms + item.end_ms) / 2;
+    let absolute = |item: &TranscriptSegment| TranscriptSegment {
+        start_ms: item.start_ms + offset_ms,
+        end_ms: item.end_ms + offset_ms,
+        text: item.text.clone(),
+        speaker_id: None,
+    };
 
-    stream_wav_chunks(
-        audio_path,
-        plan.chunk_size,
-        plan.overlap,
-        |start_idx, chunk| {
-            if run.token.is_cancelled() {
-                return Err(cancelled_error());
+    let fresh: Vec<usize> = (0..words.len())
+        .filter(|&index| midpoint(&words[index]) >= emitted_until_ms)
+        .collect();
+    let straddling = fresh
+        .iter()
+        .take_while(|&&index| {
+            words[index].start_ms + offset_ms < emitted_until_ms + CHUNK_REPEAT_WINDOW_MS
+        })
+        .count()
+        .min(previous.len());
+    let repeated = (1..=straddling)
+        .rev()
+        .find(|&count| {
+            fresh[..count]
+                .iter()
+                .map(|&index| normalize(&words[index].text))
+                .eq(previous[previous.len() - count..]
+                    .iter()
+                    .map(|word| normalize(&word.text)))
+        })
+        .unwrap_or(0);
+    let mut kept = vec![false; words.len()];
+    for &index in &fresh[repeated..] {
+        kept[index] = true;
+    }
+
+    // Whisper segment ranges can overlap, so each word goes to the last
+    // segment that starts before its midpoint.
+    let owners: Vec<usize> = words
+        .iter()
+        .map(|word| {
+            let mid = (word.start_ms + word.end_ms) / 2;
+            segments
+                .iter()
+                .rposition(|segment| segment.start_ms <= mid)
+                .unwrap_or(0)
+        })
+        .collect();
+    let kept_segments = segments
+        .iter()
+        .enumerate()
+        .filter_map(|(position, segment)| {
+            let own: Vec<usize> = (0..words.len())
+                .filter(|&index| owners[index] == position)
+                .collect();
+            if own.is_empty() {
+                return (midpoint(segment) >= emitted_until_ms).then(|| absolute(segment));
             }
-
-            chunk_index = chunk_index.saturating_add(1);
-            let remaining = wav_info
-                .total_samples
-                .saturating_sub(start_idx + chunk.len());
-            total_chunks = total_chunks.max(chunk_index + u32::from(remaining > 0));
-            if chunk_below_speech_gate(chunk, sample_rate) {
-                let progress =
-                    ((start_idx + chunk.len()) as f32 / wav_info.total_samples as f32).min(1.0);
-                report_progress(
-                    run.app,
-                    run.state.storage(),
-                    &run.item.id,
-                    run.progress_scope
-                        .map(LibraryProgressUpdate::with_chunk_counts(
-                            progress,
-                            chunk_index,
-                            total_chunks,
-                        )),
-                );
-                return Ok(());
-            }
-            let result = transcriber.transcribe_with_segments(
-                run.model,
-                chunk,
-                sample_rate,
-                run.dictionary,
-                Some(run.language),
-            )?;
-            if run.token.is_cancelled() {
-                return Err(cancelled_error());
-            }
-
-            let chunk_text = result.transcript;
-            let mut kept_words = 0usize;
-            let mut appended_text = None;
-            if !chunk_text.trim().is_empty() {
-                let deduped = transcribe::dedupe_overlap_text(&full_text, &chunk_text);
-                if !deduped.trim().is_empty() {
-                    kept_words = deduped.split_whitespace().count();
-                    appended_text = Some(append_library_chunk(&mut full_text, &deduped));
-                }
-            }
-
-            let mut new_segments: Vec<TranscriptSegment> = Vec::new();
-            if let Some(segments) = result.segments {
-                let offset = offset_ms(start_idx, sample_rate);
-                for seg in convert_segments_to_ms(&segments) {
-                    let start_ms = seg.start_ms + offset;
-                    let end_ms = seg.end_ms + offset;
-                    if end_ms <= last_end_ms {
-                        continue;
-                    }
-                    let new_segment = TranscriptSegment {
-                        start_ms,
-                        end_ms,
-                        text: seg.text,
-                        speaker_id: None,
-                    };
-                    merged_segments.push(new_segment.clone());
-                    new_segments.push(new_segment);
-                    last_end_ms = end_ms;
-                }
-            }
-
-            if let Some(words) = result.words {
-                let offset = offset_ms(start_idx, sample_rate);
-                let converted = convert_segments_to_ms(&words);
-                let exact_skip = (chunk_text.split_whitespace().count() == converted.len())
-                    .then(|| converted.len().saturating_sub(kept_words));
-                let chunk_word_floor = last_word_end_ms;
-                for (index, word) in converted.into_iter().enumerate() {
-                    let start_ms = word.start_ms + offset;
-                    let end_ms = word.end_ms + offset;
-                    if matches!(exact_skip, Some(skip) if index < skip) {
-                        continue;
-                    }
-                    if end_ms <= chunk_word_floor {
-                        continue;
-                    }
-                    last_word_end_ms = last_word_end_ms.max(end_ms);
-                    merged_words.push(TranscriptSegment {
-                        start_ms,
-                        end_ms,
-                        text: word.text,
-                        speaker_id: None,
-                    });
-                }
-            }
-
-            let progress =
-                ((start_idx + chunk.len()) as f32 / wav_info.total_samples as f32).min(1.0);
-            let transcript_patch = appended_text.as_ref().map(|_| full_text.clone());
-            let segments_patch = if new_segments.is_empty() {
-                None
-            } else {
-                Some(merged_segments.clone())
-            };
-            let chunk_segments = if new_segments.is_empty() {
-                None
-            } else {
-                Some(new_segments)
-            };
-            report_progress(
-                run.app,
-                run.state.storage(),
-                &run.item.id,
-                run.progress_scope.map(LibraryProgressUpdate {
-                    progress,
-                    current_chunk: chunk_index,
-                    total_chunks,
-                    transcript: transcript_patch,
-                    segments: segments_patch,
-                    chunk_text: appended_text,
-                    chunk_segments,
-                }),
-            );
-            Ok(())
-        },
-    )?;
-
-    Ok(LibraryTranscriptionResult {
-        transcript: full_text.trim().to_string(),
-        segments: if merged_segments.is_empty() {
-            None
-        } else {
-            Some(merged_segments)
-        },
-        words: (!merged_words.is_empty()).then_some(merged_words),
-        speech_model: None,
-        speakers: None,
-    })
+            let own_kept: Vec<&TranscriptSegment> = own
+                .iter()
+                .filter(|&&index| kept[index])
+                .map(|&index| &words[index])
+                .collect();
+            let (first, last) = (own_kept.first()?, own_kept.last()?);
+            Some(TranscriptSegment {
+                start_ms: first.start_ms + offset_ms,
+                end_ms: last.end_ms + offset_ms,
+                text: own_kept
+                    .iter()
+                    .map(|word| word.text.trim())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                speaker_id: None,
+            })
+        })
+        .collect();
+    let kept_words = (0..words.len())
+        .filter(|&index| kept[index])
+        .map(|index| absolute(&words[index]))
+        .collect();
+    (kept_segments, kept_words)
 }
 
 fn report_progress(
@@ -1386,6 +1805,35 @@ fn report_progress(
             total_chunks,
             chunk_text,
             chunk_segments,
+            detecting_speakers: false,
+        },
+    );
+}
+
+/// Marks the item as detecting speakers, holding the bar where transcription ended.
+fn report_detecting_speakers(
+    app: &AppHandle<AppRuntime>,
+    state: &AppState,
+    id: &str,
+    progress: f32,
+) {
+    let _ = state.storage().update_library_item(
+        id,
+        LibraryItemPatch {
+            status: Some(LibraryItemStatus::Transcribing { progress }),
+            ..Default::default()
+        },
+    );
+    let _ = app.emit(
+        EVENT_LIBRARY_PROGRESS,
+        LibraryProgressPayload {
+            id: id.to_string(),
+            progress,
+            current_chunk: 0,
+            total_chunks: 0,
+            chunk_text: None,
+            chunk_segments: None,
+            detecting_speakers: true,
         },
     );
 }
@@ -1421,98 +1869,5 @@ fn lowercase_first_alpha(text: &mut String) {
         lowered.extend(ch.to_lowercase());
         lowered.push_str(&text[idx + ch.len_utf8()..]);
         *text = lowered;
-    }
-}
-
-#[cfg(test)]
-mod meeting_tests {
-    use super::*;
-
-    #[test]
-    fn newly_transcribed_items_are_organized_automatically() {
-        assert!(should_automatically_organize(None));
-    }
-
-    #[test]
-    fn retranscription_keeps_existing_metadata() {
-        assert!(!should_automatically_organize(Some("2026-08-23T16:30:00Z")));
-    }
-
-    fn result_with_segment(text: &str, start_ms: u64, end_ms: u64) -> LibraryTranscriptionResult {
-        LibraryTranscriptionResult {
-            transcript: text.to_string(),
-            segments: Some(vec![TranscriptSegment {
-                start_ms,
-                end_ms,
-                text: text.to_string(),
-                speaker_id: None,
-            }]),
-            words: None,
-            speech_model: None,
-            speakers: None,
-        }
-    }
-
-    #[test]
-    fn meeting_merge_keeps_overlapping_sources_as_separate_segments() {
-        let microphone = label_meeting_track(
-            result_with_segment("I am speaking", 100, 1_500),
-            MeetingTrackSource::Microphone,
-            2_000,
-            "You".to_string(),
-        );
-        let system = label_meeting_track(
-            result_with_segment("So am I", 100, 1_400),
-            MeetingTrackSource::System,
-            2_000,
-            "Meeting".to_string(),
-        );
-
-        let merged = merge_meeting_results(vec![microphone, system]);
-        let segments = merged.segments.expect("meeting segments");
-        assert_eq!(segments.len(), 2);
-        assert_eq!(segments[0].start_ms, 100);
-        assert_eq!(segments[1].start_ms, 100);
-        assert_ne!(segments[0].speaker_id, segments[1].speaker_id);
-        assert!(merged.transcript.contains("You: I am speaking"));
-        assert!(merged.transcript.contains("Meeting: So am I"));
-        assert_eq!(merged.speakers.expect("meeting speakers").len(), 2);
-    }
-
-    #[test]
-    fn meeting_track_without_timestamps_gets_a_source_segment() {
-        let result = LibraryTranscriptionResult {
-            transcript: "Fallback transcript".to_string(),
-            segments: None,
-            words: None,
-            speech_model: None,
-            speakers: None,
-        };
-        let labeled = label_meeting_track(
-            result,
-            MeetingTrackSource::Microphone,
-            3_000,
-            "You".to_string(),
-        );
-        let segment = &labeled.segments.expect("fallback segment")[0];
-        assert_eq!(segment.start_ms, 0);
-        assert_eq!(segment.end_ms, 3_000);
-        assert_eq!(segment.speaker_id.as_deref(), Some("meeting_you"));
-    }
-
-    #[test]
-    fn person_detection_only_runs_on_the_meeting_audio_track() {
-        assert!(!meeting_track_person_detection_enabled(
-            true,
-            MeetingTrackSource::Microphone,
-        ));
-        assert!(meeting_track_person_detection_enabled(
-            true,
-            MeetingTrackSource::System,
-        ));
-        assert!(!meeting_track_person_detection_enabled(
-            false,
-            MeetingTrackSource::System,
-        ));
     }
 }

@@ -4,13 +4,18 @@ import { plural } from "@lingui/core/macro";
 import { Download, Square, Trash as Trash2 } from "@phosphor-icons/react";
 import ModelCardShell, { WAVE_COLS, waveDots } from "./ModelCardShell";
 import ActivityDots from "../../../shared/ui/ActivityDots";
+import { useFitText } from "../../../shared/hooks/useFitText";
 import {
   deriveModelStats,
+  downloadFailureLabel,
   formatModelSize,
   formatQuantLabel,
   isBuiltInModel,
+  modelSizeMb,
 } from "../../../shared/lib/modelStats";
 import type { DownloadEvent, ModelInfo, ModelStatus } from "../../../types";
+
+const TITLE_SIZE = "1.1875rem";
 
 type ModelStatCardProps = {
   model: ModelInfo;
@@ -18,6 +23,7 @@ type ModelStatCardProps = {
   progress?: DownloadEvent;
   width?: number;
   compact?: boolean;
+  withAne?: boolean;
   onDownload: () => void;
   onDelete: () => void;
   onCancel: () => void;
@@ -29,12 +35,14 @@ const ModelStatCard = ({
   progress,
   width,
   compact = false,
+  withAne = Boolean(status?.ane_installed),
   onDownload,
   onDelete,
   onCancel,
 }: ModelStatCardProps) => {
   const { t } = useLingui();
   const stats = deriveModelStats(model);
+  const titleRef = useFitText<HTMLHeadingElement>(model.label, TITLE_SIZE);
 
   const builtIn = isBuiltInModel(model);
   const facts = [
@@ -51,7 +59,7 @@ const ModelStatCard = ({
   facts.push(
     builtIn
       ? t({ id: "models.card.built_in", message: "Built into Mac" })
-      : formatModelSize(model.size_mb),
+      : formatModelSize(modelSizeMb(model, withAne)),
   );
   const quant = formatQuantLabel(model.variant);
   if (quant && !compact && !builtIn) facts.push(quant);
@@ -65,6 +73,7 @@ const ModelStatCard = ({
   const percent = progress?.percent ?? 0;
   const isVerifying =
     progress?.status === "downloading" && progress.verifying === true;
+  const error = progress?.status === "error" ? progress : undefined;
 
   const fullDots = useMemo(() => waveDots(model.key), [model.key]);
   const revealCols = installed
@@ -100,12 +109,9 @@ const ModelStatCard = ({
     >
       <div className="px-5 pb-4 pt-3.5">
         <h3
-          className="ui-color-primary"
-          style={{
-            fontSize: "1.1875rem",
-            fontWeight: 650,
-            letterSpacing: "-0.015em",
-          }}
+          ref={titleRef}
+          className="ui-color-primary whitespace-nowrap"
+          style={{ fontWeight: 650, letterSpacing: "-0.015em" }}
         >
           {model.label}
         </h3>
@@ -113,19 +119,29 @@ const ModelStatCard = ({
         {/* min-h-7 reserves the action-button height so cards without one match. */}
         <div className="mt-2 flex min-h-7 items-center justify-between gap-2">
           <p
-            className="ui-color-muted min-w-0 truncate font-mono tabular-nums"
+            className={`min-w-0 truncate font-mono tabular-nums ${error ? "text-error" : "ui-color-muted"}`}
             style={{ fontSize: "11.5px" }}
-            title={isDownloading && !isVerifying ? downloadingFile : undefined}
+            title={
+              error
+                ? error.message
+                : isDownloading && !isVerifying
+                  ? downloadingFile
+                  : undefined
+            }
           >
-            {isVerifying
-              ? t({
-                  id: "models.card.verifying",
-                  message: "Verifying install",
-                })
-              : isDownloading
-                ? downloadingFile ||
-                  t({ id: "models.card.downloading", message: "Downloading" })
-                : facts.join("  ·  ")}
+            {error
+              ? error.reason
+                ? downloadFailureLabel(error.reason)
+                : error.message
+              : isVerifying
+                ? t({
+                    id: "models.card.verifying",
+                    message: "Verifying install",
+                  })
+                : isDownloading
+                  ? downloadingFile ||
+                    t({ id: "models.card.downloading", message: "Downloading" })
+                  : facts.join("  ·  ")}
           </p>
 
           {isDownloading ? (
@@ -166,7 +182,8 @@ const ModelStatCard = ({
             >
               <Trash2 size={13} aria-hidden="true" />
             </button>
-          ) : model.downloadable && !builtIn ? (
+          ) : !builtIn ? (
+            // An uninstalled legacy model only lands here as the selected one.
             <button
               type="button"
               onClick={onDownload}

@@ -55,6 +55,8 @@ pub(crate) struct MeetingSession {
     end_absent_samples: u8,
     end_prompted: bool,
     end_prompt_suppressed: bool,
+    capture_stopped: bool,
+    capture_error: Option<String>,
     options: LibraryImportOptions,
 }
 
@@ -66,12 +68,14 @@ pub struct MeetingState {
     pub microphone_name: Option<String>,
     pub source_app_name: Option<String>,
     pub application_isolated: bool,
+    pub capture_error: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
 pub struct MeetingLevels {
     pub microphone_level: f32,
     pub system_level: f32,
+    pub capture_error: Option<String>,
 }
 
 impl MeetingState {
@@ -83,6 +87,7 @@ impl MeetingState {
             microphone_name: None,
             source_app_name: None,
             application_isolated: false,
+            capture_error: None,
         }
     }
 
@@ -94,6 +99,7 @@ impl MeetingState {
             microphone_name: session.microphone_name.clone(),
             source_app_name: session.source_app_name.clone(),
             application_isolated: session.application_isolated,
+            capture_error: session.capture_error.clone(),
         }
     }
 }
@@ -270,7 +276,8 @@ fn should_detect_people(app: &AppHandle<AppRuntime>, options: &LibraryImportOpti
     meeting_person_detection_enabled(
         options.detect_speakers,
         remote_speech::is_remote_model(&options.model_key),
-        crate::diarization::is_installed(app),
+        crate::diarization::is_installed(app)
+            || crate::speech::installed_diarizer_path(app).is_some(),
     )
 }
 
@@ -300,6 +307,26 @@ pub(crate) fn start_automatic_detection(app: &AppHandle<AppRuntime>) {
 
             let state = app.state::<AppState>();
             let settings = state.current_settings();
+            let failed_capture = {
+                let mut active = state.meeting_session.lock();
+                active.as_mut().and_then(|session| {
+                    if session.capture_stopped || session.capture_error.is_some() {
+                        return None;
+                    }
+                    let failure = crate::platform::macos::meeting_capture::levels()
+                        .ok()?
+                        .capture_error?;
+                    session.capture_error = Some(failure.clone());
+                    let _ = app.emit(
+                        EVENT_MEETING_STATE_CHANGED,
+                        MeetingState::from_session(session),
+                    );
+                    Some(failure)
+                })
+            };
+            if let Some(failure) = failed_capture {
+                crate::toast::show(&app, "error", None, &failure);
+            }
             if !settings.meeting_detection_enabled {
                 meeting_detection_state().lock().reset();
                 continue;
@@ -367,7 +394,8 @@ pub(crate) fn start_automatic_detection(app: &AppHandle<AppRuntime>) {
                 meeting_detection_state().lock().allow_retry(provider);
                 continue;
             }
-            if state.pill().status() != crate::pill::PillStatus::Idle
+            if state.recording().is_active()
+                || state.pill().status() != crate::pill::PillStatus::Idle
                 || automatic_meeting_options(&app, &state).is_err()
             {
                 meeting_detection_state().lock().allow_retry(provider);
@@ -419,7 +447,7 @@ pub fn list_installed_meeting_apps(
 ) -> Result<Vec<MeetingDetectionApp>, String> {
     #[cfg(target_os = "macos")]
     {
-        let installed = crate::personalization::list_installed_apps(app)?;
+        let installed = crate::personalization::icons::list_installed_apps(app)?;
         return Ok(
             crate::platform::macos::meeting_detection::MeetingProvider::CONFIGURABLE
                 .into_iter()
@@ -451,19 +479,25 @@ pub fn list_installed_meeting_apps(
 }
 
 #[tauri::command]
-pub fn start_detected_meeting_recording(
+pub async fn start_detected_meeting_recording(
     app: AppHandle<AppRuntime>,
-    state: tauri::State<'_, AppState>,
 ) -> Result<MeetingState, String> {
-    let options = automatic_meeting_options(&app, &state)?;
-    #[cfg(target_os = "macos")]
-    {
-        let provider = meeting_detection_state().lock().provider;
-        return start_meeting_recording_impl(options, app, &state, provider);
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    start_meeting_recording(options, app, state)
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let options = automatic_meeting_options(&app, &state)?;
+        #[cfg(target_os = "macos")]
+        {
+            let provider = meeting_detection_state().lock().provider;
+            start_meeting_recording_impl(options, app.clone(), &state, provider)
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = options;
+            Err("Meeting recording is not available on this platform yet.".to_string())
+        }
+    })
+    .await
+    .map_err(|err| format!("Meeting recording task failed: {err}"))?
 }
 
 #[tauri::command]
@@ -471,29 +505,42 @@ pub fn dismiss_detected_meeting_prompt() {}
 
 #[tauri::command]
 pub fn continue_detected_meeting_recording(state: tauri::State<'_, AppState>) {
-    if let Some(session) = state.meeting_session.lock().as_mut() {
-        session.end_absent_samples = 0;
-        session.end_prompted = false;
-        session.end_prompt_suppressed = true;
+    if let Some(mut active) = state.meeting_session.try_lock() {
+        if let Some(session) = active.as_mut() {
+            session.end_absent_samples = 0;
+            session.end_prompted = false;
+            session.end_prompt_suppressed = true;
+        }
     }
 }
 
 #[tauri::command]
-pub fn get_meeting_state(state: tauri::State<'_, AppState>) -> MeetingState {
-    state
-        .meeting_session
-        .lock()
-        .as_ref()
-        .map(MeetingState::from_session)
-        .unwrap_or_else(MeetingState::idle)
+pub async fn get_meeting_state(app: AppHandle<AppRuntime>) -> Result<MeetingState, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let current = state
+            .meeting_session
+            .lock()
+            .as_ref()
+            .map(MeetingState::from_session)
+            .unwrap_or_else(MeetingState::idle);
+        current
+    })
+    .await
+    .map_err(|err| format!("Could not read meeting state: {err}"))
 }
 
 #[tauri::command]
 pub fn get_meeting_levels(state: tauri::State<'_, AppState>) -> MeetingLevels {
-    if state.meeting_session.lock().is_none() {
+    if state
+        .meeting_session
+        .try_lock()
+        .is_none_or(|active| active.is_none())
+    {
         return MeetingLevels {
             microphone_level: 0.0,
             system_level: 0.0,
+            capture_error: None,
         };
     }
 
@@ -502,39 +549,44 @@ pub fn get_meeting_levels(state: tauri::State<'_, AppState>) -> MeetingLevels {
         return MeetingLevels {
             microphone_level: levels.microphone,
             system_level: levels.system,
+            capture_error: levels.capture_error,
         };
     }
 
     MeetingLevels {
         microphone_level: 0.0,
         system_level: 0.0,
+        capture_error: None,
     }
 }
 
 #[tauri::command]
-pub fn start_meeting_recording(
+pub async fn start_meeting_recording(
     options: LibraryImportOptions,
     app: AppHandle<AppRuntime>,
-    state: tauri::State<'_, AppState>,
 ) -> Result<MeetingState, String> {
-    #[cfg(target_os = "macos")]
-    {
-        let provider =
-            match crate::platform::macos::meeting_detection::inspect_meeting_activity(true) {
-                crate::platform::macos::meeting_detection::DetectionSample::Active(provider) => {
-                    Some(provider)
-                }
-                _ => None,
-            };
-        return start_meeting_recording_impl(options, app, &state, provider);
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        crate::license::require_license_gate(&state.settings_store, "Meeting recording")?;
-        validate_options(&app, &options)?;
-        Err("Meeting recording is not available on this platform yet.".to_string())
-    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        #[cfg(target_os = "macos")]
+        {
+            let provider =
+                match crate::platform::macos::meeting_detection::inspect_meeting_activity(true) {
+                    crate::platform::macos::meeting_detection::DetectionSample::Active(
+                        provider,
+                    ) => Some(provider),
+                    _ => None,
+                };
+            start_meeting_recording_impl(options, app.clone(), &state, provider)
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            crate::license::require_license_gate(&state.settings_store, "Meeting recording")?;
+            validate_options(&app, &options)?;
+            Err("Meeting recording is not available on this platform yet.".to_string())
+        }
+    })
+    .await
+    .map_err(|err| format!("Meeting recording task failed: {err}"))?
 }
 
 #[cfg(target_os = "macos")]
@@ -548,6 +600,9 @@ fn start_meeting_recording_impl(
     validate_options(&app, &options)?;
 
     let mut active = state.meeting_session.lock();
+    if state.recording().is_active() || state.pill().status() != crate::pill::PillStatus::Idle {
+        return Err("Stop the current recording before starting a meeting.".to_string());
+    }
     if active.is_some() {
         return Err("A meeting recording is already in progress.".to_string());
     }
@@ -583,6 +638,8 @@ fn start_meeting_recording_impl(
             end_absent_samples: 0,
             end_prompted: false,
             end_prompt_suppressed: false,
+            capture_stopped: false,
+            capture_error: None,
             options,
         };
 
@@ -614,14 +671,22 @@ fn start_meeting_recording_impl(
 }
 
 #[tauri::command]
-pub fn stop_meeting_recording(
-    app: AppHandle<AppRuntime>,
-    state: tauri::State<'_, AppState>,
+pub async fn stop_meeting_recording(app: AppHandle<AppRuntime>) -> Result<LibraryItem, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        stop_meeting_recording_impl(&app, &state)
+    })
+    .await
+    .map_err(|err| format!("Meeting recording task failed: {err}"))?
+}
+
+fn stop_meeting_recording_impl(
+    app: &AppHandle<AppRuntime>,
+    state: &tauri::State<'_, AppState>,
 ) -> Result<LibraryItem, String> {
-    let session = state
-        .meeting_session
-        .lock()
-        .take()
+    let mut active = state.meeting_session.lock();
+    let session = active
+        .as_mut()
         .ok_or_else(|| "No meeting recording is in progress.".to_string())?;
 
     #[cfg(not(target_os = "macos"))]
@@ -632,10 +697,21 @@ pub fn stop_meeting_recording(
 
     #[cfg(target_os = "macos")]
     {
-        let idle = MeetingState::idle();
-        let _ = app.emit(EVENT_MEETING_STATE_CHANGED, &idle);
-        if let Err(err) = crate::platform::macos::meeting_capture::stop() {
-            return Err(format!("Could not stop meeting recording: {err}"));
+        if !session.capture_stopped {
+            let result = crate::platform::macos::meeting_capture::stop();
+            session.capture_stopped = true;
+            if let Err(err) = result {
+                session.capture_error = Some(
+                    "Capture stopped with an error. Retry saving the captured audio.".to_string(),
+                );
+                let _ = app.emit(
+                    EVENT_MEETING_STATE_CHANGED,
+                    MeetingState::from_session(session),
+                );
+                return Err(format!(
+                    "Capture stopped with an error. Retry to save the captured audio: {err}"
+                ));
+            }
         }
 
         let duration_seconds = crate::library::processing::finalize_meeting_tracks(
@@ -650,26 +726,30 @@ pub fn stop_meeting_recording(
         let detect_speakers = should_detect_people(&app, &session.options);
         let item = LibraryItem {
             id: session.id.clone(),
-            name: session.name,
+            name: session.name.clone(),
             audio_path: session.audio_path.display().to_string(),
             source_path: String::new(),
             store_original: false,
             status: LibraryItemStatus::Pending,
             transcript: None,
+            transcript_edited: false,
             segments: None,
             words: None,
             duration_seconds,
             file_size_bytes: metadata.len(),
             original_format: "wav".to_string(),
-            created_at: session.started_at,
+            created_at: session.started_at.clone(),
             transcribed_at: None,
             tags: Vec::new(),
             llm_cleanup_enabled: false,
-            speech_model: session.options.model_key,
+            speech_model: session.options.model_key.clone(),
             show_timestamps: session.options.show_timestamps,
             detect_speakers,
             kind: "meeting".to_string(),
             speakers: None,
+            secondary_audio_path: None,
+            sources: None,
+            bookmarks: None,
         };
         state
             .storage()
@@ -678,12 +758,16 @@ pub fn stop_meeting_recording(
         if let Err(err) = fs::remove_file(recovery_manifest_path(&session.item_dir)) {
             tracing::warn!("Failed to clear completed meeting recovery marker: {err}");
         }
+        *active = None;
+        drop(active);
+        let _ = app.emit(EVENT_MEETING_STATE_CHANGED, MeetingState::idle());
         crate::library::queue::schedule_library_job(
             &app,
             &state,
             LibraryJob {
                 id: item.id.clone(),
                 kind: LibraryJobKind::TranscribeExisting,
+                source: crate::library::JobSource::Recording,
             },
         );
         Ok(item)
@@ -815,6 +899,7 @@ fn recover_interrupted_meeting(
         store_original: false,
         status: LibraryItemStatus::Pending,
         transcript: None,
+        transcript_edited: false,
         segments: None,
         words: None,
         duration_seconds,
@@ -829,6 +914,9 @@ fn recover_interrupted_meeting(
         detect_speakers,
         kind: "recovered_meeting".to_string(),
         speakers: None,
+        secondary_audio_path: None,
+        sources: None,
+        bookmarks: None,
     };
     state.storage().insert_library_item(item.clone())?;
     fs::remove_file(manifest_path)?;
@@ -838,6 +926,7 @@ fn recover_interrupted_meeting(
         LibraryJob {
             id: item.id,
             kind: LibraryJobKind::TranscribeExisting,
+            source: crate::library::JobSource::Recording,
         },
     );
     Ok(true)
@@ -868,6 +957,8 @@ mod tests {
             end_absent_samples: 0,
             end_prompted: false,
             end_prompt_suppressed: false,
+            capture_stopped: false,
+            capture_error: None,
             options: crate::library::LibraryImportOptions {
                 store_original: false,
                 model_key: String::new(),

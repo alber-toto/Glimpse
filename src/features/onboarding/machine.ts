@@ -16,7 +16,6 @@ export type OnboardingContext = {
   localModelChoice: string;
   microphoneDevice: string | null;
   autoLaunch: boolean;
-  showLocalConfirm: boolean;
   smartShortcut: string;
   completionError: string | null;
   isCompleting: boolean;
@@ -34,7 +33,6 @@ export type OnboardingEvent =
   | { type: "SET_MICROPHONE_DEVICE"; device: string | null }
   | { type: "SET_AUTO_LAUNCH"; value: boolean }
   | { type: "SET_SHORTCUT"; shortcut: string }
-  | { type: "SHOW_LOCAL_CONFIRM"; show: boolean }
   | { type: "START_PRACTICE" }
   | { type: "COMPLETING" }
   | { type: "COMPLETE_SUCCESS" }
@@ -51,7 +49,7 @@ function getSteps(
     steps.push("import");
   }
 
-  steps.push("model");
+  steps.push("model", "source");
 
   if (
     platform.requiresMicrophonePermission ||
@@ -59,6 +57,8 @@ function getSteps(
   ) {
     steps.push("permissions");
   }
+
+  steps.push("license");
 
   return steps;
 }
@@ -79,13 +79,11 @@ export const onboardingMachine = setup({
     forward: assign({
       transitionDirection: 1 as const,
       hasStepTransitioned: true,
-      showLocalConfirm: false,
       completionError: null,
     }),
     backward: assign({
       transitionDirection: -1 as const,
       hasStepTransitioned: true,
-      showLocalConfirm: false,
       completionError: null,
     }),
   },
@@ -99,7 +97,6 @@ export const onboardingMachine = setup({
     localModelChoice: "",
     microphoneDevice: null,
     autoLaunch: false,
-    showLocalConfirm: false,
     smartShortcut: getDefaultShortcuts(initialPlatform.id).smart,
     completionError: null,
     isCompleting: false,
@@ -125,9 +122,6 @@ export const onboardingMachine = setup({
     },
     SET_SHORTCUT: {
       actions: assign({ smartShortcut: ({ event }) => event.shortcut }),
-    },
-    SHOW_LOCAL_CONFIRM: {
-      actions: assign({ showLocalConfirm: ({ event }) => event.show }),
     },
     COMPLETING: {
       actions: assign({ isCompleting: true, completionError: null }),
@@ -162,37 +156,49 @@ export const onboardingMachine = setup({
     },
     model: {
       on: {
-        NEXT: [
-          {
-            target: "permissions",
-            guard: requiresPermissionsStep,
-            actions: "forward",
-          },
-          { target: "done", actions: "forward" },
-        ],
+        NEXT: { target: "source", actions: "forward" },
         BACK: [
           { target: "import", guard: hasImportStep, actions: "backward" },
           { target: "welcome", actions: "backward" },
         ],
       },
     },
-    permissions: {
+    source: {
       on: {
-        NEXT: { target: "done", actions: "forward" },
+        NEXT: [
+          {
+            target: "permissions",
+            guard: requiresPermissionsStep,
+            actions: "forward",
+          },
+          { target: "license", actions: "forward" },
+        ],
         BACK: { target: "model", actions: "backward" },
       },
     },
-    done: {
+    permissions: {
       on: {
-        START_PRACTICE: { target: "practice", actions: "forward" },
+        NEXT: { target: "license", actions: "forward" },
+        BACK: { target: "source", actions: "backward" },
+      },
+    },
+    license: {
+      on: {
+        NEXT: { target: "done", actions: "forward" },
         BACK: [
           {
             target: "permissions",
             guard: requiresPermissionsStep,
             actions: "backward",
           },
-          { target: "model", actions: "backward" },
+          { target: "source", actions: "backward" },
         ],
+      },
+    },
+    done: {
+      on: {
+        START_PRACTICE: { target: "practice", actions: "forward" },
+        BACK: { target: "license", actions: "backward" },
       },
     },
     practice: {
