@@ -7,6 +7,8 @@ import {
   FolderOpen,
   CircleNotch as Loader2,
   Plus,
+  Record as RecordIcon,
+  Stop,
   MagnifyingGlass as Search,
 } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,16 +25,22 @@ import {
 import LibraryImportModal from "./LibraryImportModal";
 import LibraryCard from "./LibraryCard";
 import LibraryDetail from "./LibraryDetail";
+import ActiveMeetingCard from "./ActiveMeetingCard";
 import {
   useLibraryItems as useLibraryItemsQuery,
+  useLibraryMetadataProcessing,
   useCreateLibraryItem,
   useUpdateLibraryItem,
+  useGenerateLibraryItemTitle,
   useDeleteLibraryItem,
   useCancelLibraryTranscription,
   useRetryLibraryTranscription,
   useExportLibraryItem,
   useLibraryTags,
   libraryKeys,
+  useMeetingState,
+  useStartMeetingRecording,
+  useStopMeetingRecording,
 } from "../queries";
 import {
   formatDeleteErrorMessage,
@@ -41,7 +49,7 @@ import {
   SUPPORTED_EXTENSIONS,
   uniquePaths,
 } from "./library-utils";
-import SegmentedControl from "../../../shared/ui/SegmentedControl";
+import { Dropdown } from "../../../shared/ui/Dropdown";
 import type {
   LibraryFilter,
   LibraryItem,
@@ -52,18 +60,22 @@ type LibraryViewProps = {
   pendingImportPaths: string[] | null;
   onSetImportPaths: (paths: string[] | null) => void;
   isActive: boolean;
+  scope: "files" | "meetings";
 };
+
+type LibraryStatusFilter = "all" | "active" | "complete" | "error";
 
 const LibraryView = ({
   pendingImportPaths,
   onSetImportPaths,
   isActive,
+  scope,
 }: LibraryViewProps) => {
   const { t } = useLingui();
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<LibraryStatusFilter>("all");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
   const [editingNameDraft, setEditingNameDraft] = useState("");
@@ -71,15 +83,21 @@ const LibraryView = ({
   const [tagDraft, setTagDraft] = useState("");
   const [followTimestamps, setFollowTimestamps] = useState(true);
   const shiftHeld = useShiftHeld(isActive);
+  const { data: meetingState } = useMeetingState(
+    isActive && scope === "meetings",
+  );
+  const startMeetingMutation = useStartMeetingRecording();
+  const stopMeetingMutation = useStopMeetingRecording();
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const filter = useMemo<LibraryFilter>(() => {
     return {
       search: debouncedSearchQuery || null,
       status: statusFilter === "all" ? null : statusFilter,
+      kind: scope,
       tag: null,
       since_days: null,
     };
-  }, [debouncedSearchQuery, statusFilter]);
+  }, [debouncedSearchQuery, scope, statusFilter]);
 
   const {
     data,
@@ -91,6 +109,7 @@ const LibraryView = ({
   } = useLibraryItemsQuery(filter, isActive);
 
   const { data: availableTags = [] } = useLibraryTags(isActive);
+  const automaticallyOrganizingIds = useLibraryMetadataProcessing(isActive);
   const { data: speechModels = [] } = useSpeechModels(isActive);
   const { data: defaultModelKey = "" } = useSettings(
     (settings) => settings.local_model,
@@ -113,6 +132,7 @@ const LibraryView = ({
 
   const createItemMutation = useCreateLibraryItem();
   const updateItemMutation = useUpdateLibraryItem();
+  const generateTitleMutation = useGenerateLibraryItemTitle();
   const deleteItemMutation = useDeleteLibraryItem();
   const cancelMutation = useCancelLibraryTranscription();
   const retryMutation = useRetryLibraryTranscription();
@@ -147,6 +167,69 @@ const LibraryView = ({
       }
     },
     [deleteItemMutation, invalidateTags],
+  );
+
+  const generateItemTitle = useCallback(
+    async (id: string) => {
+      try {
+        await generateTitleMutation.mutateAsync(id);
+      } catch (err) {
+        console.error("Failed to generate library item title and tags:", err);
+        const code = err instanceof Error ? err.message : String(err);
+        const message = code.includes("title_model_not_configured")
+          ? t({
+              id: "library.card.title.error.not_configured",
+              message: "Configure a writing model before generating a title.",
+            })
+          : code.includes("title_rate_limited")
+            ? t({
+                id: "library.card.title.error.rate_limited",
+                message:
+                  "The writing provider has reached its rate or usage limit. Try again later.",
+              })
+            : code.includes("title_unauthorized")
+              ? t({
+                  id: "library.card.title.error.unauthorized",
+                  message:
+                    "The writing provider rejected its API key. Check it in Settings.",
+                })
+              : code.includes("title_model_not_found")
+                ? t({
+                    id: "library.card.title.error.not_found",
+                    message:
+                      "The configured writing model could not be found. Check it in Settings.",
+                  })
+                : code.includes("title_request_rejected")
+                  ? t({
+                      id: "library.card.title.error.rejected",
+                      message:
+                        "The writing provider rejected the title request.",
+                    })
+                  : code.includes("title_unreachable")
+                    ? t({
+                        id: "library.card.title.error.unreachable",
+                        message:
+                          "Could not reach the writing provider. Check your connection and try again.",
+                      })
+                    : code.includes("title_invalid_response")
+                      ? t({
+                          id: "library.card.title.error.invalid_response",
+                          message:
+                            "The writing model responded, but could not organize this item. Try again.",
+                        })
+                      : t({
+                          id: "library.card.title.error",
+                          message:
+                            "Could not generate a title and tags. Try again.",
+                        });
+        invoke("debug_show_toast", {
+          toastType: "error",
+          message,
+        }).catch(() => {});
+        throw err;
+      }
+    },
+    [generateTitleMutation, t],
   );
 
   const installedModels = useMemo(
@@ -251,33 +334,98 @@ const LibraryView = ({
     installedModels.find((model) => model.remote)?.id ??
     installedModels.find((model) => model.key === defaultModelKey)?.id ??
     installedModels[0]?.id;
-  const statusFilterValue = useMemo(() => {
-    if (["transcribing", "importing", "pending"].includes(statusFilter)) {
-      return "active";
+  const meetingBusy =
+    startMeetingMutation.isPending || stopMeetingMutation.isPending;
+  const handleMeetingClick = async () => {
+    try {
+      if (meetingState?.recording) {
+        await stopMeetingMutation.mutateAsync();
+        return;
+      }
+      if (!defaultSpeechModelKey) {
+        invoke("debug_show_toast", {
+          toastType: "error",
+          message: t({
+            id: "library.meeting.model_required",
+            message: "Install or configure a speech model first.",
+          }),
+        }).catch(() => {});
+        return;
+      }
+      await startMeetingMutation.mutateAsync({
+        store_original: false,
+        model_key: defaultSpeechModelKey,
+        llm_cleanup_enabled: false,
+        show_timestamps: true,
+        detect_speakers: true,
+      });
+    } catch (err) {
+      console.error("Meeting recording failed:", err);
+      invoke("debug_show_toast", {
+        toastType: "error",
+        message: t({
+          id: "library.meeting.error",
+          message: "Meeting recording failed. Check permissions and try again.",
+        }),
+      }).catch(() => {});
     }
-    if (statusFilter === "complete") return "complete";
-    if (statusFilter === "error") return "error";
-    return "all";
-  }, [statusFilter]);
+  };
   const statusFilterOptions = useMemo(
     () => [
-      { value: "all", label: t({ id: "library.filter.all", message: "All" }) },
       {
-        value: "active",
+        value: "all" as const,
+        label: t({ id: "library.filter.all", message: "All" }),
+      },
+      {
+        value: "active" as const,
         label: t({ id: "library.filter.active", message: "Active" }),
       },
       {
-        value: "complete",
+        value: "complete" as const,
         label: t({ id: "library.filter.done", message: "Done" }),
       },
       {
-        value: "error",
+        value: "error" as const,
         label: t({ id: "library.filter.failed", message: "Failed" }),
       },
     ],
     [t],
   );
-
+  const headerAction =
+    scope === "files" ? (
+      <button
+        type="button"
+        onClick={handleImportClick}
+        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-content-primary px-3.5 py-1.5 text-sm leading-5 font-semibold text-surface-secondary transition-all hover:bg-content-secondary shadow-[0_3px_0_-1px_rgba(255,255,255,0.25),inset_0_1px_0_0_rgba(255,255,255,0.1)] active:translate-y-[1px] active:shadow-none"
+      >
+        <Plus size={14} aria-hidden="true" />
+        {t({ id: "library.view.import_button", message: "Import" })}
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={handleMeetingClick}
+        disabled={
+          meetingBusy || (!meetingState?.recording && !defaultSpeechModelKey)
+        }
+        className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm leading-5 font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 active:translate-y-[1px] active:shadow-none ${
+          meetingState?.recording
+            ? "bg-[var(--color-error)] text-white hover:opacity-90 shadow-[0_3px_0_-1px_rgba(255,255,255,0.2)]"
+            : "bg-content-primary text-surface-secondary hover:bg-content-secondary shadow-[0_3px_0_-1px_rgba(255,255,255,0.25),inset_0_1px_0_0_rgba(255,255,255,0.1)]"
+        }`}
+      >
+        {meetingBusy ? (
+          <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+        ) : meetingState?.recording ? (
+          <Stop size={14} weight="fill" aria-hidden="true" />
+        ) : (
+          <RecordIcon size={14} weight="fill" aria-hidden="true" />
+        )}
+        {meetingState?.recording
+          ? t({ id: "library.meeting.stop", message: "Stop recording" })
+          : t({ id: "library.meeting.start", message: "Record meeting" })}
+      </button>
+    );
   return (
     <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
       {selectedItem ? (
@@ -291,7 +439,6 @@ const LibraryView = ({
           <LibraryDetail
             item={selectedItem}
             models={installedModels}
-            shiftHeld={shiftHeld}
             followTimestamps={followTimestamps}
             onFollowTimestampsChange={setFollowTimestamps}
             onClose={() => setSelectedItemId(null)}
@@ -310,6 +457,23 @@ const LibraryView = ({
               })
             }
             availableTags={availableTags}
+            onGenerateTitle={() => generateItemTitle(selectedItem.id)}
+            isGeneratingTitle={
+              automaticallyOrganizingIds.has(selectedItem.id) ||
+              (generateTitleMutation.isPending &&
+                generateTitleMutation.variables === selectedItem.id)
+            }
+            backLabel={
+              scope === "meetings"
+                ? t({
+                    id: "meeting.detail.back",
+                    message: "Back to meetings",
+                  })
+                : t({
+                    id: "library.detail.back",
+                    message: "Back to library",
+                  })
+            }
           />
         </motion.div>
       ) : (
@@ -327,22 +491,27 @@ const LibraryView = ({
                     color="var(--color-section-marker-alt)"
                   />
                 }
-                title={t({ id: "library.view.title", message: "Library" })}
-                description={t({
-                  id: "library.view.description",
-                  message: "Import audio and video files for transcription.",
-                })}
+                title={
+                  scope === "meetings"
+                    ? t({ id: "meeting.view.title", message: "Meetings" })
+                    : t({ id: "library.view.title", message: "Library" })
+                }
+                description={
+                  scope === "meetings"
+                    ? t({
+                        id: "meeting.view.description",
+                        message: "Record and transcribe online meetings.",
+                      })
+                    : t({
+                        id: "library.view.description",
+                        message:
+                          "Import audio and video files for transcription.",
+                      })
+                }
+                trailing={headerAction}
               />
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-[auto_minmax(14rem,1fr)_auto] md:items-center">
-                <button
-                  onClick={handleImportClick}
-                  className="flex items-center gap-2 rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-surface)] px-3 py-1.5 ui-text-body-sm ui-color-primary hover:border-[var(--color-border-secondary)] hover:bg-[var(--color-bg-overlay)] transition-colors shrink-0"
-                >
-                  <Plus size={14} />
-                  {t({ id: "library.view.import_button", message: "Import" })}
-                </button>
-
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(14rem,1fr)_auto] md:items-center">
                 <div className="relative min-w-0 w-full group">
                   <Search
                     size={14}
@@ -350,28 +519,31 @@ const LibraryView = ({
                   />
                   <input
                     type="text"
-                    placeholder={t({
-                      id: "library.view.search_placeholder",
-                      message: "Search library...",
-                    })}
+                    placeholder={
+                      scope === "meetings"
+                        ? t({
+                            id: "meeting.view.search_placeholder",
+                            message: "Search meetings...",
+                          })
+                        : t({
+                            id: "library.view.search_placeholder",
+                            message: "Search library...",
+                          })
+                    }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full bg-[var(--color-bg-surface)] border border-[var(--color-border-primary)] rounded-lg focus:border-[var(--color-border-hover)] pl-9 pr-4 py-1.5 ui-text-input ui-color-primary placeholder-[var(--color-text-muted)] outline-none transition-all duration-100 ease-out"
                   />
                 </div>
 
-                <SegmentedControl
-                  value={statusFilterValue}
+                <Dropdown
+                  value={statusFilter}
                   options={statusFilterOptions}
-                  onChange={(value) =>
-                    setStatusFilter(value === "active" ? "transcribing" : value)
-                  }
-                  ariaLabel={t({
-                    id: "library.filter.aria_label",
-                    message: "Filter library by status",
-                  })}
-                  className="relative flex w-full items-center rounded-lg border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] p-1 md:w-auto"
-                  activeIndicatorLayoutId="library-status-filter"
+                  onChange={setStatusFilter}
+                  fitButtonToWidestOption
+                  className="w-full md:w-auto"
+                  buttonClassName="px-3 py-1.5 ui-text-body-sm"
+                  menuClassName="min-w-36 md:left-auto md:right-0"
                 />
               </div>
             </div>
@@ -385,7 +557,14 @@ const LibraryView = ({
           <div className="flex-1 min-h-0 overflow-y-scroll overflow-x-hidden custom-scrollbar scrollbar-gutter pb-6 pr-3 pt-1">
             <div key="library-list" className="flex flex-col gap-6 w-full">
               <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-6">
-                <div className="grid min-w-0 gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))]">
+                {scope === "meetings" && meetingState?.recording && (
+                  <ActiveMeetingCard
+                    meeting={meetingState}
+                    stopping={stopMeetingMutation.isPending}
+                    onStop={() => void handleMeetingClick()}
+                  />
+                )}
+                <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,216px),1fr))] gap-4">
                   {isLoading && items.length === 0 && (
                     <div className="col-span-full py-12 flex items-center justify-center">
                       <DotMatrix
@@ -401,21 +580,44 @@ const LibraryView = ({
                     </div>
                   )}
 
-                  {!isLoading && items.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={handleImportClick}
-                      className="col-span-full rounded-xl border border-dashed border-border-secondary bg-surface-secondary p-8 flex flex-col items-center justify-center text-center hover:text-content-secondary hover:border-border-hover transition-colors"
-                    >
-                      <FolderOpen size={20} className="text-content-disabled" />
-                      <p className="mt-3 ui-text-body ui-color-muted">
-                        {t({
-                          id: "library.view.empty_state",
-                          message: "Drag files here to build your Library.",
-                        })}
-                      </p>
-                    </button>
-                  )}
+                  {!isLoading &&
+                    items.length === 0 &&
+                    !(scope === "meetings" && meetingState?.recording) && (
+                      <button
+                        type="button"
+                        onClick={
+                          scope === "meetings"
+                            ? handleMeetingClick
+                            : handleImportClick
+                        }
+                        className="col-span-full rounded-xl border border-dashed border-border-secondary bg-surface-secondary p-8 flex flex-col items-center justify-center text-center hover:text-content-secondary hover:border-border-hover transition-colors"
+                      >
+                        {scope === "meetings" ? (
+                          <RecordIcon
+                            size={20}
+                            className="text-content-disabled"
+                            weight="fill"
+                          />
+                        ) : (
+                          <FolderOpen
+                            size={20}
+                            className="text-content-disabled"
+                          />
+                        )}
+                        <p className="mt-3 ui-text-body ui-color-muted">
+                          {scope === "meetings"
+                            ? t({
+                                id: "meeting.view.empty_state",
+                                message: "Record your first meeting.",
+                              })
+                            : t({
+                                id: "library.view.empty_state",
+                                message:
+                                  "Drag files here to build your Library.",
+                              })}
+                        </p>
+                      </button>
+                    )}
 
                   {items.map((item, index) => (
                     <LibraryCard
@@ -440,6 +642,12 @@ const LibraryView = ({
                       onDelete={async () => {
                         await deleteItemAndRefreshTags(item.id);
                       }}
+                      onGenerateTitle={() => generateItemTitle(item.id)}
+                      isGeneratingTitle={
+                        automaticallyOrganizingIds.has(item.id) ||
+                        (generateTitleMutation.isPending &&
+                          generateTitleMutation.variables === item.id)
+                      }
                       editingTagId={editingTagId}
                       tagDraft={tagDraft}
                       onStartTagEdit={() => startTagEdit(item)}
@@ -451,7 +659,7 @@ const LibraryView = ({
                     />
                   ))}
 
-                  {items.length > 0 && (
+                  {scope === "files" && items.length > 0 && (
                     <button
                       onClick={handleImportClick}
                       className="rounded-xl border border-dashed border-border-secondary bg-surface-secondary p-4 flex flex-col items-center justify-center text-center ui-color-muted hover:text-content-secondary hover:border-border-hover transition-colors"
@@ -502,7 +710,7 @@ const LibraryView = ({
       )}
 
       <AnimatePresence>
-        {pendingImportPaths !== null && (
+        {scope === "files" && pendingImportPaths !== null && (
           <LibraryImportModal
             paths={pendingImportPaths}
             models={installedModels}

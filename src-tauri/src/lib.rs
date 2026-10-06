@@ -8,6 +8,7 @@ mod cli_install;
 mod core;
 mod crypto;
 mod data_export;
+mod diarization;
 mod dictionary;
 mod import;
 mod integrations;
@@ -15,6 +16,7 @@ mod library;
 mod license;
 mod llm_cleanup;
 mod local_api;
+mod meeting;
 mod mode_context;
 mod model_language_table;
 mod music;
@@ -414,6 +416,18 @@ pub fn run() {
         handle_deep_link_urls(app, argv.into_iter().skip(1));
     }));
 
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    let builder = builder.plugin(
+        tauri_plugin_window_state::Builder::default()
+            .with_filter(|label| label == SETTINGS_WINDOW_LABEL)
+            .with_state_flags(
+                tauri_plugin_window_state::StateFlags::SIZE
+                    | tauri_plugin_window_state::StateFlags::POSITION
+                    | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+            )
+            .build(),
+    );
+
     let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -500,6 +514,9 @@ pub fn run() {
             }
             analytics::set_crash_phase("services");
             integrations::start_control_server(handle.clone());
+            meeting::recover_interrupted_meetings(handle);
+            #[cfg(target_os = "macos")]
+            meeting::start_automatic_detection(handle);
             library::commands::recover_interrupted_library_items(handle);
             register_deep_link_handlers(app);
 
@@ -641,6 +658,7 @@ pub fn run() {
             get_dictation_activity,
             save_share_image,
             delete_transcription,
+            delete_transcriptions_for_day,
             retry_transcription,
             retry_llm_cleanup,
             undo_llm_cleanup,
@@ -648,13 +666,23 @@ pub fn run() {
             library::commands::create_library_item,
             library::commands::get_library_items_page,
             library::commands::update_library_item,
+            library::commands::generate_library_item_title,
             library::commands::delete_library_item,
             library::commands::cancel_library_transcription,
             library::commands::retry_library_transcription,
             library::commands::export_library_item_to_path,
             library::commands::get_library_tags,
             library::commands::probe_library_import_files,
+            meeting::get_meeting_state,
+            meeting::get_meeting_levels,
+            meeting::list_installed_meeting_apps,
+            meeting::start_meeting_recording,
+            meeting::stop_meeting_recording,
+            meeting::start_detected_meeting_recording,
+            meeting::dismiss_detected_meeting_prompt,
+            meeting::continue_detected_meeting_recording,
             model_manager::list_models,
+            get_diarization_model,
             model_manager::check_model_status,
             model_manager::download_model,
             model_manager::delete_model,
@@ -745,7 +773,10 @@ pub fn run() {
 
 #[cfg(test)]
 mod cli_tests {
-    use super::{cli_help_requested, is_top_level_help, normalized_integration_args};
+    use super::{
+        HashMap, clear_download_token_if_current, cli_help_requested, is_top_level_help,
+        normalized_integration_args, replace_download_token,
+    };
     use std::ffi::OsString;
 
     fn args(values: &[&str]) -> Vec<OsString> {
@@ -788,6 +819,22 @@ mod cli_tests {
         );
         assert!(normalized_integration_args(&["--cache-dir".into(), "status".into(),]).is_none());
     }
+
+    #[test]
+    fn an_older_download_cannot_clear_a_newer_download_token() {
+        let mut tokens = HashMap::new();
+        let first = replace_download_token(&mut tokens, "model");
+        let second = replace_download_token(&mut tokens, "model");
+
+        assert!(first.is_cancelled());
+        assert!(!second.is_cancelled());
+
+        clear_download_token_if_current(&mut tokens, "model", &first);
+        assert_eq!(tokens.get("model"), Some(&second));
+
+        clear_download_token_if_current(&mut tokens, "model", &second);
+        assert!(!tokens.contains_key("model"));
+    }
 }
 
 pub(crate) type AppRuntime = Wry;
@@ -829,6 +876,7 @@ pub struct AppState {
     library_tokens: parking_lot::Mutex<HashMap<String, CancellationToken>>,
     library_queue: parking_lot::Mutex<VecDeque<LibraryJob>>,
     library_active: parking_lot::Mutex<Option<String>>,
+    pub(crate) meeting_session: parking_lot::Mutex<Option<meeting::MeetingSession>>,
     retry_tokens: parking_lot::Mutex<HashMap<String, CancellationToken>>,
     pub(crate) local_api: Arc<local_api::LocalApiController>,
     update_state: update_checker::SharedUpdateState,
@@ -853,6 +901,27 @@ pub struct LicenseSnapshot {
 #[derive(Clone, Copy)]
 struct SessionCounters {
     transcription_count: u32,
+}
+
+fn replace_download_token(
+    tokens: &mut HashMap<String, CancellationToken>,
+    model: &str,
+) -> CancellationToken {
+    let token = CancellationToken::new();
+    if let Some(previous) = tokens.insert(model.to_string(), token.clone()) {
+        previous.cancel();
+    }
+    token
+}
+
+fn clear_download_token_if_current(
+    tokens: &mut HashMap<String, CancellationToken>,
+    model: &str,
+    token: &CancellationToken,
+) {
+    if tokens.get(model).is_some_and(|current| current == token) {
+        tokens.remove(model);
+    }
 }
 
 impl AppState {
@@ -905,6 +974,7 @@ impl AppState {
             library_tokens: parking_lot::Mutex::new(HashMap::new()),
             library_queue: parking_lot::Mutex::new(VecDeque::new()),
             library_active: parking_lot::Mutex::new(None),
+            meeting_session: parking_lot::Mutex::new(None),
             retry_tokens: parking_lot::Mutex::new(HashMap::new()),
             local_api: Arc::new(local_api::LocalApiController::default()),
             update_state: update_checker::create_state(),
@@ -1125,11 +1195,7 @@ impl AppState {
     }
 
     pub fn create_download_token(&self, model: &str) -> CancellationToken {
-        let token = CancellationToken::new();
-        self.download_tokens
-            .lock()
-            .insert(model.to_string(), token.clone());
-        token
+        replace_download_token(&mut self.download_tokens.lock(), model)
     }
 
     pub fn cancel_download(&self, model: &str) -> bool {
@@ -1142,8 +1208,8 @@ impl AppState {
         }
     }
 
-    pub fn clear_download_token(&self, model: &str) {
-        self.download_tokens.lock().remove(model);
+    pub fn clear_download_token(&self, model: &str, token: &CancellationToken) {
+        clear_download_token_if_current(&mut self.download_tokens.lock(), model, token);
     }
 
     pub fn register_library_transcription(&self, id: String) -> CancellationToken {
@@ -1340,7 +1406,7 @@ fn check_microphone_permission() -> bool {
 }
 
 #[tauri::command]
-fn request_microphone_permission() -> Result<(), String> {
+fn request_microphone_permission() -> Result<bool, String> {
     permissions::request_microphone_permission()
 }
 
@@ -1650,6 +1716,11 @@ fn list_speech_models(
 }
 
 #[tauri::command]
+fn get_diarization_model() -> speech::catalog::ModelInfo {
+    diarization::model_info()
+}
+
+#[tauri::command]
 async fn fetch_remote_speech_models(
     endpoint: String,
     api_key: String,
@@ -1819,6 +1890,47 @@ fn delete_transcription(
     }
 
     Ok(result)
+}
+
+#[tauri::command]
+fn delete_transcriptions_for_day(
+    start_ms: i64,
+    end_ms: i64,
+    app: AppHandle<AppRuntime>,
+    state: tauri::State<AppState>,
+) -> Result<u32, String> {
+    const MAX_DAY_MILLIS: i64 = 26 * 60 * 60 * 1000;
+    let duration = end_ms
+        .checked_sub(start_ms)
+        .filter(|duration| *duration > 0 && *duration <= MAX_DAY_MILLIS)
+        .ok_or_else(|| "Invalid day range".to_string())?;
+    debug_assert!(duration > 0);
+
+    let audio_paths = state
+        .storage()
+        .delete_range(start_ms, end_ms)
+        .map_err(|err| format!("Failed to delete transcriptions: {err}"))?;
+    let deleted_count = audio_paths.len() as u32;
+    for audio_path in audio_paths {
+        if audio_path.is_empty() {
+            continue;
+        }
+        let path = PathBuf::from(audio_path);
+        if path.exists() {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    let settings = state.current_settings();
+    if let Err(err) = tray::refresh_tray_menu(&app, &settings) {
+        tracing::error!("Failed to refresh tray menu: {err}");
+    }
+    #[cfg(target_os = "macos")]
+    if let Err(err) = set_app_menu(&app, &settings) {
+        tracing::error!("Failed to refresh app menu: {err}");
+    }
+
+    Ok(deleted_count)
 }
 
 #[tauri::command]

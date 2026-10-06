@@ -28,10 +28,16 @@ import {
 } from "../lib/modelCapabilities";
 import { useShiftHeld } from "../hooks/useShiftHeld";
 import { useClickOutside } from "../hooks/useClickOutside";
+import FloatingPortal from "./FloatingPortal";
 import DotMatrix from "./DotMatrix";
 import type { DownloadEvent, ModelInfo } from "../../types";
 
-const CATEGORY_ORDER = ["standard", "experimental", "legacy"] as const;
+const CATEGORY_ORDER = [
+  "auxiliary",
+  "standard",
+  "experimental",
+  "legacy",
+] as const;
 const VARIANT_ORDER = ["Q5_1", "Q5_0", "Q8_0", "Full", "Int8"];
 
 type ModelGroup = {
@@ -97,6 +103,7 @@ type ModelPickerData = {
 type ModelPickerPanelProps = ModelPickerData & {
   className?: string;
   fadeColor?: string;
+  auxiliaryModels?: ModelInfo[];
 };
 
 export function ModelPickerPanel({
@@ -111,6 +118,7 @@ export function ModelPickerPanel({
   onCancel,
   className,
   fadeColor = "var(--color-bg-tertiary)",
+  auxiliaryModels = [],
 }: ModelPickerPanelProps) {
   const { t } = useLingui();
   const [modelSearch, setModelSearch] = useState("");
@@ -118,17 +126,28 @@ export function ModelPickerPanel({
   const [filterOpen, setFilterOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+  const filterPopupRef = useRef<HTMLDivElement>(null);
   const shiftHeld = useShiftHeld();
-  useClickOutside(filterRef, () => setFilterOpen(false), filterOpen);
+  useClickOutside(filterRef, () => setFilterOpen(false), filterOpen, [
+    filterPopupRef,
+  ]);
 
   const categoryLabel = (category: string) => {
     switch (category) {
       case "standard":
-        return t({ id: "model_picker.category.standard", message: "Standard" });
+        return t({
+          id: "model_picker.category.standard",
+          message: "Transcription models",
+        });
+      case "auxiliary":
+        return t({
+          id: "settings.models.local_intelligence",
+          message: "Add-ons",
+        });
       case "experimental":
         return t({
           id: "model_picker.category.experimental",
-          message: "Experimental",
+          message: "Experimental models",
         });
       case "legacy":
         return t({ id: "model_picker.category.legacy", message: "Legacy" });
@@ -140,9 +159,11 @@ export function ModelPickerPanel({
   const groups = useMemo(
     () =>
       groupModels(
-        catalog.filter((model) => model.downloadable || isInstalled(model.key)),
+        [...auxiliaryModels, ...catalog].filter(
+          (model) => model.downloadable || isInstalled(model.key),
+        ),
       ),
-    [catalog, isInstalled],
+    [auxiliaryModels, catalog, isInstalled],
   );
 
   const availableCategories = useMemo(() => {
@@ -177,7 +198,8 @@ export function ModelPickerPanel({
         key={group.id}
         group={group}
         selected={selected}
-        active={selected.key === activeKey}
+        active={group.category !== "auxiliary" && selected.key === activeKey}
+        auxiliary={group.category === "auxiliary"}
         installed={isInstalled(selected.key)}
         aneInstalled={isAneInstalled?.(selected.key) ?? false}
         isVariantInstalled={isInstalled}
@@ -234,58 +256,55 @@ export function ModelPickerPanel({
                   aria-hidden="true"
                 />
               </button>
-              <AnimatePresence>
-                {filterOpen && (
-                  <motion.div
-                    role="menu"
-                    initial={{ opacity: 0, scale: 0.98, y: -2 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.98, y: -2 }}
-                    transition={{ duration: 0.12 }}
-                    className="ui-surface-menu absolute right-0 top-full z-30 mt-1.5 min-w-[160px] py-1"
-                  >
-                    {[
-                      {
-                        value: "all",
-                        label: t({
-                          id: "model_picker.filter.all",
-                          message: "All models",
-                        }),
-                      },
-                      ...availableCategories.map((category) => ({
-                        value: category as string,
-                        label: categoryLabel(category),
-                      })),
-                    ].map((opt) => {
-                      const selected = opt.value === (categoryFilter ?? "all");
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          role="menuitemradio"
-                          aria-checked={selected}
-                          onClick={() => {
-                            setCategoryFilter(
-                              opt.value === "all" ? null : opt.value,
-                            );
-                            setFilterOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between gap-3 px-3 py-1 ui-text-body-sm transition-colors ${
-                            selected
-                              ? "ui-color-primary bg-[var(--surface-interactive-strong)]"
-                              : "ui-color-secondary hover:bg-[var(--surface-interactive)] hover:text-content-primary"
-                          }`}
-                        >
-                          <span>{opt.label}</span>
-                          <span className="flex w-3 items-center justify-center shrink-0">
-                            {selected && <Check size={12} aria-hidden="true" />}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {filterOpen && (
+                <FloatingPortal
+                  anchorRef={filterRef}
+                  ref={filterPopupRef}
+                  placement="bottom-end"
+                  role="menu"
+                  className="ui-surface-menu min-w-[160px] py-1"
+                >
+                  {[
+                    {
+                      value: "all",
+                      label: t({
+                        id: "model_picker.filter.all",
+                        message: "All models",
+                      }),
+                    },
+                    ...availableCategories.map((category) => ({
+                      value: category as string,
+                      label: categoryLabel(category),
+                    })),
+                  ].map((opt) => {
+                    const selected = opt.value === (categoryFilter ?? "all");
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={selected}
+                        onClick={() => {
+                          setCategoryFilter(
+                            opt.value === "all" ? null : opt.value,
+                          );
+                          setFilterOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between gap-3 px-3 py-1 ui-text-body-sm transition-colors ${
+                          selected
+                            ? "ui-color-primary bg-[var(--surface-interactive-strong)]"
+                            : "ui-color-secondary hover:bg-[var(--surface-interactive)] hover:text-content-primary"
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        <span className="flex w-3 items-center justify-center shrink-0">
+                          {selected && <Check size={12} aria-hidden="true" />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </FloatingPortal>
+              )}
             </div>
           )}
         </div>
@@ -293,16 +312,16 @@ export function ModelPickerPanel({
 
       <div className="relative min-h-0 flex-1">
         <div className="h-full overflow-y-auto py-3 pl-2 pr-3">
-          {filteredGroups.length === 0 ? (
-            <p className="py-10 text-center ui-text-body-sm text-content-muted">
-              {t({
-                id: "model_picker.no_results",
-                message: "No models match your search.",
-              })}
-            </p>
-          ) : (
-            <div className="flex flex-col">
-              {sections.map((section) => (
+          <div className="flex flex-col">
+            {filteredGroups.length === 0 ? (
+              <p className="py-10 text-center ui-text-body-sm text-content-muted">
+                {t({
+                  id: "model_picker.no_results",
+                  message: "No models match your search.",
+                })}
+              </p>
+            ) : (
+              sections.map((section) => (
                 <div key={section.category} className="flex flex-col">
                   <div className="flex items-center gap-3 px-1 pb-1.5 pt-3 first:pt-0">
                     <span className="ui-text-body-sm-strong ui-color-secondary shrink-0">
@@ -315,9 +334,9 @@ export function ModelPickerPanel({
                   </div>
                   {section.groups.map((group) => renderGroup(group))}
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
         <div
           aria-hidden="true"
@@ -409,6 +428,7 @@ function ModelRow({
   group,
   selected,
   active,
+  auxiliary,
   installed,
   aneInstalled,
   isVariantInstalled,
@@ -423,6 +443,7 @@ function ModelRow({
   group: ModelGroup;
   selected: ModelInfo;
   active: boolean;
+  auxiliary: boolean;
   installed: boolean;
   aneInstalled: boolean;
   isVariantInstalled: (key: string) => boolean;
@@ -449,12 +470,12 @@ function ModelRow({
   const isCancelled = progress?.status === "cancelled";
   const isBusy = isDownloading || showError || isCancelled;
   const percent = Math.round(progress?.percent ?? 0);
-  const showQuants = group.variants.length > 1 && !isBusy;
+  const showQuants = !auxiliary && group.variants.length > 1 && !isBusy;
   const aneAvailable = selected.ane_size_mb != null;
   const aneOn = aneAvailable && (aneInstalled || aneChecked);
   const encoderDownloadPending =
     installed && aneAvailable && aneChecked && !aneInstalled;
-  const showAne = aneAvailable && !isBusy;
+  const showAne = !auxiliary && aneAvailable && !isBusy;
   const displaySize =
     selected.size_mb + (aneOn ? (selected.ane_size_mb ?? 0) : 0);
   const downloadLabel = installed
@@ -473,16 +494,19 @@ function ModelRow({
             ? () => onDownload(aneOn)
             : encoderDownloadPending
               ? () => onDownload(true)
-              : onUse
+              : auxiliary
+                ? undefined
+                : onUse
         }
+        disabled={auxiliary && installed}
         title={
           encoderDownloadPending
             ? downloadLabel
-            : installed && !active
+            : installed && !active && !auxiliary
               ? t({ id: "model_picker.use", message: "Use" })
               : undefined
         }
-        className="flex min-w-0 items-center gap-2.5 text-left"
+        className="flex min-w-0 items-center gap-2.5 text-left disabled:cursor-default"
       >
         <span
           aria-hidden="true"
@@ -527,9 +551,20 @@ function ModelRow({
             )}
           </span>
           <span className="mt-0.5 block ui-text-meta tabular-nums text-content-muted">
-            {group.englishOnly
-              ? t({ id: "model_picker.english", message: "English" })
-              : t({ id: "model_picker.multilingual", message: "Multilingual" })}
+            {auxiliary
+              ? `${t({
+                  id: "settings.models.diarization.addon",
+                  message: "Add-on",
+                })}  ·  ${t({
+                  id: "settings.models.diarization.local_private",
+                  message: "Local",
+                })}`
+              : group.englishOnly
+                ? t({ id: "model_picker.english", message: "English" })
+                : t({
+                    id: "model_picker.multilingual",
+                    message: "Multilingual",
+                  })}
             {"  ·  "}
             {isBuiltInModel(selected)
               ? t({ id: "model_picker.built_in", message: "Built in" })
@@ -701,7 +736,8 @@ function AneCheckbox({
   const { t } = useLingui();
   const [infoOpen, setInfoOpen] = useState(false);
   const infoRef = useRef<HTMLDivElement>(null);
-  useClickOutside(infoRef, () => setInfoOpen(false), infoOpen);
+  const infoPopupRef = useRef<HTMLDivElement>(null);
+  useClickOutside(infoRef, () => setInfoOpen(false), infoOpen, [infoPopupRef]);
 
   return (
     <div className="relative flex items-center gap-1" ref={infoRef}>
@@ -760,26 +796,23 @@ function AneCheckbox({
         <Info size={12} aria-hidden="true" />
       </button>
 
-      <AnimatePresence>
-        {infoOpen && (
-          <motion.div
-            role="tooltip"
-            initial={{ opacity: 0, scale: 0.98, y: -2 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: -2 }}
-            transition={{ duration: 0.12 }}
-            className="ui-surface-menu absolute right-0 top-full z-30 mt-1.5 w-60 px-3 py-2"
-          >
-            <p className="ui-text-meta text-content-secondary">
-              {t({
-                id: "model_picker.ane.info",
-                message:
-                  "Adds a Core ML encoder that runs on the Apple Neural Engine for faster, more power-efficient transcription. The first load takes longer while macOS optimizes it for your chip.",
-              })}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {infoOpen && (
+        <FloatingPortal
+          anchorRef={infoRef}
+          ref={infoPopupRef}
+          placement="bottom-end"
+          role="tooltip"
+          className="ui-surface-menu w-60 px-3 py-2"
+        >
+          <p className="ui-text-meta text-content-secondary">
+            {t({
+              id: "model_picker.ane.info",
+              message:
+                "Adds a Core ML encoder that runs on the Apple Neural Engine for faster, more power-efficient transcription. The first load takes longer while macOS optimizes it for your chip.",
+            })}
+          </p>
+        </FloatingPortal>
+      )}
     </div>
   );
 }

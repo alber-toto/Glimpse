@@ -567,7 +567,7 @@ msgstr "Добавить или найти запись в словаре"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.add_speaker"
-msgstr "Добавить говорящего"
+msgstr "Добавить человека"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -617,7 +617,7 @@ msgstr "Все публикации"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.all"
-msgstr "Все участники"
+msgstr "Все люди"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -712,7 +712,7 @@ msgstr "Назначить"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.assign_new_speaker"
-msgstr "Назначить нового говорящего"
+msgstr "Назначить нового человека"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -1046,7 +1046,7 @@ msgstr "Очистить поиск"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker.clear"
-msgstr "Очистить говорящего"
+msgstr "Удалить человека"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -1655,22 +1655,22 @@ msgstr "Удаление…"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers"
-msgstr "Определить говорящих"
+msgstr "Определить людей"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.aria"
-msgstr "Определять говорящих"
+msgstr "Определять людей"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers"
-msgstr "Определить говорящих"
+msgstr "Определить людей"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.aria"
-msgstr "Определять говорящих"
+msgstr "Определять людей"
 
 #. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
@@ -1936,7 +1936,7 @@ msgstr "Развернуть боковую панель"
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.experimental"
-msgstr "Экспериментальные"
+msgstr "Экспериментальные модели"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2056,7 +2056,7 @@ msgstr "Файл не найден. Возможно, он был перемещ
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.aria"
-msgstr "Фильтр по диктору"
+msgstr "Фильтр по человеку"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
@@ -2473,12 +2473,12 @@ msgstr "Сочетание клавиш"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.description"
-msgstr "Автоматически помечать фрагменты по говорящему"
+msgstr "Автоматически определять людей во фрагментах"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.description"
-msgstr "Автоматически помечать сегменты по говорящему"
+msgstr "Автоматически определять людей во фрагментах"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -3062,7 +3062,7 @@ msgstr "Сайтов пока нет"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.no_speakers"
-msgstr "Говорящие ещё не добавлены"
+msgstr "Люди ещё не добавлены"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -4129,12 +4129,12 @@ msgstr "Сортировка и фильтрация транскрипций"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker_default_name"
-msgstr "Говорящий {nextIndex}"
+msgstr "Человек {nextIndex}"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speakers"
-msgstr "Говорящие"
+msgstr "Люди"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ProvidersTab.tsx
@@ -4149,7 +4149,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.standard"
-msgstr "Стандартный"
+msgstr "Модели транскрипции"
 
 #. js-lingui-explicit-id
 #: src/features/asks/components/AskPrompt.tsx
@@ -4961,3 +4961,320 @@ msgstr "Ваши слова появятся здесь…"
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.zoom"
 msgstr "Масштаб"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.meeting"
+msgstr "Встреча"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recording"
+msgstr "Запись"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recovered_meeting"
+msgstr "Восстановленная встреча"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelling"
+msgstr "Отмена"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelled"
+msgstr "Отменено"
+
+#. js-lingui-explicit-id
+msgid "library.filter.files"
+msgstr "Файлы"
+
+#. js-lingui-explicit-id
+msgid "library.filter.meetings"
+msgstr "Встречи"
+
+#. js-lingui-explicit-id
+msgid "library.filter.origin_aria_label"
+msgstr "Фильтр библиотеки по источнику"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.model_required"
+msgstr "Сначала установите или настройте модель распознавания речи."
+
+#. js-lingui-explicit-id
+msgid "library.meeting.start"
+msgstr "Записать встречу"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.stop"
+msgstr "Остановить запись"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.name"
+msgstr "Встреча {date}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_name"
+msgstr "Восстановлено: {name}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_title"
+msgstr "Встреча восстановлена"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_one"
+msgstr "Прерванная запись сохранена в библиотеке и будет расшифрована."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_many"
+msgstr "Сохранено прерванных записей: {count}. Они будут расшифрованы."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_you"
+msgstr "Вы"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_remote"
+msgstr "Встреча"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_title"
+msgstr "Обнаружена встреча"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_message"
+msgstr "Похоже, в {app} идёт звонок. Записать его?"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_record"
+msgstr "Записать"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_not_now"
+msgstr "Не сейчас"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.error"
+msgstr "Не удалось записать встречу. Проверьте разрешения и повторите попытку."
+
+#. js-lingui-explicit-id
+msgid "home.sidebar.meetings"
+msgstr "Встречи"
+
+#. js-lingui-explicit-id
+msgid "meeting.detail.back"
+msgstr "Назад к встречам"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.title"
+msgstr "Встречи"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.description"
+msgstr "Записывайте и расшифровывайте онлайн-встречи."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.search_placeholder"
+msgstr "Поиск встреч..."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.empty_state"
+msgstr "Запишите свою первую встречу."
+
+#. js-lingui-explicit-id
+msgid "library.card.recovered"
+msgstr "Восстановлена"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generate"
+msgstr "Создать название и теги"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generating"
+msgstr "Организация..."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error"
+msgstr "Не удалось создать название и теги. Повторите попытку."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_configured"
+msgstr "Настройте модель для работы с текстом перед созданием названия."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rate_limited"
+msgstr "Провайдер достиг лимита использования. Повторите попытку позже."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unauthorized"
+msgstr "Провайдер отклонил ключ API. Проверьте его в настройках."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_found"
+msgstr "Настроенная модель не найдена. Проверьте её в настройках."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rejected"
+msgstr "Провайдер отклонил запрос на создание названия."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unreachable"
+msgstr "Не удалось связаться с провайдером. Проверьте подключение и повторите попытку."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.invalid_response"
+msgstr "Модель ответила, но не смогла организовать этот элемент. Повторите попытку."
+
+#. js-lingui-explicit-id
+msgid "native.library.person_default"
+msgstr "Человек {nextIndex}"
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.aria"
+msgstr "Локальная модель определения участников"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.title"
+msgstr "Локальное определение участников"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.description"
+msgstr "Разделяет голоса без загрузки аудио в интернет"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.local_private"
+msgstr "Локально"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.delete"
+msgstr "Удалить локальное определение участников"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.download"
+msgstr "Скачать локальное определение участников"
+
+#. js-lingui-explicit-id
+msgid "settings.models.local_intelligence"
+msgstr "Дополнения"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.addon"
+msgstr "Дополнение"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_day_aria"
+msgstr "Удалить все транскрипции за этот день"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.title"
+msgstr "Удалить транскрипции за этот день?"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.description"
+msgstr "Все транскрипции и их аудиозаписи за этот день будут удалены без возможности восстановления."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.error"
+msgstr "Не удалось удалить транскрипции. Повторите попытку."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.deleting"
+msgstr "Удаление..."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.action"
+msgstr "Удалить все"
+
+#. js-lingui-explicit-id
+msgid "settings.modal.tab.meetings"
+msgstr "Встречи"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.section"
+msgstr "Автоматическое обнаружение"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.title"
+msgstr "Обнаруживать онлайн-встречи"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.description"
+msgstr "Показывает предложение записи при начале поддерживаемой встречи."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.toggle_aria"
+msgstr "Включить или выключить автоматическое обнаружение встреч"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.section"
+msgstr "Приложения"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.loading"
+msgstr "Поиск установленных приложений для встреч"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.empty"
+msgstr "Совместимые приложения для встреч не найдены."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.installed"
+msgstr "Установлено на этом Mac"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.toggle_aria"
+msgstr "Включить или выключить обнаружение для этого приложения"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.description"
+msgstr "Отслеживаются только выбранные приложения. Для обнаружения в браузере требуется Универсальный доступ, проверяется только активная вкладка; Glimpse не читает содержимое встреч."
+
+msgid "meeting.active.microphone.default"
+msgstr "Микрофон по умолчанию"
+
+msgid "meeting.active.system.default"
+msgstr "Системный звук"
+
+msgid "meeting.active.microphone.waveform"
+msgstr "Уровень микрофона в реальном времени"
+
+msgid "meeting.active.system.waveform"
+msgstr "Уровень звука встречи в реальном времени"
+
+msgid "meeting.active.title"
+msgstr "Идёт запись"
+
+msgid "meeting.active.subtitle"
+msgstr "Оба источника звука сохраняются отдельно"
+
+msgid "meeting.active.microphone"
+msgstr "Микрофон"
+
+msgid "meeting.active.system"
+msgstr "Звук встречи"
+
+msgid "meeting.active.system.scope"
+msgstr "Запись системы"
+
+msgid "meeting.active.local"
+msgstr "Сохраняется локально · Расшифровка начнётся после остановки записи"
+
+msgid "meeting.active.microphone.no_signal"
+msgstr "Сигнал микрофона не обнаружен"
+
+msgid "meeting.active.system.scope.application"
+msgstr "Только приложение"
+
+msgid "native.meeting.ended_title"
+msgstr "Встреча завершилась?"
+
+msgid "native.meeting.ended_message"
+msgstr "Звонок в {app} больше не активен. Остановить запись?"
+
+msgid "native.meeting.ended_stop"
+msgstr "Остановить запись"
+
+msgid "native.meeting.ended_continue"
+msgstr "Продолжить запись"
+
+msgid "settings.general.shortcuts.dictation_key"
+msgstr "Использовать клавишу диктовки"
+
+msgid "settings.general.shortcuts.dictation_key.description"
+msgstr "Назначает клавишу микрофона для умной диктовки"

@@ -567,7 +567,7 @@ msgstr "शब्दकोश प्रविष्टि जोड़ें य
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.add_speaker"
-msgstr "वक्ता जोड़ें"
+msgstr "व्यक्ति जोड़ें"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -617,7 +617,7 @@ msgstr "सभी पोस्ट"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.all"
-msgstr "सभी वक्ता"
+msgstr "सभी व्यक्ति"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -712,7 +712,7 @@ msgstr "असाइन करें"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.assign_new_speaker"
-msgstr "नए वक्ता को असाइन करें"
+msgstr "नया व्यक्ति असाइन करें"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -1046,7 +1046,7 @@ msgstr "खोज मिटाएँ"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker.clear"
-msgstr "वक्ता साफ़ करें"
+msgstr "व्यक्ति हटाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -1655,22 +1655,22 @@ msgstr "हटाया जा रहा है…"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers"
-msgstr "वक्ताओं का पता लगाएँ"
+msgstr "व्यक्तियों का पता लगाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.aria"
-msgstr "वक्ताओं का पता लगाएँ"
+msgstr "व्यक्तियों का पता लगाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers"
-msgstr "वक्ताओं का पता लगाएँ"
+msgstr "व्यक्तियों का पता लगाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.aria"
-msgstr "वक्ताओं का पता लगाएँ"
+msgstr "व्यक्तियों का पता लगाएँ"
 
 #. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
@@ -1936,7 +1936,7 @@ msgstr "साइडबार फैलाएँ"
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.experimental"
-msgstr "प्रयोगात्मक"
+msgstr "प्रयोगात्मक मॉडल"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2056,7 +2056,7 @@ msgstr "फ़ाइल नहीं मिली। इसे स्थान�
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.aria"
-msgstr "वक्ता के अनुसार फ़िल्टर करें"
+msgstr "व्यक्ति के अनुसार फ़िल्टर करें"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
@@ -2473,12 +2473,12 @@ msgstr "कीबोर्ड शॉर्टकट"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.description"
-msgstr "वक्ता के अनुसार खंडों को स्वचालित रूप से लेबल करें"
+msgstr "खंडों में व्यक्तियों की अपने-आप पहचान करें"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.description"
-msgstr "खंडों पर वक्ता के अनुसार अपने‑आप लेबल लगाएँ"
+msgstr "खंडों में व्यक्तियों की अपने-आप पहचान करें"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -3062,7 +3062,7 @@ msgstr "अभी तक कोई साइट नहीं"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.no_speakers"
-msgstr "अभी तक कोई स्पीकर नहीं"
+msgstr "अभी तक कोई व्यक्ति नहीं"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -4129,12 +4129,12 @@ msgstr "लिखित रूपों को क्रमबद्ध कर�
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker_default_name"
-msgstr "स्पीकर {nextIndex}"
+msgstr "व्यक्ति {nextIndex}"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speakers"
-msgstr "स्पीकर"
+msgstr "व्यक्ति"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ProvidersTab.tsx
@@ -4149,7 +4149,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.standard"
-msgstr "मानक"
+msgstr "ट्रांसक्रिप्शन मॉडल"
 
 #. js-lingui-explicit-id
 #: src/features/asks/components/AskPrompt.tsx
@@ -4961,3 +4961,320 @@ msgstr "आपके शब्द यहाँ दिखाई देंगे�
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.zoom"
 msgstr "ज़ूम"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.meeting"
+msgstr "मीटिंग"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recording"
+msgstr "रिकॉर्डिंग"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recovered_meeting"
+msgstr "रिकवर की गई मीटिंग"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelling"
+msgstr "रद्द किया जा रहा है"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelled"
+msgstr "रद्द किया गया"
+
+#. js-lingui-explicit-id
+msgid "library.filter.files"
+msgstr "फ़ाइलें"
+
+#. js-lingui-explicit-id
+msgid "library.filter.meetings"
+msgstr "मीटिंग्स"
+
+#. js-lingui-explicit-id
+msgid "library.filter.origin_aria_label"
+msgstr "स्रोत के अनुसार लाइब्रेरी फ़िल्टर करें"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.model_required"
+msgstr "पहले कोई स्पीच मॉडल इंस्टॉल या कॉन्फ़िगर करें।"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.start"
+msgstr "मीटिंग रिकॉर्ड करें"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.stop"
+msgstr "रिकॉर्डिंग रोकें"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.name"
+msgstr "मीटिंग {date}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_name"
+msgstr "रिकवर की गई: {name}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_title"
+msgstr "मीटिंग रिकवर की गई"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_one"
+msgstr "बाधित रिकॉर्डिंग लाइब्रेरी में सेव कर दी गई है और उसका ट्रांसक्रिप्शन किया जाएगा।"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_many"
+msgstr "{count} बाधित रिकॉर्डिंग लाइब्रेरी में सेव कर दी गई हैं और उनका ट्रांसक्रिप्शन किया जाएगा।"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_you"
+msgstr "आप"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_remote"
+msgstr "मीटिंग"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_title"
+msgstr "मीटिंग का पता चला"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_message"
+msgstr "ऐसा लगता है कि {app} में कॉल चल रही है। क्या आप इसे रिकॉर्ड करना चाहते हैं?"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_record"
+msgstr "रिकॉर्ड करें"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_not_now"
+msgstr "अभी नहीं"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.error"
+msgstr "मीटिंग रिकॉर्ड नहीं हो सकी। अनुमतियाँ जाँचें और फिर से कोशिश करें।"
+
+#. js-lingui-explicit-id
+msgid "home.sidebar.meetings"
+msgstr "मीटिंग्स"
+
+#. js-lingui-explicit-id
+msgid "meeting.detail.back"
+msgstr "मीटिंग्स पर वापस जाएँ"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.title"
+msgstr "मीटिंग्स"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.description"
+msgstr "ऑनलाइन मीटिंग रिकॉर्ड और ट्रांसक्राइब करें।"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.search_placeholder"
+msgstr "मीटिंग्स खोजें..."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.empty_state"
+msgstr "अपनी पहली मीटिंग रिकॉर्ड करें।"
+
+#. js-lingui-explicit-id
+msgid "library.card.recovered"
+msgstr "पुनर्प्राप्त"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generate"
+msgstr "शीर्षक और टैग बनाएँ"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generating"
+msgstr "व्यवस्थित किया जा रहा है..."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error"
+msgstr "शीर्षक और टैग नहीं बनाए जा सके। फिर कोशिश करें।"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_configured"
+msgstr "शीर्षक बनाने से पहले कोई लेखन मॉडल कॉन्फ़िगर करें।"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rate_limited"
+msgstr "लेखन प्रदाता की उपयोग सीमा पूरी हो गई है। बाद में फिर कोशिश करें।"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unauthorized"
+msgstr "लेखन प्रदाता ने API कुंजी अस्वीकार कर दी। इसे सेटिंग्स में जाँचें।"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_found"
+msgstr "कॉन्फ़िगर किया गया लेखन मॉडल नहीं मिला। इसे सेटिंग्स में जाँचें।"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rejected"
+msgstr "लेखन प्रदाता ने शीर्षक अनुरोध अस्वीकार कर दिया।"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unreachable"
+msgstr "लेखन प्रदाता से संपर्क नहीं हो सका। अपना कनेक्शन जाँचें और फिर कोशिश करें।"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.invalid_response"
+msgstr "लेखन मॉडल ने जवाब दिया, लेकिन इस आइटम को व्यवस्थित नहीं कर सका। फिर कोशिश करें।"
+
+#. js-lingui-explicit-id
+msgid "native.library.person_default"
+msgstr "व्यक्ति {nextIndex}"
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.aria"
+msgstr "स्थानीय व्यक्ति पहचान मॉडल"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.title"
+msgstr "स्थानीय व्यक्ति पहचान"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.description"
+msgstr "ऑडियो अपलोड किए बिना आवाज़ों को अलग करता है"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.local_private"
+msgstr "स्थानीय"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.delete"
+msgstr "स्थानीय व्यक्ति पहचान हटाएँ"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.download"
+msgstr "स्थानीय व्यक्ति पहचान डाउनलोड करें"
+
+#. js-lingui-explicit-id
+msgid "settings.models.local_intelligence"
+msgstr "ऐड-ऑन"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.addon"
+msgstr "ऐड-ऑन"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_day_aria"
+msgstr "इस दिन की सभी ट्रांसक्रिप्शन हटाएँ"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.title"
+msgstr "इस दिन की ट्रांसक्रिप्शन हटाएँ?"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.description"
+msgstr "इससे इस दिन की सभी ट्रांसक्रिप्शन और उनका ऑडियो स्थायी रूप से हट जाएगा।"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.error"
+msgstr "ट्रांसक्रिप्शन नहीं हटाई जा सकीं। फिर से कोशिश करें।"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.deleting"
+msgstr "हटाया जा रहा है..."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.action"
+msgstr "सभी हटाएँ"
+
+#. js-lingui-explicit-id
+msgid "settings.modal.tab.meetings"
+msgstr "मीटिंग"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.section"
+msgstr "स्वचालित पहचान"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.title"
+msgstr "ऑनलाइन मीटिंग पहचानें"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.description"
+msgstr "समर्थित मीटिंग शुरू होने पर रिकॉर्डिंग का सुझाव दिखाता है।"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.toggle_aria"
+msgstr "स्वचालित मीटिंग पहचान चालू या बंद करें"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.section"
+msgstr "ऐप्लिकेशन"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.loading"
+msgstr "इंस्टॉल किए गए मीटिंग ऐप खोजे जा रहे हैं"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.empty"
+msgstr "कोई संगत मीटिंग ऐप्लिकेशन नहीं मिला।"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.installed"
+msgstr "इस Mac पर इंस्टॉल है"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.toggle_aria"
+msgstr "इस ऐप्लिकेशन के लिए मीटिंग पहचान चालू या बंद करें"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.description"
+msgstr "केवल चुने गए ऐप्लिकेशन की निगरानी की जाती है। ब्राउज़र पहचान के लिए Accessibility चाहिए और केवल सक्रिय टैब जाँचा जाता है; Glimpse मीटिंग की सामग्री नहीं पढ़ता।"
+
+msgid "meeting.active.microphone.default"
+msgstr "डिफ़ॉल्ट माइक्रोफ़ोन"
+
+msgid "meeting.active.system.default"
+msgstr "सिस्टम ऑडियो"
+
+msgid "meeting.active.microphone.waveform"
+msgstr "लाइव माइक्रोफ़ोन स्तर"
+
+msgid "meeting.active.system.waveform"
+msgstr "लाइव मीटिंग ऑडियो स्तर"
+
+msgid "meeting.active.title"
+msgstr "रिकॉर्डिंग जारी है"
+
+msgid "meeting.active.subtitle"
+msgstr "दोनों ऑडियो स्रोत अलग-अलग सहेजे जा रहे हैं"
+
+msgid "meeting.active.microphone"
+msgstr "माइक्रोफ़ोन"
+
+msgid "meeting.active.system"
+msgstr "मीटिंग ऑडियो"
+
+msgid "meeting.active.system.scope"
+msgstr "सिस्टम कैप्चर"
+
+msgid "meeting.active.local"
+msgstr "स्थानीय रूप से सहेजा गया · रिकॉर्डिंग रुकने पर ट्रांसक्रिप्शन शुरू होता है"
+
+msgid "meeting.active.microphone.no_signal"
+msgstr "माइक्रोफ़ोन सिग्नल नहीं मिला"
+
+msgid "meeting.active.system.scope.application"
+msgstr "केवल ऐप"
+
+msgid "native.meeting.ended_title"
+msgstr "क्या मीटिंग समाप्त हो गई है?"
+
+msgid "native.meeting.ended_message"
+msgstr "{app} में कॉल अब सक्रिय नहीं है। क्या आप रिकॉर्डिंग रोकना चाहते हैं?"
+
+msgid "native.meeting.ended_stop"
+msgstr "रिकॉर्डिंग रोकें"
+
+msgid "native.meeting.ended_continue"
+msgstr "रिकॉर्डिंग जारी रखें"
+
+msgid "settings.general.shortcuts.dictation_key"
+msgstr "डिक्टेशन कुंजी का उपयोग करें"
+
+msgid "settings.general.shortcuts.dictation_key.description"
+msgstr "माइक्रोफ़ोन कुंजी को स्मार्ट डिक्टेशन के लिए निर्धारित करता है"

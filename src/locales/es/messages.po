@@ -567,7 +567,7 @@ msgstr "Agregar o buscar entrada del diccionario"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.add_speaker"
-msgstr "Añadir hablante"
+msgstr "Añadir persona"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -617,7 +617,7 @@ msgstr "Todas las publicaciones"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.all"
-msgstr "Todos los hablantes"
+msgstr "Todas las personas"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -712,7 +712,7 @@ msgstr "Asignar"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.assign_new_speaker"
-msgstr "Asignar nuevo hablante"
+msgstr "Asignar nueva persona"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -1046,7 +1046,7 @@ msgstr "Borrar búsqueda"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker.clear"
-msgstr "Altavoz nítido"
+msgstr "Eliminar persona"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -1655,22 +1655,22 @@ msgstr "Eliminando…"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers"
-msgstr "Detectar hablantes"
+msgstr "Detectar personas"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.aria"
-msgstr "Detectar oradores"
+msgstr "Detectar personas"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers"
-msgstr "Detectar oradores"
+msgstr "Detectar personas"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.aria"
-msgstr "Detectar oradores"
+msgstr "Detectar personas"
 
 #. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
@@ -1936,7 +1936,7 @@ msgstr "Expandir barra lateral"
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.experimental"
-msgstr "Experimental"
+msgstr "Modelos experimentales"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2056,7 +2056,7 @@ msgstr "Archivo no encontrado. Es posible que se haya movido o eliminado."
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.aria"
-msgstr "Filtrar por hablante"
+msgstr "Filtrar por persona"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
@@ -2379,6 +2379,18 @@ msgid "library.card.imported"
 msgstr "Importado"
 
 #. js-lingui-explicit-id
+msgid "library.card.origin.meeting"
+msgstr "Reunión"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recording"
+msgstr "Grabación"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recovered_meeting"
+msgstr "Reunión (recuperada)"
+
+#. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.importing"
 msgstr "Importando..."
@@ -2473,12 +2485,12 @@ msgstr "Atajo de teclado"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.description"
-msgstr "Etiquetar segmentos por hablante automáticamente"
+msgstr "Identificar personas automáticamente en los segmentos"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.description"
-msgstr "Etiquetar segmentos por hablante automáticamente"
+msgstr "Identificar personas automáticamente en los segmentos"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -3062,7 +3074,7 @@ msgstr "Aún no hay sitios"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.no_speakers"
-msgstr "Aún no hay oradores"
+msgstr "Aún no hay personas"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -3469,6 +3481,14 @@ msgstr "¿Valorar Glimpse en Microsoft Store?"
 #: src/features/library/components/LibraryCard.tsx
 msgid "library.card.status.ready"
 msgstr "Listo"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelling"
+msgstr "Cancelando"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelled"
+msgstr "Cancelado"
 
 #. js-lingui-explicit-id
 #: src/features/updates/components/UpdateChecker.tsx
@@ -4129,12 +4149,12 @@ msgstr "Ordenar y filtrar transcripciones"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker_default_name"
-msgstr "Orador {nextIndex}"
+msgstr "Persona {nextIndex}"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speakers"
-msgstr "Oradores"
+msgstr "Personas"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ProvidersTab.tsx
@@ -4149,7 +4169,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.standard"
-msgstr "Estándar"
+msgstr "Modelos de transcripción"
 
 #. js-lingui-explicit-id
 #: src/features/asks/components/AskPrompt.tsx
@@ -4961,3 +4981,300 @@ msgstr "Tus palabras aparecerán aquí…"
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.zoom"
 msgstr "Zoom"
+
+#. js-lingui-explicit-id
+msgid "library.filter.files"
+msgstr "Archivos"
+
+#. js-lingui-explicit-id
+msgid "library.filter.meetings"
+msgstr "Reuniones"
+
+#. js-lingui-explicit-id
+msgid "library.filter.origin_aria_label"
+msgstr "Filtrar la biblioteca por procedencia"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.model_required"
+msgstr "Instala o configura primero un modelo de voz."
+
+#. js-lingui-explicit-id
+msgid "library.meeting.start"
+msgstr "Grabar reunión"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.stop"
+msgstr "Detener grabación"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.name"
+msgstr "Reunión {date}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_name"
+msgstr "Recuperada: {name}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_title"
+msgstr "Reunión recuperada"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_one"
+msgstr "La grabación interrumpida se guardó en la Biblioteca y se transcribirá."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_many"
+msgstr "Se guardaron {count} grabaciones interrumpidas en la Biblioteca y se transcribirán."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_you"
+msgstr "Tú"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_remote"
+msgstr "Reunión"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_title"
+msgstr "Reunión detectada"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_message"
+msgstr "Parece que hay una llamada activa en {app}. ¿Quieres grabarla?"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_record"
+msgstr "Grabar"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_not_now"
+msgstr "Ahora no"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.error"
+msgstr "No se pudo grabar la reunión. Comprueba los permisos e inténtalo de nuevo."
+
+#. js-lingui-explicit-id
+msgid "home.sidebar.meetings"
+msgstr "Reuniones"
+
+#. js-lingui-explicit-id
+msgid "meeting.detail.back"
+msgstr "Volver a reuniones"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.title"
+msgstr "Reuniones"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.description"
+msgstr "Graba y transcribe reuniones online."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.search_placeholder"
+msgstr "Buscar reuniones..."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.empty_state"
+msgstr "Graba tu primera reunión."
+
+#. js-lingui-explicit-id
+msgid "library.card.recovered"
+msgstr "Recuperada"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generate"
+msgstr "Generar título y etiquetas"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generating"
+msgstr "Organizando..."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error"
+msgstr "No se pudieron generar el título y las etiquetas. Inténtalo de nuevo."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_configured"
+msgstr "Configura un modelo de escritura antes de generar un título."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rate_limited"
+msgstr "El proveedor de escritura ha alcanzado su límite de uso. Inténtalo más tarde."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unauthorized"
+msgstr "El proveedor de escritura ha rechazado la clave API. Compruébala en Ajustes."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_found"
+msgstr "No se encontró el modelo de escritura configurado. Compruébalo en Ajustes."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rejected"
+msgstr "El proveedor de escritura ha rechazado la solicitud del título."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unreachable"
+msgstr "No se pudo contactar con el proveedor de escritura. Comprueba tu conexión e inténtalo de nuevo."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.invalid_response"
+msgstr "El modelo de escritura respondió, pero no pudo organizar este elemento. Inténtalo de nuevo."
+
+#. js-lingui-explicit-id
+msgid "native.library.person_default"
+msgstr "Persona {nextIndex}"
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.aria"
+msgstr "Modelo local de detección de personas"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.title"
+msgstr "Detección local de personas"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.description"
+msgstr "Separa las voces sin subir el audio"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.local_private"
+msgstr "Local"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.delete"
+msgstr "Eliminar detección local de personas"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.download"
+msgstr "Descargar detección local de personas"
+
+#. js-lingui-explicit-id
+msgid "settings.models.local_intelligence"
+msgstr "Complementos"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.addon"
+msgstr "Complemento"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_day_aria"
+msgstr "Eliminar todas las transcripciones de este día"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.title"
+msgstr "¿Eliminar las transcripciones de este día?"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.description"
+msgstr "Esto elimina permanentemente todas las transcripciones y su audio de este día."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.error"
+msgstr "No se pudieron eliminar las transcripciones. Inténtalo de nuevo."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.deleting"
+msgstr "Eliminando..."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.action"
+msgstr "Eliminar todo"
+
+#. js-lingui-explicit-id
+msgid "settings.modal.tab.meetings"
+msgstr "Reuniones"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.section"
+msgstr "Detección automática"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.title"
+msgstr "Detectar reuniones online"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.description"
+msgstr "Muestra una invitación para grabar cuando comienza una reunión compatible."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.toggle_aria"
+msgstr "Activar o desactivar la detección automática de reuniones"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.section"
+msgstr "Aplicaciones"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.loading"
+msgstr "Buscando aplicaciones de reuniones instaladas"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.empty"
+msgstr "No se encontraron aplicaciones de reuniones compatibles."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.installed"
+msgstr "Instalada en este Mac"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.toggle_aria"
+msgstr "Activar o desactivar la detección para esta aplicación"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.description"
+msgstr "Solo se supervisan las aplicaciones seleccionadas. La detección en navegadores necesita Accesibilidad y comprueba únicamente la pestaña activa; Glimpse no lee el contenido de las reuniones."
+
+msgid "meeting.active.microphone.default"
+msgstr "Micrófono predeterminado"
+
+msgid "meeting.active.system.default"
+msgstr "Audio del sistema"
+
+msgid "meeting.active.microphone.waveform"
+msgstr "Nivel del micrófono en directo"
+
+msgid "meeting.active.system.waveform"
+msgstr "Nivel del audio de la reunión en directo"
+
+msgid "meeting.active.title"
+msgstr "Grabación en curso"
+
+msgid "meeting.active.subtitle"
+msgstr "Las dos fuentes de audio se guardan por separado"
+
+msgid "meeting.active.microphone"
+msgstr "Micrófono"
+
+msgid "meeting.active.system"
+msgstr "Audio de la reunión"
+
+msgid "meeting.active.system.scope"
+msgstr "Captura del sistema"
+
+msgid "meeting.active.local"
+msgstr "Guardado localmente · La transcripción comienza al detener la grabación"
+
+msgid "meeting.active.microphone.no_signal"
+msgstr "No se detecta señal del micrófono"
+
+msgid "meeting.active.system.scope.application"
+msgstr "Solo la app"
+
+msgid "native.meeting.ended_title"
+msgstr "¿Ha terminado la reunión?"
+
+msgid "native.meeting.ended_message"
+msgstr "La llamada de {app} ya no está activa. ¿Quieres detener la grabación?"
+
+msgid "native.meeting.ended_stop"
+msgstr "Detener grabación"
+
+msgid "native.meeting.ended_continue"
+msgstr "Seguir grabando"
+
+msgid "settings.general.shortcuts.dictation_key"
+msgstr "Usar tecla de dictado"
+
+msgid "settings.general.shortcuts.dictation_key.description"
+msgstr "Asigna la tecla del micrófono al dictado inteligente"

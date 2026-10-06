@@ -1,11 +1,13 @@
 import { useLingui } from "@lingui/react/macro";
 import { useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   WarningCircle as AlertCircle,
   CaretDown as ChevronDown,
   DotsThree as MoreHorizontal,
   PencilSimple as Pencil,
+  Sparkle,
+  CircleNotch as Loader2,
   ArrowClockwise as RotateCw,
   Trash as Trash2,
   X,
@@ -16,10 +18,12 @@ import {
   getLibraryErrorDetails,
   shouldShowImportProgress,
   formatLibraryName,
+  formatLibraryCardDate,
 } from "./library-utils";
 import { formatBytes } from "../../../shared/lib/format";
 import { useClickOutside } from "../../../shared/hooks/useClickOutside";
 import { IntelligencePixel } from "../../../shared/ui/IntelligencePixel";
+import FloatingPortal from "../../../shared/ui/FloatingPortal";
 import type { LibraryItem } from "../../../types";
 
 const LibraryCard = ({
@@ -36,6 +40,8 @@ const LibraryCard = ({
   onRetry,
   onCancel,
   onDelete,
+  onGenerateTitle,
+  isGeneratingTitle,
   editingTagId,
   tagDraft,
   onStartTagEdit,
@@ -58,6 +64,8 @@ const LibraryCard = ({
   onRetry: () => Promise<void>;
   onCancel: () => Promise<void>;
   onDelete: () => Promise<void>;
+  onGenerateTitle: () => Promise<void>;
+  isGeneratingTitle: boolean;
   editingTagId: string | null;
   tagDraft: string;
   onStartTagEdit: () => void;
@@ -73,20 +81,62 @@ const LibraryCard = ({
   const showImportProgress =
     status.type === "importing" && shouldShowImportProgress(status.progress);
   const isTranscribing = status.type === "transcribing" || showImportProgress;
-  const isComplete = status.type === "complete";
   const isError = status.type === "error";
 
-  const showProgressBar = isTranscribing;
-  const progress = showProgressBar ? clampProgress(status.progress) : 0;
+  const isProcessing = isTranscribing || isGeneratingTitle;
+  const progress = isTranscribing ? clampProgress(status.progress) : 0;
 
   const isEditingName = editingNameId === item.id;
   const isAddingTag = editingTagId === item.id;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuPopupRef = useRef<HTMLDivElement>(null);
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const tagMenuRef = useRef<HTMLDivElement>(null);
+  const tagPopupRef = useRef<HTMLDivElement>(null);
+  const errorTooltipRef = useRef<HTMLDivElement>(null);
+  const [errorTooltipOpen, setErrorTooltipOpen] = useState(false);
   const errorDetails =
     status.type === "error" ? getLibraryErrorDetails(status.message) : null;
+  const displayName = formatLibraryName(item.name);
+  const createdAtLabel = formatLibraryCardDate(item.created_at);
+  const recoveredMeeting =
+    item.kind === "recovered_meeting" ||
+    (item.kind === "meeting" &&
+      item.tags.some((tag) => tag.toLowerCase() === "recovered"));
+  const visibleTags = recoveredMeeting
+    ? item.tags.filter((tag) => tag.toLowerCase() !== "recovered")
+    : item.tags;
+  const statusLabel = isGeneratingTitle
+    ? t({
+        id: "library.card.title.generating",
+        message: "Organizing...",
+      })
+    : status.type === "complete"
+      ? null
+      : status.type === "transcribing"
+        ? t({
+            id: "library.card.status.thinking",
+            message: `Thinking ${(progress * 100).toFixed(0)}%`,
+          })
+        : status.type === "importing" && showImportProgress
+          ? t({
+              id: "library.card.status.converting",
+              message: `Converting ${(progress * 100).toFixed(0)}%`,
+            })
+          : status.type === "error"
+            ? t({ id: "library.card.status.failed", message: "Failed" })
+            : status.type === "cancelling"
+              ? t({
+                  id: "library.card.status.cancelling",
+                  message: "Cancelling",
+                })
+              : status.type === "cancelled"
+                ? t({
+                    id: "library.card.status.cancelled",
+                    message: "Cancelled",
+                  })
+                : t({ id: "library.card.status.queued", message: "Queued" });
 
   const normalizedDraft = tagDraft.trim().toLowerCase();
   const filteredTagOptions = availableTags.filter((tag) => {
@@ -98,8 +148,10 @@ const LibraryCard = ({
     return tagLower.includes(normalizedDraft);
   });
 
-  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
-  useClickOutside(tagMenuRef, () => setTagMenuOpen(false), tagMenuOpen);
+  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen, [menuPopupRef]);
+  useClickOutside(tagMenuRef, () => setTagMenuOpen(false), tagMenuOpen, [
+    tagPopupRef,
+  ]);
 
   const handleDelete = async () => {
     setMenuOpen(false);
@@ -128,6 +180,15 @@ const LibraryCard = ({
     }
   };
 
+  const handleGenerateTitle = async () => {
+    setMenuOpen(false);
+    try {
+      await onGenerateTitle();
+    } catch {
+      // The owner displays the localized error toast.
+    }
+  };
+
   return (
     <div
       onClick={() => {
@@ -153,88 +214,27 @@ const LibraryCard = ({
       }}
       role="button"
       tabIndex={0}
-      className={`ui-card-liftable group relative z-0 flex min-w-0 flex-col h-[220px] outline-none hover:z-10 ${
+      className={`ui-card-liftable group relative z-0 flex h-[236px] min-w-0 flex-col outline-none hover:z-10 ${
         shiftHeld
           ? "!border-[var(--color-error)]/30 hover:!border-[var(--color-error)]/60 !bg-[var(--color-error)]/5"
           : ""
       }`}
     >
-      <div className="px-4 pt-2 pb-2.5 flex flex-col h-full relative w-full min-w-0">
-        <div className="mb-0.5 flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-start gap-2.5">
+      <div className="relative flex h-full w-full min-w-0 flex-col px-4 py-2.5">
+        <div className="mb-2.5 flex h-6 shrink-0 items-center justify-between gap-3">
+          <div className="flex h-6 min-w-0 items-center gap-2">
             <IntelligencePixel
-              active={isTranscribing}
+              active={isProcessing}
               statusType={item.status.type}
             />
-
-            <div className="flex min-w-0 flex-col gap-1 pt-[1px] min-h-[24px]">
-              <div className="flex items-center gap-1.5 h-3">
-                <span
-                  className={`ui-text-label-strong ${
-                    isError
-                      ? "ui-color-error-strong font-semibold"
-                      : isTranscribing
-                        ? "ui-color-accent font-semibold"
-                        : isComplete
-                          ? "ui-color-secondary"
-                          : "ui-color-muted"
-                  }`}
-                >
-                  {isTranscribing
-                    ? status.type === "importing"
-                      ? t({
-                          id: "library.card.status.converting",
-                          message: `Converting ${(progress * 100).toFixed(0)}%`,
-                        })
-                      : t({
-                          id: "library.card.status.thinking",
-                          message: `Thinking ${(progress * 100).toFixed(0)}%`,
-                        })
-                    : isError
-                      ? t({
-                          id: "library.card.status.failed",
-                          message: "Failed",
-                        })
-                      : isComplete
-                        ? t({
-                            id: "library.card.status.ready",
-                            message: "Ready",
-                          })
-                        : t({
-                            id: "library.card.status.queued",
-                            message: "Queued",
-                          })}
-                </span>
-
-                {isError && errorDetails && (
-                  <div
-                    className="relative group/tooltip flex items-center cursor-default min-w-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <AlertCircle size={12} className="ui-color-error-strong" />
-                    <div className="absolute top-0 left-[calc(100%+8px)] w-56 p-3 bg-[var(--color-bg-overlay)] border border-[var(--color-border-hover)] rounded-lg shadow-xl opacity-0 -translate-x-2 group-hover/tooltip:opacity-100 group-hover/tooltip:translate-x-0 transition-all duration-150 ease-out pointer-events-none z-[100]">
-                      <p className="ui-text-body-sm ui-color-primary normal-case tracking-normal">
-                        {errorDetails.message}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {isTranscribing && (
-                <div className="w-16 h-[2px] bg-[var(--color-border-hover)] rounded-full overflow-hidden flex">
-                  <motion.div
-                    className="h-full bg-[var(--color-accent)]"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress * 100}%` }}
-                    transition={{ ease: "linear", duration: 0.5 }}
-                  />
-                </div>
-              )}
-            </div>
+            {createdAtLabel && (
+              <span className="min-w-0 truncate ui-text-label ui-color-muted">
+                {createdAtLabel}
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center -mr-1 -mt-1 overflow-visible h-6">
+          <div className="-mr-1 flex h-6 items-center overflow-visible">
             <div
               ref={menuRef}
               data-no-press
@@ -267,7 +267,7 @@ const LibraryCard = ({
                   }
                 }}
                 onKeyUp={(e) => e.stopPropagation()}
-                className={`p-1 ml-1 rounded transition-colors duration-200 outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-border-hover)] flex items-center justify-center ${
+                className={`ml-1 flex h-6 w-6 items-center justify-center rounded p-1 outline-none transition-colors duration-200 focus-visible:ring-1 focus-visible:ring-[var(--color-border-hover)] ${
                   shiftHeld
                     ? "ui-color-error hover:bg-[var(--color-error)]/10"
                     : menuOpen
@@ -288,82 +288,107 @@ const LibraryCard = ({
                   />
                 )}
               </button>
-              <AnimatePresence>
-                {menuOpen && (
-                  <motion.div
-                    data-no-press
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute right-0 top-full mt-2 z-[100] min-w-[160px] rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl shadow-[var(--color-shadow-soft-50)] overflow-hidden"
-                    onClick={(event) => event.stopPropagation()}
+              {menuOpen && (
+                <FloatingPortal
+                  anchorRef={menuRef}
+                  ref={menuPopupRef}
+                  placement="bottom-end"
+                  data-no-press
+                  className="min-w-[160px] rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl shadow-[var(--color-shadow-soft-50)] overflow-hidden"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onStartNameEdit();
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-secondary hover:bg-[var(--color-bg-elevated)] transition-colors"
                   >
+                    <Pencil size={12} className="ui-color-muted" />
+                    <span>
+                      {t({ id: "library.card.rename", message: "Rename" })}
+                    </span>
+                  </button>
+
+                  {status.type === "complete" && item.transcript?.trim() && (
                     <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onStartNameEdit();
-                      }}
+                      onClick={handleGenerateTitle}
+                      disabled={isGeneratingTitle}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-secondary transition-colors hover:bg-[var(--color-bg-elevated)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isGeneratingTitle ? (
+                        <Loader2
+                          size={12}
+                          className="animate-spin ui-color-accent"
+                        />
+                      ) : (
+                        <Sparkle size={12} className="ui-color-accent" />
+                      )}
+                      <span>
+                        {isGeneratingTitle
+                          ? t({
+                              id: "library.card.title.generating",
+                              message: "Organizing...",
+                            })
+                          : t({
+                              id: "library.card.title.generate",
+                              message: "Generate title and tags",
+                            })}
+                      </span>
+                    </button>
+                  )}
+
+                  {status.type === "transcribing" ||
+                  status.type === "cancelling" ||
+                  status.type === "pending" ||
+                  status.type === "importing" ? (
+                    <button
+                      onClick={handleCancel}
                       className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-secondary hover:bg-[var(--color-bg-elevated)] transition-colors"
                     >
-                      <Pencil size={12} className="ui-color-muted" />
+                      <X size={12} className="ui-color-warning" />
                       <span>
-                        {t({ id: "library.card.rename", message: "Rename" })}
+                        {t({ id: "library.card.cancel", message: "Cancel" })}
                       </span>
                     </button>
-
-                    {status.type === "transcribing" ||
-                    status.type === "cancelling" ||
-                    status.type === "pending" ||
-                    status.type === "importing" ? (
-                      <button
-                        onClick={handleCancel}
-                        className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-secondary hover:bg-[var(--color-bg-elevated)] transition-colors"
-                      >
-                        <X size={12} className="ui-color-warning" />
-                        <span>
-                          {t({ id: "library.card.cancel", message: "Cancel" })}
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleRetry}
-                        className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-secondary hover:bg-[var(--color-bg-elevated)] transition-colors"
-                      >
-                        <RotateCw size={12} className="ui-color-cloud" />
-                        <span>
-                          {status.type === "error"
-                            ? t({
-                                id: "library.card.retry",
-                                message: "Retry",
-                              })
-                            : t({
-                                id: "library.card.retranscribe",
-                                message: "Retranscribe",
-                              })}
-                        </span>
-                      </button>
-                    )}
-
-                    <div className="h-px bg-[var(--color-border-secondary)] mx-2 my-1" />
-
+                  ) : (
                     <button
-                      onClick={handleDelete}
-                      className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-error-strong hover:bg-[var(--color-error)]/10 transition-colors"
+                      onClick={handleRetry}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-secondary hover:bg-[var(--color-bg-elevated)] transition-colors"
                     >
-                      <Trash2 size={12} />
+                      <RotateCw size={12} className="ui-color-cloud" />
                       <span>
-                        {t({ id: "library.card.delete", message: "Delete" })}
+                        {status.type === "error"
+                          ? t({
+                              id: "library.card.retry",
+                              message: "Retry",
+                            })
+                          : t({
+                              id: "library.card.retranscribe",
+                              message: "Retranscribe",
+                            })}
                       </span>
                     </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  )}
+
+                  <div className="h-px bg-[var(--color-border-secondary)] mx-2 my-1" />
+
+                  <button
+                    onClick={handleDelete}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 ui-text-menu-item ui-color-error-strong hover:bg-[var(--color-error)]/10 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                    <span>
+                      {t({ id: "library.card.delete", message: "Delete" })}
+                    </span>
+                  </button>
+                </FloatingPortal>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col justify-start overflow-hidden w-full relative">
+        <div className="relative flex min-h-0 w-full flex-1 flex-col justify-start">
           {isEditingName ? (
             <input
               value={editingNameDraft}
@@ -380,35 +405,104 @@ const LibraryCard = ({
               }}
               onBlur={onCommitNameEdit}
               onClick={(event) => event.stopPropagation()}
-              className="w-full min-w-0 bg-transparent p-0 ui-text-title-lg font-medium leading-snug ui-color-primary border-0 border-b border-[var(--color-border-primary)] outline-hidden focus:border-[var(--color-border-hover)]"
+              className="w-full min-w-0 border-0 border-b border-[var(--color-border-primary)] bg-transparent p-0 ui-text-title-lg font-medium leading-snug ui-color-primary outline-hidden focus:border-[var(--color-border-hover)]"
               autoFocus
             />
           ) : (
-            <h3 className="ui-text-title-lg font-medium leading-snug ui-color-primary line-clamp-3 break-words">
-              {formatLibraryName(item.name)}
+            <h3
+              className="line-clamp-4 break-words [overflow-wrap:anywhere] ui-text-title-lg font-medium leading-snug ui-color-primary"
+              title={displayName}
+            >
+              {displayName}
             </h3>
+          )}
+
+          {recoveredMeeting && (
+            <div className="mt-1 flex min-w-0 items-center gap-1.5 ui-text-micro font-medium ui-color-warning-strong">
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-warning)]"
+                aria-hidden="true"
+              />
+              <span className="truncate">
+                {t({
+                  id: "library.card.recovered",
+                  message: "Recovered",
+                })}
+              </span>
+            </div>
+          )}
+
+          {statusLabel && (
+            <div className="mt-1.5 flex flex-col items-start gap-1">
+              <div className="flex max-w-full min-w-0 items-center gap-1.5">
+                <span
+                  className={`min-w-0 truncate ui-text-label-strong ${
+                    isError
+                      ? "ui-color-error-strong font-semibold"
+                      : isProcessing
+                        ? "ui-color-accent font-semibold"
+                        : "ui-color-muted"
+                  }`}
+                >
+                  {statusLabel}
+                </span>
+                {isError && errorDetails && (
+                  <div
+                    ref={errorTooltipRef}
+                    className="relative flex items-center cursor-default min-w-0"
+                    onClick={(event) => event.stopPropagation()}
+                    onMouseEnter={() => setErrorTooltipOpen(true)}
+                    onMouseLeave={() => setErrorTooltipOpen(false)}
+                  >
+                    <AlertCircle size={12} className="ui-color-error-strong" />
+                    {errorTooltipOpen && (
+                      <FloatingPortal
+                        anchorRef={errorTooltipRef}
+                        placement="bottom-end"
+                        offset={8}
+                        className="pointer-events-none w-56 rounded-lg border border-[var(--color-border-hover)] bg-[var(--color-bg-overlay)] p-3 shadow-xl"
+                        role="tooltip"
+                      >
+                        <p className="ui-text-body-sm ui-color-primary normal-case tracking-normal">
+                          {errorDetails.message}
+                        </p>
+                      </FloatingPortal>
+                    )}
+                  </div>
+                )}
+              </div>
+              {isProcessing && (
+                <div className="w-16 h-[2px] bg-[var(--color-border-hover)] rounded-full overflow-hidden flex">
+                  {isGeneratingTitle ? (
+                    <motion.div
+                      className="h-full w-5 shrink-0 bg-[var(--color-accent)]"
+                      initial={{ x: -20 }}
+                      animate={{ x: 64 }}
+                      transition={{
+                        ease: "linear",
+                        duration: 0.9,
+                        repeat: Infinity,
+                      }}
+                    />
+                  ) : (
+                    <motion.div
+                      className="h-full bg-[var(--color-accent)]"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress * 100}%` }}
+                      transition={{ ease: "linear", duration: 0.5 }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        <div className="mt-auto shrink-0 flex flex-col gap-2 pt-2.5 border-t border-[var(--color-border-primary)]">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5 ui-text-label ui-color-muted">
-            <span>{formatDuration(item.duration_seconds)}</span>
-            <span className="opacity-40">&bull;</span>
-            <span>{formatBytes(item.file_size_bytes)}</span>
-            {item.source_path && (
-              <>
-                <span className="opacity-40">&bull;</span>
-                <span>
-                  {t({ id: "library.card.imported", message: "Imported" })}
-                </span>
-              </>
-            )}
-          </div>
-
-          <div className="relative w-full h-6 overflow-visible">
+        <div className="mt-auto flex shrink-0 flex-col gap-2">
+          <div className="relative min-h-7 w-full overflow-visible">
             {isAddingTag ? (
               <div
-                className="flex items-center gap-1.5 h-6"
+                className="flex h-7 items-center gap-1.5"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div ref={tagMenuRef} className="relative flex items-center">
@@ -431,48 +525,46 @@ const LibraryCard = ({
                       className={`translate-y-[1px] transition-transform duration-150 ${tagMenuOpen ? "rotate-180" : ""}`}
                     />
                   </button>
-                  <AnimatePresence>
-                    {tagMenuOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.98, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.98, y: -4 }}
-                        transition={{ duration: 0.12 }}
-                        className="absolute left-0 top-full mt-1 z-[120] w-36 rounded-md border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-lg shadow-[var(--color-shadow-soft-40)] overflow-hidden"
-                      >
-                        <div className="max-h-36 overflow-y-auto custom-scrollbar">
-                          {filteredTagOptions.length > 0 ? (
-                            filteredTagOptions.map((tag, index) => (
-                              <button
-                                key={`tag-option-${index}-${tag || "empty"}`}
-                                type="button"
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => {
-                                  onCommitTagAdd(tag);
-                                  setTagMenuOpen(false);
-                                }}
-                                className="w-full text-left px-2.5 py-1.5 ui-text-button-sm ui-color-secondary hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)] transition-colors"
-                              >
-                                {tag}
-                              </button>
-                            ))
-                          ) : (
-                            <div className="px-2.5 py-2 ui-text-micro ui-color-muted">
-                              {availableTags.length === 0
-                                ? t({
-                                    id: "library.card.no_tags_yet",
-                                    message: "No tags yet",
-                                  })
-                                : t({
-                                    id: "library.card.no_other_tags",
-                                    message: "No other tags",
-                                  })}
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {tagMenuOpen && (
+                    <FloatingPortal
+                      anchorRef={tagMenuRef}
+                      ref={tagPopupRef}
+                      placement="bottom-start"
+                      className="w-36 rounded-md border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-lg shadow-[var(--color-shadow-soft-40)] overflow-hidden"
+                    >
+                      <div className="max-h-36 overflow-y-auto custom-scrollbar">
+                        {filteredTagOptions.length > 0 ? (
+                          filteredTagOptions.map((tag, index) => (
+                            <button
+                              key={`tag-option-${index}-${tag || "empty"}`}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                onCommitTagAdd(tag);
+                                setTagMenuOpen(false);
+                              }}
+                              className="w-full truncate px-2.5 py-1.5 text-left ui-text-button-sm ui-color-secondary transition-colors hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)]"
+                              title={tag}
+                            >
+                              {tag}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-2.5 py-2 ui-text-micro ui-color-muted">
+                            {availableTags.length === 0
+                              ? t({
+                                  id: "library.card.no_tags_yet",
+                                  message: "No tags yet",
+                                })
+                              : t({
+                                  id: "library.card.no_other_tags",
+                                  message: "No other tags",
+                                })}
+                          </div>
+                        )}
+                      </div>
+                    </FloatingPortal>
+                  )}
                 </div>
                 <input
                   value={tagDraft}
@@ -492,53 +584,89 @@ const LibraryCard = ({
                     id: "library.card.new_tag",
                     message: "New tag...",
                   })}
-                  className="tag-input-intro flex-1 min-w-0 h-6 box-border bg-transparent border-b border-[var(--color-border-primary)] px-0.5 py-0 ui-text-meta leading-none ui-color-secondary outline-hidden focus:border-[var(--color-border-hover)] placeholder:text-[var(--color-text-disabled)]"
+                  className="tag-input-intro box-border h-7 min-w-0 flex-1 border-b border-[var(--color-border-primary)] bg-transparent px-0.5 py-0 ui-text-meta leading-none ui-color-secondary outline-hidden placeholder:text-[var(--color-text-disabled)] focus:border-[var(--color-border-hover)]"
                   autoFocus
                 />
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 absolute inset-0 mask-fade-right w-[95%]">
+              <div className="flex max-h-14 min-w-0 flex-wrap content-start items-center gap-1.5 overflow-hidden">
                 <button
                   type="button"
+                  data-no-press
+                  onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => {
                     event.stopPropagation();
+                    setTagMenuOpen(true);
                     onStartTagEdit();
                   }}
-                  className="flex items-center justify-center w-[16px] h-[16px] shrink-0 ui-color-primary hover:text-[var(--color-text-secondary)] transition-colors text-[14px] leading-none"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-[var(--color-border-secondary)] bg-[var(--color-bg-surface)] text-[14px] leading-none ui-color-secondary transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-primary)]"
+                  aria-label={t({
+                    id: "library.card.new_tag",
+                    message: "New tag...",
+                  })}
                 >
                   +
                 </button>
-                {item.tags.map((tag, index) => (
-                  <span
+                {visibleTags.map((tag, index) => (
+                  <div
+                    data-no-press
                     key={`tag-${index}-${tag || "empty"}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (shiftHeld) {
-                        void onRemoveTag(tag);
-                      } else if (onClickTag) {
-                        onClickTag(tag);
-                      }
-                    }}
-                    className={`ui-color-secondary hover:text-[var(--color-text-primary)] cursor-pointer ui-text-meta transition-colors duration-100 ease-out whitespace-nowrap ${
+                    onPointerDown={(event) => event.stopPropagation()}
+                    className={`group/tag inline-flex h-6 max-w-full min-w-0 items-center justify-center rounded-md border border-[var(--color-border-secondary)] bg-[var(--color-bg-surface)] px-2 text-center ui-text-meta ui-color-secondary transition-colors duration-100 ease-out hover:border-[var(--color-border-hover)] hover:text-[var(--color-text-primary)] ${
                       shiftHeld
-                        ? "hover:!text-[var(--color-error)] hover:line-through"
+                        ? "hover:!border-[var(--color-error)]/50 hover:!text-[var(--color-error)] hover:line-through"
                         : ""
                     }`}
-                    title={
-                      shiftHeld
-                        ? t({
-                            id: "library.card.remove_tag",
-                            message: `Remove ${tag}`,
-                          })
-                        : undefined
-                    }
                   >
-                    <span className="opacity-40 mr-[1px]">#</span>
-                    {tag}
-                  </span>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void onRemoveTag(tag);
+                      }}
+                      aria-label={t({
+                        id: "library.card.remove_tag",
+                        message: `Remove ${tag}`,
+                      })}
+                      className="relative mr-0.5 flex h-3 w-3 shrink-0 items-center justify-center rounded-full"
+                    >
+                      <span className="opacity-40 transition-opacity group-hover/tag:opacity-0">
+                        #
+                      </span>
+                      <span className="absolute inset-0 flex items-center justify-center rounded-full border border-current opacity-0 transition-opacity group-hover/tag:opacity-100">
+                        <X size={8} weight="bold" aria-hidden="true" />
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (shiftHeld) void onRemoveTag(tag);
+                        else onClickTag?.(tag);
+                      }}
+                      className="min-w-0 truncate"
+                      title={tag}
+                    >
+                      {tag}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
+          </div>
+
+          <div
+            className="h-px w-full shrink-0 bg-[var(--color-border-primary)]"
+            aria-hidden="true"
+          />
+
+          <div className="flex min-w-0 items-center justify-between gap-3 overflow-hidden ui-text-label ui-color-muted">
+            <span className="shrink-0">
+              {formatDuration(item.duration_seconds)}
+            </span>
+            <span className="min-w-0 truncate text-right">
+              {formatBytes(item.file_size_bytes)}
+            </span>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 #[cfg(target_os = "macos")]
 mod macos {
+    use std::ffi::c_void;
     use std::process::Command;
     use std::sync::atomic::{AtomicBool, Ordering};
     #[cfg(debug_assertions)]
@@ -112,10 +113,25 @@ mod macos {
     }
 
     /// Request microphone permission from macOS.
-    pub fn request_microphone_permission() -> Result<(), String> {
-        tauri::async_runtime::block_on(async {
-            tauri_plugin_macos_permissions::request_microphone_permission().await
-        })
+    pub fn request_microphone_permission() -> Result<bool, String> {
+        type PermissionCallback = extern "C" fn(bool, *mut c_void);
+        unsafe extern "C" {
+            fn gm_request_microphone_permission(callback: PermissionCallback, context: *mut c_void);
+        }
+
+        extern "C" fn permission_result(granted: bool, context: *mut c_void) {
+            let sender = unsafe { Box::from_raw(context.cast::<std::sync::mpsc::Sender<bool>>()) };
+            let _ = sender.send(granted);
+        }
+
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let context = Box::into_raw(Box::new(sender)).cast::<c_void>();
+        unsafe { gm_request_microphone_permission(permission_result, context) };
+        let granted = receiver
+            .recv()
+            .map_err(|_| "Microphone permission request did not complete.".to_string())?;
+        MICROPHONE_GRANTED.store(granted, Ordering::Relaxed);
+        Ok(granted)
     }
 
     /// Open System Settings to the Input Monitoring privacy pane.
@@ -149,8 +165,8 @@ mod other {
         true
     }
 
-    pub fn request_microphone_permission() -> Result<(), String> {
-        Ok(())
+    pub fn request_microphone_permission() -> Result<bool, String> {
+        Ok(true)
     }
 
     pub fn open_input_monitoring_settings() -> Result<(), String> {

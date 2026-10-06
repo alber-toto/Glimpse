@@ -149,11 +149,27 @@ fn spawn_ane_compile(app: AppHandle<AppRuntime>, model: String) {
 const MODELS_ROOT: &str = "models";
 
 pub fn local_resolver() -> glimpse_speech::service::ModelResolver {
-    std::sync::Arc::new(|model| super::catalog::install_spec(model, false))
+    std::sync::Arc::new(|model| {
+        let mut spec = super::catalog::install_spec(model, false)?;
+
+        // glimpse-speech uses the Whisper family variant to enable whisper.cpp's
+        // experimental DTW word alignment. Some valid chunks collapse the DTW
+        // attention tensor below three dimensions, which triggers a native
+        // WHISPER_ASSERT and aborts the entire app. Leaving the variant unset
+        // keeps Whisper's stable token timestamp path (segments and words are
+        // still returned) without entering the process-fatal DTW graph.
+        if spec.engine == speech_models::ModelEngine::Whisper {
+            spec.variant = None;
+        }
+
+        Some(spec)
+    })
 }
 
 fn spec_for(model: &str, ane: bool) -> Result<speech_models::InstallSpec> {
-    super::catalog::install_spec(model, ane).ok_or_else(|| anyhow!("Unknown model: {model}"))
+    super::catalog::install_spec(model, ane)
+        .or_else(|| crate::diarization::install_spec(model))
+        .ok_or_else(|| anyhow!("Unknown model: {model}"))
 }
 
 /// Headless installed-check against a models directory, without an `AppHandle`.
@@ -205,9 +221,21 @@ fn ane_installed_for(model: &str, manager: &speech_models::ModelInstallManager) 
 }
 
 fn map_status(
-    status: speech_models::ModelStatus,
+    mut status: speech_models::ModelStatus,
     manager: &speech_models::ModelInstallManager,
 ) -> ModelStatus {
+    if status.id == crate::diarization::MODEL_KEY
+        && !crate::diarization::installation_complete(&manager.model_dir(&status.id))
+    {
+        status.installed = false;
+        if !status
+            .missing_files
+            .iter()
+            .any(|file| file == "runtime model files")
+        {
+            status.missing_files.push("runtime model files".to_string());
+        }
+    }
     let ane_installed = ane_installed_for(&status.id, manager);
     ModelStatus {
         key: status.id,
@@ -242,7 +270,7 @@ fn ensure_model_downloadable(
     ane: bool,
     manager: &speech_models::ModelInstallManager,
 ) -> Result<(), String> {
-    if super::catalog::model_is_downloadable(model) {
+    if super::catalog::model_is_downloadable(model) || model == crate::diarization::MODEL_KEY {
         return Ok(());
     }
     if !ane {
@@ -305,7 +333,7 @@ pub async fn download_model(
         )
         .await;
 
-    state.clear_download_token(&model);
+    state.clear_download_token(&model, &cancel_token);
 
     let status = match result {
         Ok(status) => status,
@@ -338,6 +366,11 @@ pub async fn download_model(
         }
     };
 
+    if status.id == crate::diarization::MODEL_KEY {
+        crate::diarization::finalize_install(&manager)
+            .map_err(|err| track_download_error(&app, &model, "install", err.to_string()))?;
+    }
+
     let _ = app.emit(
         "download:complete",
         DownloadCompletePayload {
@@ -347,7 +380,9 @@ pub async fn download_model(
 
     crate::analytics::track_model_downloaded(&app, &status.id);
 
-    if ane_pending {
+    if status.id == crate::diarization::MODEL_KEY {
+        // Auxiliary models are loaded on demand by the library queue.
+    } else if ane_pending {
         // The compile loads the model itself and warms once it lands.
         spawn_ane_compile(app.clone(), model.clone());
     } else {
@@ -489,4 +524,19 @@ pub fn ensure_local_fallback_model<R: Runtime>(
     Err(anyhow::anyhow!(
         "No local transcription model is installed for fallback"
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_resolver_disables_process_fatal_whisper_dtw() {
+        let resolve = local_resolver();
+        let spec = resolve("whisper_large_v3_turbo_q8").expect("Whisper model should resolve");
+
+        assert_eq!(spec.engine, speech_models::ModelEngine::Whisper);
+        assert_eq!(spec.variant, None);
+        assert!(spec.layout.is_some());
+    }
 }

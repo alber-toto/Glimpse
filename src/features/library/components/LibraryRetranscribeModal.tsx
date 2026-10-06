@@ -86,10 +86,8 @@ const LibraryRetranscribeModal = ({
   }, [timestampsSupported]);
 
   useEffect(() => {
-    if (!diarizationSupported) {
-      setDetectSpeakers(false);
-    }
-  }, [diarizationSupported]);
+    setDetectSpeakers(diarizationSupported);
+  }, [selectedModelKey, diarizationSupported]);
 
   const handleConfirm = async () => {
     if (!selectedModelKey) return;
@@ -235,13 +233,13 @@ const LibraryRetranscribeModal = ({
                 <div className="ui-text-body-sm text-content-primary">
                   {t({
                     id: "library.retranscribe.detect_speakers",
-                    message: "Detect speakers",
+                    message: "Detect people",
                   })}
                 </div>
                 <div className="ui-text-meta text-content-disabled">
                   {t({
                     id: "library.retranscribe.detect_speakers.description",
-                    message: "Label segments by speaker automatically",
+                    message: "Identify people in segments automatically",
                   })}
                 </div>
               </div>
@@ -250,7 +248,7 @@ const LibraryRetranscribeModal = ({
                 onToggle={() => setDetectSpeakers(!detectSpeakers)}
                 ariaLabel={t({
                   id: "library.retranscribe.detect_speakers.aria",
-                  message: "Detect speakers",
+                  message: "Detect people",
                 })}
                 size="md"
               />

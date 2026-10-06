@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import FloatingPortal from "../../../shared/ui/FloatingPortal";
 import {
   Warning as AlertTriangle,
   ArrowLeft,
@@ -26,6 +27,8 @@ import {
   Funnel,
   Pause,
   PencilSimple as Pencil,
+  Sparkle,
+  CircleNotch as Loader2,
   Play,
   Plus,
   ArrowClockwise as RotateCw,
@@ -131,7 +134,6 @@ const SegmentWordsRow = ({
 const LibraryDetail = ({
   item,
   models,
-  shiftHeld,
   followTimestamps,
   onFollowTimestampsChange,
   onClose,
@@ -141,10 +143,12 @@ const LibraryDetail = ({
   onUpdate,
   onExport,
   availableTags,
+  backLabel,
+  onGenerateTitle,
+  isGeneratingTitle,
 }: {
   item: LibraryItem;
   models: SpeechModel[];
-  shiftHeld: boolean;
   followTimestamps: boolean;
   onFollowTimestampsChange: (
     value: boolean | ((prev: boolean) => boolean),
@@ -156,6 +160,9 @@ const LibraryDetail = ({
   onUpdate: (patch: LibraryItemPatch) => Promise<LibraryItem>;
   onExport: (format: ExportFormat, outputPath: string) => Promise<void>;
   availableTags: string[];
+  backLabel: string;
+  onGenerateTitle: () => Promise<void>;
+  isGeneratingTitle: boolean;
 }) => {
   const { t } = useLingui();
   const [nameDraft, setNameDraft] = useState(item.name);
@@ -205,11 +212,17 @@ const LibraryDetail = ({
   onUpdateRef.current = onUpdate;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const tagMenuRef = useRef<HTMLDivElement>(null);
+  const tagPopupRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const exportPopupRef = useRef<HTMLDivElement>(null);
   const overflowMenuRef = useRef<HTMLDivElement>(null);
-  const speakerMenuRef = useRef<HTMLDivElement>(null);
+  const overflowPopupRef = useRef<HTMLDivElement>(null);
+  const speakerMenuRef = useRef<HTMLButtonElement>(null);
+  const speakerPopupRef = useRef<HTMLDivElement>(null);
   const speakersMenuRef = useRef<HTMLDivElement>(null);
+  const speakersPopupRef = useRef<HTMLDivElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const filterPopupRef = useRef<HTMLDivElement>(null);
   const playbackRateRef = useRef(1);
   const streamTranscriptRef = useRef(item.transcript ?? "");
   const scrubWasPlayingRef = useRef(false);
@@ -597,13 +610,20 @@ const LibraryDetail = ({
   }, [transcriptDraft, transcriptEditable, item.transcript, writeTranscript]);
 
   useEffect(() => writeTranscript, [writeTranscript]);
-  useClickOutside(tagMenuRef, () => setTagMenuOpen(false), tagMenuOpen);
-  useClickOutside(exportMenuRef, () => setExportOpen(false), exportOpen);
-  useClickOutside(overflowMenuRef, () => setOverflowOpen(false), overflowOpen);
+  useClickOutside(tagMenuRef, () => setTagMenuOpen(false), tagMenuOpen, [
+    tagPopupRef,
+  ]);
+  useClickOutside(exportMenuRef, () => setExportOpen(false), exportOpen, [
+    exportPopupRef,
+  ]);
+  useClickOutside(overflowMenuRef, () => setOverflowOpen(false), overflowOpen, [
+    overflowPopupRef,
+  ]);
   useClickOutside(
     speakerMenuRef,
     () => setSpeakerMenuSegment(null),
     speakerMenuSegment !== null,
+    [speakerPopupRef],
   );
   useClickOutside(
     speakersMenuRef,
@@ -613,11 +633,13 @@ const LibraryDetail = ({
       setSpeakerNameDraft("");
     },
     speakersMenuOpen,
+    [speakersPopupRef],
   );
   useClickOutside(
     filterMenuRef,
     () => setFilterMenuOpen(false),
     filterMenuOpen,
+    [filterPopupRef],
   );
 
   const handleNameCommit = async () => {
@@ -663,7 +685,7 @@ const LibraryDetail = ({
       id: crypto.randomUUID(),
       name: t({
         id: "library.detail.speaker_default_name",
-        message: `Speaker ${nextIndex}`,
+        message: `Person ${nextIndex}`,
       }),
       color: SPEAKER_COLORS[speakers.length % SPEAKER_COLORS.length],
     };
@@ -1295,6 +1317,7 @@ const LibraryDetail = ({
     return (
       <div className="relative max-w-full">
         <button
+          ref={menuOpen ? speakerMenuRef : undefined}
           type="button"
           onClick={(event) => {
             event.stopPropagation();
@@ -1316,7 +1339,7 @@ const LibraryDetail = ({
                   message: "Assign",
                 })
           }
-          className={`flex items-center justify-center p-1 -m-1 transition-opacity hover:opacity-80 ${
+          className={`flex items-center justify-center gap-1.5 p-1 -m-1 transition-opacity hover:opacity-80 ${
             speaker
               ? ""
               : menuOpen
@@ -1333,128 +1356,153 @@ const LibraryDetail = ({
             }}
             aria-hidden="true"
           />
+          {(item.kind === "meeting" || item.kind === "recovered_meeting") &&
+            speaker && (
+              <span className="max-w-20 truncate ui-text-label font-medium text-content-muted">
+                {speaker.name}
+              </span>
+            )}
         </button>
-        <AnimatePresence>
-          {menuOpen && (
-            <motion.div
-              ref={speakerMenuRef}
-              initial={{ opacity: 0, scale: 0.98, y: -4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: -4 }}
-              transition={{ duration: 0.12 }}
-              className="absolute left-0 top-full mt-1 z-[120] w-36 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
-            >
-              {speakers.map((entry) => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleAssignSpeaker(idx, entry.id);
-                  }}
-                  className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 ui-text-meta font-medium text-content-secondary hover:bg-surface-elevated/70 hover:text-content-primary transition-colors"
-                >
-                  <span
-                    className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: entry.color ?? undefined }}
-                    aria-hidden="true"
-                  />
-                  {entry.name}
-                </button>
-              ))}
-              {segment.speaker_id && (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleAssignSpeaker(idx, null);
-                  }}
-                  className="w-full text-left px-2.5 py-1.5 ui-text-meta text-content-muted hover:bg-surface-elevated/70 hover:text-content-primary transition-colors border-t border-border-primary"
-                >
-                  {t({
-                    id: "library.detail.speaker.clear",
-                    message: "Clear speaker",
-                  })}
-                </button>
-              )}
+        {menuOpen && (
+          <FloatingPortal
+            anchorRef={speakerMenuRef}
+            ref={speakerPopupRef}
+            placement="bottom-start"
+            className="w-36 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
+          >
+            {speakers.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleAssignSpeaker(idx, entry.id);
+                }}
+                className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 ui-text-meta font-medium text-content-secondary hover:bg-surface-elevated/70 hover:text-content-primary transition-colors"
+              >
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: entry.color ?? undefined }}
+                  aria-hidden="true"
+                />
+                {entry.name}
+              </button>
+            ))}
+            {segment.speaker_id && (
               <button
                 type="button"
-                onClick={async (event) => {
+                onClick={(event) => {
                   event.stopPropagation();
-                  const created = await handleAddSpeaker();
-                  if (created) await handleAssignSpeaker(idx, created.id);
+                  handleAssignSpeaker(idx, null);
                 }}
-                disabled={!canAddSpeaker}
-                className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 ui-text-meta text-content-muted hover:bg-surface-elevated/70 hover:text-content-primary transition-colors border-t border-border-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-content-muted"
+                className="w-full text-left px-2.5 py-1.5 ui-text-meta text-content-muted hover:bg-surface-elevated/70 hover:text-content-primary transition-colors border-t border-border-primary"
               >
-                <UserPlus size={11} />
                 {t({
-                  id: "library.detail.assign_new_speaker",
-                  message: "Assign new speaker",
+                  id: "library.detail.speaker.clear",
+                  message: "Remove person",
                 })}
               </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+            <button
+              type="button"
+              onClick={async (event) => {
+                event.stopPropagation();
+                const created = await handleAddSpeaker();
+                if (created) await handleAssignSpeaker(idx, created.id);
+              }}
+              disabled={!canAddSpeaker}
+              className="w-full flex items-center gap-2 text-left px-2.5 py-1.5 ui-text-meta text-content-muted hover:bg-surface-elevated/70 hover:text-content-primary transition-colors border-t border-border-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-content-muted"
+            >
+              <UserPlus size={11} />
+              {t({
+                id: "library.detail.assign_new_speaker",
+                message: "Assign new person",
+              })}
+            </button>
+          </FloatingPortal>
+        )}
       </div>
     );
   };
 
   return (
     <div className="flex h-full w-full min-h-0 flex-col">
-      <header className="shrink-0 border-b border-[var(--color-border-primary)] px-5 pt-1.5 pb-2">
-        <div className="grid grid-cols-3 items-center gap-x-4 gap-y-1">
-          <div className="col-start-1 row-start-1 flex items-center gap-1.5 min-w-0">
+      <header className="shrink-0 border-b border-[var(--color-border-primary)] px-5 py-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-5 gap-y-2.5">
+          <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-1.5">
             <button
               onClick={onClose}
               className="flex items-center justify-center rounded-md p-1.5 -ml-1.5 text-content-muted hover:text-content-primary hover:bg-surface-surface transition-colors"
-              aria-label={t({
-                id: "library.detail.back",
-                message: "Back to library",
-              })}
+              aria-label={backLabel}
             >
               <ArrowLeft size={15} />
             </button>
 
-            {isEditingName ? (
-              <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                <input
-                  value={nameDraft}
-                  onChange={(event) => setNameDraft(event.target.value)}
-                  onBlur={handleNameCommit}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleNameCommit();
-                    }
-                  }}
-                  className="min-w-0 flex-1 max-w-md bg-transparent border-b border-[var(--color-border-primary)] px-1 py-0.5 ui-text-body-lg font-semibold text-content-primary focus:border-[var(--color-border-hover)] outline-hidden"
-                  autoFocus
-                />
-                <button
-                  onClick={handleNameCommit}
-                  className="text-content-muted hover:text-content-primary"
-                >
-                  <Check size={12} />
-                </button>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              {isEditingName ? (
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <input
+                    value={nameDraft}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                    onBlur={handleNameCommit}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleNameCommit();
+                      }
+                    }}
+                    className="min-w-0 flex-1 max-w-md bg-transparent border-b border-[var(--color-border-primary)] px-1 py-0.5 ui-text-body-lg font-semibold text-content-primary focus:border-[var(--color-border-hover)] outline-hidden"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleNameCommit}
+                    className="text-content-muted hover:text-content-primary"
+                  >
+                    <Check size={12} />
+                  </button>
+                </div>
+              ) : (
+                <div className="group flex min-w-0 items-center gap-1.5">
+                  <h2 className="truncate ui-text-body-lg font-semibold text-content-primary">
+                    {formatLibraryName(item.name)}
+                  </h2>
+                  <button
+                    onClick={() => setIsEditingName(true)}
+                    className="shrink-0 text-content-muted opacity-0 transition-opacity hover:text-content-primary group-hover:opacity-100"
+                  >
+                    <Pencil size={11} />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex min-w-0 items-center gap-2 overflow-hidden ui-text-meta text-content-disabled">
+                <span className="truncate">{modelLabel}</span>
+                {createdAtLabel && (
+                  <>
+                    <span className="shrink-0 opacity-40" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap">
+                      {createdAtLabel}
+                    </span>
+                  </>
+                )}
+                {audioDuration > 0 && (
+                  <>
+                    <span className="shrink-0 opacity-40" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="shrink-0 tabular-nums">
+                      {formatDuration(audioDuration)}
+                    </span>
+                  </>
+                )}
               </div>
-            ) : (
-              <div className="flex items-center gap-1.5 min-w-0 flex-1 group">
-                <h2 className="ui-text-body-lg font-semibold text-content-primary truncate">
-                  {formatLibraryName(item.name)}
-                </h2>
-                <button
-                  onClick={() => setIsEditingName(true)}
-                  className="opacity-0 group-hover:opacity-100 text-content-muted hover:text-content-primary transition-opacity shrink-0"
-                >
-                  <Pencil size={11} />
-                </button>
-              </div>
-            )}
+            </div>
           </div>
 
-          <div className="col-start-2 row-start-2 flex items-center justify-center gap-1.5">
-            <div className="relative flex w-full max-w-lg items-center gap-2 px-1 py-0.5 border-b border-[var(--color-border-secondary)] focus-within:border-[var(--color-border-hover)] transition-colors">
+          <div className="col-start-1 row-start-2 flex min-w-0 items-center gap-1.5 pl-[30px]">
+            <div className="relative flex min-w-0 flex-1 items-center gap-2 border-b border-[var(--color-border-secondary)] px-1 py-0.5 transition-colors focus-within:border-[var(--color-border-hover)]">
               <Search
                 size={12}
                 className="text-content-disabled shrink-0"
@@ -1509,11 +1557,11 @@ const LibraryDetail = ({
                 onClick={() => setFilterMenuOpen((prev) => !prev)}
                 aria-label={t({
                   id: "library.detail.filter.aria",
-                  message: "Filter by speaker",
+                  message: "Filter by person",
                 })}
                 title={t({
                   id: "library.detail.filter.aria",
-                  message: "Filter by speaker",
+                  message: "Filter by person",
                 })}
                 className={`flex items-center justify-center rounded-md p-1 transition-colors hover:bg-surface-surface ${
                   speakerFilter
@@ -1523,77 +1571,74 @@ const LibraryDetail = ({
               >
                 <Funnel size={13} weight={speakerFilter ? "fill" : "regular"} />
               </button>
-              <AnimatePresence>
-                {filterMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.98, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.98, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute left-0 top-full mt-1 z-[120] w-40 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
-                  >
-                    {speakers.length === 0 ? (
-                      <div className="px-2.5 py-2 ui-text-micro text-content-muted">
+              {filterMenuOpen && (
+                <FloatingPortal
+                  anchorRef={filterMenuRef}
+                  ref={filterPopupRef}
+                  placement="bottom-start"
+                  className="w-40 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
+                >
+                  {speakers.length === 0 ? (
+                    <div className="px-2.5 py-2 ui-text-micro text-content-muted">
+                      {t({
+                        id: "library.detail.filter.no_speakers",
+                        message: "No people yet",
+                      })}
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSpeakerFilter(null);
+                          setFilterMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 ui-text-meta font-medium hover:bg-surface-elevated/70 transition-colors ${
+                          speakerFilter === null
+                            ? "text-content-primary"
+                            : "text-content-secondary hover:text-content-primary"
+                        }`}
+                      >
                         {t({
-                          id: "library.detail.filter.no_speakers",
-                          message: "No speakers yet",
+                          id: "library.detail.filter.all",
+                          message: "All people",
                         })}
-                      </div>
-                    ) : (
-                      <>
+                      </button>
+                      {speakers.map((speaker) => (
                         <button
+                          key={speaker.id}
                           type="button"
                           onClick={() => {
-                            setSpeakerFilter(null);
+                            setSpeakerFilter(speaker.id);
                             setFilterMenuOpen(false);
                           }}
-                          className={`w-full text-left px-2.5 py-1.5 ui-text-meta font-medium hover:bg-surface-elevated/70 transition-colors ${
-                            speakerFilter === null
+                          className={`w-full flex items-center gap-2 text-left px-2.5 py-1.5 ui-text-meta font-medium hover:bg-surface-elevated/70 transition-colors ${
+                            speakerFilter === speaker.id
                               ? "text-content-primary"
                               : "text-content-secondary hover:text-content-primary"
                           }`}
                         >
-                          {t({
-                            id: "library.detail.filter.all",
-                            message: "All speakers",
-                          })}
-                        </button>
-                        {speakers.map((speaker) => (
-                          <button
-                            key={speaker.id}
-                            type="button"
-                            onClick={() => {
-                              setSpeakerFilter(speaker.id);
-                              setFilterMenuOpen(false);
+                          <span
+                            className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                            style={{
+                              backgroundColor: speaker.color ?? undefined,
                             }}
-                            className={`w-full flex items-center gap-2 text-left px-2.5 py-1.5 ui-text-meta font-medium hover:bg-surface-elevated/70 transition-colors ${
-                              speakerFilter === speaker.id
-                                ? "text-content-primary"
-                                : "text-content-secondary hover:text-content-primary"
-                            }`}
-                          >
-                            <span
-                              className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                              style={{
-                                backgroundColor: speaker.color ?? undefined,
-                              }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">{speaker.name}</span>
-                            {speakerFilter === speaker.id && (
-                              <Check size={10} className="ml-auto shrink-0" />
-                            )}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                            aria-hidden="true"
+                          />
+                          <span className="truncate">{speaker.name}</span>
+                          {speakerFilter === speaker.id && (
+                            <Check size={10} className="ml-auto shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </FloatingPortal>
+              )}
             </div>
           </div>
 
-          <div className="col-start-3 row-start-1 flex items-center justify-end gap-1">
+          <div className="col-start-2 row-start-1 flex items-center justify-end gap-1">
             <button
               onClick={handleCopy}
               disabled={!transcriptDraft.trim()}
@@ -1629,37 +1674,34 @@ const LibraryDetail = ({
                 })}
                 <ChevronDown size={10} />
               </button>
-              <AnimatePresence>
-                {exportOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4 }}
-                    transition={{ duration: 0.1 }}
-                    className="absolute right-0 top-full mt-1 w-36 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden z-[120]"
-                  >
-                    {(["txt", "md", "srt", "vtt"] as ExportFormat[]).map(
-                      (format) => {
-                        const requiresSegments =
-                          format === "srt" || format === "vtt";
-                        const disabled =
-                          requiresSegments &&
-                          !(item.segments && item.segments.length);
-                        return (
-                          <button
-                            key={format}
-                            onClick={() => handleExport(format)}
-                            disabled={disabled}
-                            className="w-full px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            {format.toUpperCase()}
-                          </button>
-                        );
-                      },
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {exportOpen && (
+                <FloatingPortal
+                  anchorRef={exportMenuRef}
+                  ref={exportPopupRef}
+                  placement="bottom-end"
+                  className="w-36 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden"
+                >
+                  {(["txt", "md", "srt", "vtt"] as ExportFormat[]).map(
+                    (format) => {
+                      const requiresSegments =
+                        format === "srt" || format === "vtt";
+                      const disabled =
+                        requiresSegments &&
+                        !(item.segments && item.segments.length);
+                      return (
+                        <button
+                          key={format}
+                          onClick={() => handleExport(format)}
+                          disabled={disabled}
+                          className="w-full px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {format.toUpperCase()}
+                        </button>
+                      );
+                    },
+                  )}
+                </FloatingPortal>
+              )}
             </div>
 
             <div className="relative" ref={overflowMenuRef}>
@@ -1673,123 +1715,126 @@ const LibraryDetail = ({
               >
                 <DotsThreeVertical size={14} weight="bold" />
               </button>
-              <AnimatePresence>
-                {overflowOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4 }}
-                    transition={{ duration: 0.1 }}
-                    className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden z-[120]"
+              {overflowOpen && (
+                <FloatingPortal
+                  anchorRef={overflowMenuRef}
+                  ref={overflowPopupRef}
+                  placement="bottom-end"
+                  className="w-44 rounded-lg border border-[var(--color-border-secondary)] bg-[var(--color-bg-overlay)] shadow-xl overflow-hidden"
+                >
+                  {item.status.type === "complete" &&
+                    item.transcript?.trim() && (
+                      <button
+                        onClick={() => {
+                          setOverflowOpen(false);
+                          void onGenerateTitle().catch(() => {});
+                        }}
+                        disabled={isGeneratingTitle}
+                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary transition-colors hover:bg-surface-overlay hover:text-content-primary disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {isGeneratingTitle ? (
+                          <Loader2 size={11} className="animate-spin" />
+                        ) : (
+                          <Sparkle size={11} />
+                        )}
+                        {isGeneratingTitle
+                          ? t({
+                              id: "library.card.title.generating",
+                              message: "Organizing...",
+                            })
+                          : t({
+                              id: "library.card.title.generate",
+                              message: "Generate title and tags",
+                            })}
+                      </button>
+                    )}
+                  <button
+                    onClick={() => {
+                      setOverflowOpen(false);
+                      setShowRetranscribe(true);
+                    }}
+                    disabled={isBusy}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
+                    <RotateCw size={11} />
+                    {t({
+                      id: "library.modal.retranscribe",
+                      message: "Retranscribe",
+                    })}
+                  </button>
+                  {isBusy && (
                     <button
                       onClick={() => {
                         setOverflowOpen(false);
-                        setShowRetranscribe(true);
+                        onCancel();
                       }}
-                      disabled={isBusy}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="w-full px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors"
+                    >
+                      {t({
+                        id: "library.modal.cancel",
+                        message: "Cancel",
+                      })}
+                    </button>
+                  )}
+                  {item.status.type === "error" && (
+                    <button
+                      onClick={() => {
+                        setOverflowOpen(false);
+                        Promise.resolve(onRetry()).catch((err) => {
+                          console.error("failed to retry:", err);
+                        });
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors"
                     >
                       <RotateCw size={11} />
                       {t({
-                        id: "library.modal.retranscribe",
-                        message: "Retranscribe",
+                        id: "library.modal.retry",
+                        message: "Retry",
                       })}
                     </button>
-                    {isBusy && (
-                      <button
-                        onClick={() => {
-                          setOverflowOpen(false);
-                          onCancel();
-                        }}
-                        className="w-full px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors"
-                      >
-                        {t({
-                          id: "library.modal.cancel",
-                          message: "Cancel",
-                        })}
-                      </button>
-                    )}
-                    {item.status.type === "error" && (
-                      <button
-                        onClick={() => {
-                          setOverflowOpen(false);
-                          Promise.resolve(onRetry()).catch((err) => {
-                            console.error("failed to retry:", err);
-                          });
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta text-content-secondary hover:bg-surface-overlay hover:text-content-primary transition-colors"
-                      >
-                        <RotateCw size={11} />
-                        {t({
-                          id: "library.modal.retry",
-                          message: "Retry",
-                        })}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setOverflowOpen(false);
-                        setShowDeleteConfirm(true);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta ui-color-error-soft hover:bg-[var(--color-error)]/10 transition-colors border-t border-border-primary"
-                    >
-                      <Trash2 size={11} />
-                      {t({
-                        id: "library.modal.delete",
-                        message: "Delete",
-                      })}
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  )}
+                  <button
+                    onClick={() => {
+                      setOverflowOpen(false);
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left ui-text-meta ui-color-error-soft hover:bg-[var(--color-error)]/10 transition-colors border-t border-border-primary"
+                  >
+                    <Trash2 size={11} />
+                    {t({
+                      id: "library.modal.delete",
+                      message: "Delete",
+                    })}
+                  </button>
+                </FloatingPortal>
+              )}
             </div>
           </div>
 
-          <div className="col-start-1 row-start-2 flex items-center min-w-0 pl-[30px] ui-text-meta text-content-disabled">
-            <span className="whitespace-nowrap">{modelLabel}</span>
-          </div>
-
-          <div className="col-start-1 row-start-3 flex items-center gap-2 min-w-0 pl-[30px] ui-text-meta text-content-disabled">
-            {createdAtLabel && (
-              <span className="whitespace-nowrap">{createdAtLabel}</span>
-            )}
-            {createdAtLabel && audioDuration > 0 && (
-              <span className="opacity-40" aria-hidden="true">
-                ·
-              </span>
-            )}
-            {audioDuration > 0 && (
-              <span className="tabular-nums">
-                {formatDuration(audioDuration)}
-              </span>
-            )}
-          </div>
-
-          <div className="col-start-3 row-start-3 flex items-center justify-end gap-2 min-w-0">
+          <div className="col-start-2 row-start-2 flex min-w-0 items-center justify-end gap-2 self-end">
             {item.tags.slice(0, 3).map((tag, idx) => (
-              <span
+              <div
                 key={`${tag}-${idx}`}
-                onClick={() => {
-                  if (shiftHeld) {
-                    handleRemoveTag(tag);
-                  }
-                }}
-                title={
-                  shiftHeld
-                    ? t({
-                        id: "library.modal.tags.remove",
-                        message: `Remove ${tag}`,
-                      })
-                    : undefined
-                }
-                className={`inline-flex items-center cursor-pointer ui-text-meta transition-colors duration-100 ease-out whitespace-nowrap text-content-secondary hover:text-content-primary ${
-                  shiftHeld ? "hover:!text-red-500 hover:line-through" : ""
-                }`}
+                className="group/tag inline-flex h-6 max-w-36 items-center rounded-md border border-[var(--color-border-secondary)] bg-[var(--color-bg-surface)] px-2 ui-text-meta text-content-secondary transition-colors hover:border-[var(--color-border-hover)] hover:text-content-primary"
               >
-                <span className="opacity-40 mr-[1px]">#</span>
-                <span>{tag.length > 12 ? `${tag.slice(0, 12)}...` : tag}</span>
-              </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTag(tag)}
+                  aria-label={t({
+                    id: "library.modal.tags.remove",
+                    message: `Remove ${tag}`,
+                  })}
+                  className="relative mr-0.5 flex h-3 w-3 shrink-0 items-center justify-center rounded-full"
+                >
+                  <span className="opacity-40 transition-opacity group-hover/tag:opacity-0">
+                    #
+                  </span>
+                  <span className="absolute inset-0 flex items-center justify-center rounded-full border border-current opacity-0 transition-opacity group-hover/tag:opacity-100">
+                    <X size={8} weight="bold" aria-hidden="true" />
+                  </span>
+                </button>
+                <span className="min-w-0 truncate">{tag}</span>
+              </div>
             ))}
             {item.tags.length > 3 && (
               <button
@@ -1816,94 +1861,91 @@ const LibraryDetail = ({
                   message: "Tag",
                 })}
               </button>
-              <AnimatePresence>
-                {tagMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.98, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.98, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute right-0 top-full mt-1 z-[120] w-40 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
-                  >
-                    <div className="px-2 py-1.5 border-b border-border-primary">
-                      <input
-                        value={tagInput}
-                        onChange={(event) => setTagInput(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            handleAddTag();
-                          }
-                          if (event.key === "Escape") {
-                            event.preventDefault();
-                            setTagMenuOpen(false);
-                            setTagInput("");
-                          }
-                        }}
-                        placeholder={t({
-                          id: "library.modal.tags.new_tag",
-                          message: "New tag...",
-                        })}
-                        className="w-full bg-transparent ui-text-meta text-content-secondary outline-hidden placeholder:text-content-disabled"
-                        autoFocus
-                      />
-                    </div>
-                    {item.tags.length > 0 && (
-                      <div className="max-h-28 overflow-y-auto border-b border-border-primary">
-                        {item.tags.map((tag) => (
-                          <div
-                            key={tag}
-                            className="flex items-center justify-between gap-2 px-2.5 py-1 group/tagrow"
+              {tagMenuOpen && (
+                <FloatingPortal
+                  anchorRef={tagMenuRef}
+                  ref={tagPopupRef}
+                  placement="bottom-end"
+                  className="w-40 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
+                >
+                  <div className="px-2 py-1.5 border-b border-border-primary">
+                    <input
+                      value={tagInput}
+                      onChange={(event) => setTagInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          handleAddTag();
+                        }
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          setTagMenuOpen(false);
+                          setTagInput("");
+                        }
+                      }}
+                      placeholder={t({
+                        id: "library.modal.tags.new_tag",
+                        message: "New tag...",
+                      })}
+                      className="w-full bg-transparent ui-text-meta text-content-secondary outline-hidden placeholder:text-content-disabled"
+                      autoFocus
+                    />
+                  </div>
+                  {item.tags.length > 0 && (
+                    <div className="max-h-28 overflow-y-auto border-b border-border-primary">
+                      {item.tags.map((tag) => (
+                        <div
+                          key={tag}
+                          className="flex items-center justify-between gap-2 px-2.5 py-1 group/tagrow"
+                        >
+                          <span className="ui-text-meta text-content-secondary truncate">
+                            <span className="opacity-40">#</span>
+                            {tag}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            aria-label={t({
+                              id: "library.modal.tags.remove",
+                              message: `Remove ${tag}`,
+                            })}
+                            className="opacity-0 group-hover/tagrow:opacity-100 text-content-disabled hover:text-red-500 transition-opacity shrink-0"
                           >
-                            <span className="ui-text-meta text-content-secondary truncate">
-                              <span className="opacity-40">#</span>
-                              {tag}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveTag(tag)}
-                              aria-label={t({
-                                id: "library.modal.tags.remove",
-                                message: `Remove ${tag}`,
-                              })}
-                              className="opacity-0 group-hover/tagrow:opacity-100 text-content-disabled hover:text-red-500 transition-opacity shrink-0"
-                            >
-                              <X size={10} />
-                            </button>
-                          </div>
-                        ))}
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="max-h-36 overflow-y-auto">
+                    {filteredTagOptions.length > 0 ? (
+                      filteredTagOptions.map((tag, index) => (
+                        <button
+                          key={`tag-option-${index}-${tag || "empty"}`}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => handleAddTag(tag)}
+                          className="w-full text-left px-2.5 py-1.5 ui-text-meta font-medium text-content-secondary hover:bg-surface-elevated/70 hover:text-content-primary transition-colors"
+                        >
+                          {tag}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-2.5 py-2 ui-text-micro text-content-muted">
+                        {availableTags.length === 0
+                          ? t({
+                              id: "library.modal.tags.no_tags_yet",
+                              message: "No tags yet",
+                            })
+                          : t({
+                              id: "library.modal.tags.no_other_tags",
+                              message: "No other tags",
+                            })}
                       </div>
                     )}
-                    <div className="max-h-36 overflow-y-auto">
-                      {filteredTagOptions.length > 0 ? (
-                        filteredTagOptions.map((tag, index) => (
-                          <button
-                            key={`tag-option-${index}-${tag || "empty"}`}
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => handleAddTag(tag)}
-                            className="w-full text-left px-2.5 py-1.5 ui-text-meta font-medium text-content-secondary hover:bg-surface-elevated/70 hover:text-content-primary transition-colors"
-                          >
-                            {tag}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-2.5 py-2 ui-text-micro text-content-muted">
-                          {availableTags.length === 0
-                            ? t({
-                                id: "library.modal.tags.no_tags_yet",
-                                message: "No tags yet",
-                              })
-                            : t({
-                                id: "library.modal.tags.no_other_tags",
-                                message: "No other tags",
-                              })}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
+                </FloatingPortal>
+              )}
             </div>
 
             <div
@@ -1919,7 +1961,7 @@ const LibraryDetail = ({
                 <Users size={11} />
                 {t({
                   id: "library.detail.speakers",
-                  message: "Speakers",
+                  message: "People",
                 })}
                 <span className="text-content-disabled tabular-nums">
                   {speakers.length}
@@ -1929,97 +1971,94 @@ const LibraryDetail = ({
                   className={`transition-transform duration-150 ${speakersMenuOpen ? "rotate-180" : ""}`}
                 />
               </button>
-              <AnimatePresence>
-                {speakersMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.98, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.98, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute right-0 top-full mt-1 z-[120] w-48 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
-                  >
-                    {speakers.map((speaker) => (
-                      <div
-                        key={speaker.id}
-                        className="flex items-center gap-2 px-2.5 py-1.5 group/speaker"
-                      >
-                        <span
-                          className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                          style={{
-                            backgroundColor: speaker.color ?? undefined,
-                          }}
-                          aria-hidden="true"
-                        />
-                        {renamingSpeakerId === speaker.id ? (
-                          <input
-                            value={speakerNameDraft}
-                            onChange={(event) =>
-                              setSpeakerNameDraft(event.target.value)
+              {speakersMenuOpen && (
+                <FloatingPortal
+                  anchorRef={speakersMenuRef}
+                  ref={speakersPopupRef}
+                  placement="bottom-end"
+                  className="w-48 rounded-md border border-border-secondary/80 bg-surface-overlay shadow-lg shadow-black/40 overflow-hidden"
+                >
+                  {speakers.map((speaker) => (
+                    <div
+                      key={speaker.id}
+                      className="flex items-center gap-2 px-2.5 py-1.5 group/speaker"
+                    >
+                      <span
+                        className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: speaker.color ?? undefined,
+                        }}
+                        aria-hidden="true"
+                      />
+                      {renamingSpeakerId === speaker.id ? (
+                        <input
+                          value={speakerNameDraft}
+                          onChange={(event) =>
+                            setSpeakerNameDraft(event.target.value)
+                          }
+                          onBlur={() => handleRenameSpeaker(speaker.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              handleRenameSpeaker(speaker.id);
                             }
-                            onBlur={() => handleRenameSpeaker(speaker.id)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                handleRenameSpeaker(speaker.id);
-                              }
-                              if (event.key === "Escape") {
-                                event.preventDefault();
-                                setRenamingSpeakerId(null);
-                                setSpeakerNameDraft("");
-                              }
-                            }}
-                            className="flex-1 min-w-0 bg-transparent border-b border-[var(--color-border-primary)] px-0.5 py-0 ui-text-meta font-medium text-content-primary focus:border-[var(--color-border-hover)] outline-hidden"
-                            autoFocus
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRenamingSpeakerId(speaker.id);
-                              setSpeakerNameDraft(speaker.name);
-                            }}
-                            title={t({
-                              id: "library.detail.speaker.rename",
-                              message: "Click to rename",
-                            })}
-                            className="flex-1 min-w-0 flex items-center gap-1.5 text-left ui-text-meta font-medium text-content-secondary hover:text-content-primary transition-colors border-b border-transparent px-0.5 py-0"
-                          >
-                            <span className="truncate">{speaker.name}</span>
-                            <Pencil
-                              size={10}
-                              className="shrink-0 text-content-disabled opacity-0 group-hover/speaker:opacity-100 transition-opacity"
-                              aria-hidden="true"
-                            />
-                          </button>
-                        )}
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              setRenamingSpeakerId(null);
+                              setSpeakerNameDraft("");
+                            }
+                          }}
+                          className="flex-1 min-w-0 bg-transparent border-b border-[var(--color-border-primary)] px-0.5 py-0 ui-text-meta font-medium text-content-primary focus:border-[var(--color-border-hover)] outline-hidden"
+                          autoFocus
+                        />
+                      ) : (
                         <button
                           type="button"
-                          onClick={() => handleRemoveSpeaker(speaker.id)}
-                          aria-label={t({
-                            id: "library.detail.speaker.remove",
-                            message: `Remove ${speaker.name}`,
+                          onClick={() => {
+                            setRenamingSpeakerId(speaker.id);
+                            setSpeakerNameDraft(speaker.name);
+                          }}
+                          title={t({
+                            id: "library.detail.speaker.rename",
+                            message: "Click to rename",
                           })}
-                          className="opacity-0 group-hover/speaker:opacity-100 text-content-disabled hover:text-red-500 transition-opacity shrink-0"
+                          className="flex-1 min-w-0 flex items-center gap-1.5 text-left ui-text-meta font-medium text-content-secondary hover:text-content-primary transition-colors border-b border-transparent px-0.5 py-0"
                         >
-                          <X size={10} />
+                          <span className="truncate">{speaker.name}</span>
+                          <Pencil
+                            size={10}
+                            className="shrink-0 text-content-disabled opacity-0 group-hover/speaker:opacity-100 transition-opacity"
+                            aria-hidden="true"
+                          />
                         </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => handleAddSpeaker()}
-                      disabled={!canAddSpeaker}
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left ui-text-meta text-content-muted hover:bg-surface-elevated/70 hover:text-content-primary transition-colors border-t border-border-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-content-muted"
-                    >
-                      <UserPlus size={11} />
-                      {t({
-                        id: "library.detail.add_speaker",
-                        message: "Add speaker",
-                      })}
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSpeaker(speaker.id)}
+                        aria-label={t({
+                          id: "library.detail.speaker.remove",
+                          message: `Remove ${speaker.name}`,
+                        })}
+                        className="opacity-0 group-hover/speaker:opacity-100 text-content-disabled hover:text-red-500 transition-opacity shrink-0"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => handleAddSpeaker()}
+                    disabled={!canAddSpeaker}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left ui-text-meta text-content-muted hover:bg-surface-elevated/70 hover:text-content-primary transition-colors border-t border-border-primary disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-content-muted"
+                  >
+                    <UserPlus size={11} />
+                    {t({
+                      id: "library.detail.add_speaker",
+                      message: "Add person",
+                    })}
+                  </button>
+                </FloatingPortal>
+              )}
             </div>
           </div>
         </div>

@@ -567,7 +567,7 @@ msgstr "Woordenboekitem toevoegen of zoeken"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.add_speaker"
-msgstr "Spreker toevoegen"
+msgstr "Persoon toevoegen"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -617,7 +617,7 @@ msgstr "Alle berichten"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.all"
-msgstr "Alle sprekers"
+msgstr "Alle personen"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -712,7 +712,7 @@ msgstr "Toewijzen"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.assign_new_speaker"
-msgstr "Nieuwe spreker toewijzen"
+msgstr "Nieuwe persoon toewijzen"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -1046,7 +1046,7 @@ msgstr "Zoekopdracht wissen"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker.clear"
-msgstr "Spreker wissen"
+msgstr "Persoon verwijderen"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -1655,22 +1655,22 @@ msgstr "Bezig met verwijderen…"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers"
-msgstr "Sprekers detecteren"
+msgstr "Personen detecteren"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.aria"
-msgstr "Sprekers detecteren"
+msgstr "Personen detecteren"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers"
-msgstr "Sprekers detecteren"
+msgstr "Personen detecteren"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.aria"
-msgstr "Sprekers detecteren"
+msgstr "Personen detecteren"
 
 #. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
@@ -1936,7 +1936,7 @@ msgstr "Navigatiekolom uitvouwen"
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.experimental"
-msgstr "Experimenteel"
+msgstr "Experimentele modellen"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2056,7 +2056,7 @@ msgstr "Bestand niet gevonden. Het is mogelijk verplaatst of verwijderd."
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.aria"
-msgstr "Filteren op spreker"
+msgstr "Filteren op persoon"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
@@ -2473,12 +2473,12 @@ msgstr "Sneltoets"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.description"
-msgstr "Segmenten automatisch labelen per spreker"
+msgstr "Personen in segmenten automatisch herkennen"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.description"
-msgstr "Segmenten automatisch per spreker labelen"
+msgstr "Personen in segmenten automatisch herkennen"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -3062,7 +3062,7 @@ msgstr "Nog geen sites"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.no_speakers"
-msgstr "Nog geen sprekers"
+msgstr "Nog geen personen"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -4129,12 +4129,12 @@ msgstr "Transcripties sorteren en filteren"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker_default_name"
-msgstr "Spreker {nextIndex}"
+msgstr "Persoon {nextIndex}"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speakers"
-msgstr "Sprekers"
+msgstr "Personen"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ProvidersTab.tsx
@@ -4149,7 +4149,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.standard"
-msgstr "Standaard"
+msgstr "Transcriptiemodellen"
 
 #. js-lingui-explicit-id
 #: src/features/asks/components/AskPrompt.tsx
@@ -4961,3 +4961,320 @@ msgstr "Je woorden verschijnen hier…"
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.zoom"
 msgstr "Zoom"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.meeting"
+msgstr "Vergadering"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recording"
+msgstr "Opname"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recovered_meeting"
+msgstr "Herstelde vergadering"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelling"
+msgstr "Bezig met annuleren"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelled"
+msgstr "Geannuleerd"
+
+#. js-lingui-explicit-id
+msgid "library.filter.files"
+msgstr "Bestanden"
+
+#. js-lingui-explicit-id
+msgid "library.filter.meetings"
+msgstr "Vergaderingen"
+
+#. js-lingui-explicit-id
+msgid "library.filter.origin_aria_label"
+msgstr "Bibliotheek filteren op herkomst"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.model_required"
+msgstr "Installeer of configureer eerst een spraakmodel."
+
+#. js-lingui-explicit-id
+msgid "library.meeting.start"
+msgstr "Vergadering opnemen"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.stop"
+msgstr "Opname stoppen"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.name"
+msgstr "Vergadering {date}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_name"
+msgstr "Hersteld: {name}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_title"
+msgstr "Vergadering hersteld"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_one"
+msgstr "De onderbroken opname is opgeslagen in de bibliotheek en wordt getranscribeerd."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_many"
+msgstr "{count} onderbroken opnamen zijn opgeslagen in de bibliotheek en worden getranscribeerd."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_you"
+msgstr "Jij"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_remote"
+msgstr "Vergadering"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_title"
+msgstr "Vergadering gedetecteerd"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_message"
+msgstr "Er lijkt een gesprek actief te zijn in {app}. Wil je het opnemen?"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_record"
+msgstr "Opnemen"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_not_now"
+msgstr "Niet nu"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.error"
+msgstr "De vergadering kon niet worden opgenomen. Controleer de machtigingen en probeer het opnieuw."
+
+#. js-lingui-explicit-id
+msgid "home.sidebar.meetings"
+msgstr "Vergaderingen"
+
+#. js-lingui-explicit-id
+msgid "meeting.detail.back"
+msgstr "Terug naar vergaderingen"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.title"
+msgstr "Vergaderingen"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.description"
+msgstr "Neem online vergaderingen op en transcribeer ze."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.search_placeholder"
+msgstr "Vergaderingen zoeken..."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.empty_state"
+msgstr "Neem je eerste vergadering op."
+
+#. js-lingui-explicit-id
+msgid "library.card.recovered"
+msgstr "Hersteld"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generate"
+msgstr "Titel en tags genereren"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generating"
+msgstr "Organiseren..."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error"
+msgstr "Er konden geen titel en tags worden gegenereerd. Probeer het opnieuw."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_configured"
+msgstr "Configureer een schrijfmodel voordat je een titel genereert."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rate_limited"
+msgstr "De schrijfprovider heeft de gebruikslimiet bereikt. Probeer het later opnieuw."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unauthorized"
+msgstr "De schrijfprovider heeft de API-sleutel geweigerd. Controleer deze in Instellingen."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_found"
+msgstr "Het ingestelde schrijfmodel is niet gevonden. Controleer het in Instellingen."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rejected"
+msgstr "De schrijfprovider heeft het titelverzoek geweigerd."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unreachable"
+msgstr "De schrijfprovider is niet bereikbaar. Controleer je verbinding en probeer het opnieuw."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.invalid_response"
+msgstr "Het schrijfmodel reageerde, maar kon dit item niet ordenen. Probeer het opnieuw."
+
+#. js-lingui-explicit-id
+msgid "native.library.person_default"
+msgstr "Persoon {nextIndex}"
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.aria"
+msgstr "Lokaal model voor persoonsdetectie"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.title"
+msgstr "Lokale persoonsdetectie"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.description"
+msgstr "Scheidt stemmen zonder je audio te uploaden"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.local_private"
+msgstr "Lokaal"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.delete"
+msgstr "Lokale persoonsdetectie verwijderen"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.download"
+msgstr "Lokale persoonsdetectie downloaden"
+
+#. js-lingui-explicit-id
+msgid "settings.models.local_intelligence"
+msgstr "Add-ons"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.addon"
+msgstr "Add-on"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_day_aria"
+msgstr "Alle transcripties van deze dag verwijderen"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.title"
+msgstr "Transcripties van deze dag verwijderen?"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.description"
+msgstr "Hiermee worden alle transcripties en bijbehorende audio van deze dag permanent verwijderd."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.error"
+msgstr "De transcripties konden niet worden verwijderd. Probeer het opnieuw."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.deleting"
+msgstr "Verwijderen..."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.action"
+msgstr "Alles verwijderen"
+
+#. js-lingui-explicit-id
+msgid "settings.modal.tab.meetings"
+msgstr "Vergaderingen"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.section"
+msgstr "Automatische detectie"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.title"
+msgstr "Onlinevergaderingen detecteren"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.description"
+msgstr "Toont een opnameverzoek wanneer een ondersteunde vergadering begint."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.toggle_aria"
+msgstr "Automatische vergaderdetectie in- of uitschakelen"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.section"
+msgstr "Toepassingen"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.loading"
+msgstr "Geïnstalleerde vergaderapps zoeken"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.empty"
+msgstr "Er zijn geen compatibele vergadertoepassingen gevonden."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.installed"
+msgstr "Geïnstalleerd op deze Mac"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.toggle_aria"
+msgstr "Vergaderdetectie voor deze toepassing in- of uitschakelen"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.description"
+msgstr "Alleen geselecteerde toepassingen worden gecontroleerd. Browserdetectie vereist Toegankelijkheid en controleert alleen het actieve tabblad; Glimpse leest geen vergaderinhoud."
+
+msgid "meeting.active.microphone.default"
+msgstr "Standaardmicrofoon"
+
+msgid "meeting.active.system.default"
+msgstr "Systeemaudio"
+
+msgid "meeting.active.microphone.waveform"
+msgstr "Live microfoonniveau"
+
+msgid "meeting.active.system.waveform"
+msgstr "Live audioniveau van de vergadering"
+
+msgid "meeting.active.title"
+msgstr "Opname bezig"
+
+msgid "meeting.active.subtitle"
+msgstr "Beide audiobronnen worden afzonderlijk opgeslagen"
+
+msgid "meeting.active.microphone"
+msgstr "Microfoon"
+
+msgid "meeting.active.system"
+msgstr "Vergaderaudio"
+
+msgid "meeting.active.system.scope"
+msgstr "Systeemopname"
+
+msgid "meeting.active.local"
+msgstr "Lokaal opgeslagen · De transcriptie begint wanneer de opname stopt"
+
+msgid "meeting.active.microphone.no_signal"
+msgstr "Geen microfoonsignaal gedetecteerd"
+
+msgid "meeting.active.system.scope.application"
+msgstr "Alleen app"
+
+msgid "native.meeting.ended_title"
+msgstr "Is de vergadering afgelopen?"
+
+msgid "native.meeting.ended_message"
+msgstr "Het gesprek in {app} is niet meer actief. Wil je de opname stoppen?"
+
+msgid "native.meeting.ended_stop"
+msgstr "Opname stoppen"
+
+msgid "native.meeting.ended_continue"
+msgstr "Doorgaan met opnemen"
+
+msgid "settings.general.shortcuts.dictation_key"
+msgstr "Dicteertoets gebruiken"
+
+msgid "settings.general.shortcuts.dictation_key.description"
+msgstr "Wijst de microfoontoets toe aan slim dicteren"

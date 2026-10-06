@@ -9,7 +9,7 @@ import {
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CaretLeft as ChevronLeft,
+  SidebarSimple,
   House as HomeIcon,
   BookBookmark as Book,
   CardsThree as Brain,
@@ -21,6 +21,7 @@ import {
   X,
   ArrowCircleUp as ArrowUpCircle,
   Books as Library,
+  VideoCamera as MeetingsIcon,
 } from "@phosphor-icons/react";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import WindowControls from "./shared/ui/WindowControls";
@@ -33,6 +34,7 @@ import {
 import { i18n } from "./i18n";
 import { detectAppPlatform } from "./platform/service";
 import { useClickOutside } from "./shared/hooks/useClickOutside";
+import FloatingPortal from "./shared/ui/FloatingPortal";
 import { useCopyToClipboard } from "./shared/hooks/useCopyToClipboard";
 import HomeTodayHeader from "./features/transcriptions/components/HomeTodayHeader";
 import TranscriptionList from "./features/transcriptions/components/TranscriptionList";
@@ -59,7 +61,18 @@ const importSettingsScreen = () =>
 const SettingsScreen = lazy(importSettingsScreen);
 const FAQModal = lazy(() => import("./shared/ui/FAQModal"));
 
-type ActiveView = "home" | "dictionary" | "brain" | "library";
+type ActiveView = "home" | "dictionary" | "brain" | "library" | "meetings";
+
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "glimpse:sidebar-collapsed";
+
+function initialSidebarCollapsed(): boolean {
+  try {
+    const stored = localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    return stored === null ? false : stored === "true";
+  } catch {
+    return false;
+  }
+}
 
 let cachedLocalApiStatus: LocalApiStatus | null = null;
 
@@ -132,7 +145,9 @@ const Home = () => {
   const [settingsTab, setSettingsTab] = useState<SettingsPane>("account");
   const [accountSource, setAccountSource] =
     useState<PurchaseSource>("settings_account");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+    initialSidebarCollapsed,
+  );
   const [activeView, setActiveView] = useState<ActiveView>("home");
   const licenseGateActive = useLicenseGate();
   const { data: licenseState } = useLicenseState();
@@ -146,6 +161,7 @@ const Home = () => {
   const [showFAQ, setShowFAQ] = useState(false);
   const [faqOpened, setFaqOpened] = useState(false);
   const supportMenuRef = useRef<HTMLDivElement>(null);
+  const supportPopupRef = useRef<HTMLDivElement>(null);
 
   const [dragActive, setDragActive] = useState(false);
   const [localApiStatus, setLocalApiStatus] = useState<LocalApiStatus | null>(
@@ -190,7 +206,15 @@ const Home = () => {
   }, []);
 
   const toggleSidebarCollapsed = useCallback(() => {
-    setIsSidebarCollapsed((collapsed) => !collapsed);
+    setIsSidebarCollapsed((collapsed) => {
+      const next = !collapsed;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(next));
+      } catch {
+        // The current session still works if UI preference storage is blocked.
+      }
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -211,7 +235,9 @@ const Home = () => {
     licenseGateActiveRef.current = licenseGateActive;
     if (
       !licenseGateActive &&
-      (activeView === "brain" || activeView === "library")
+      (activeView === "brain" ||
+        activeView === "library" ||
+        activeView === "meetings")
     ) {
       setActiveView("home");
       setDragActive(false);
@@ -422,6 +448,7 @@ const Home = () => {
     supportMenuRef,
     () => setShowSupportPopup(false),
     showSupportPopup,
+    [supportPopupRef],
   );
 
   useEffect(() => {
@@ -473,12 +500,6 @@ const Home = () => {
   });
 
   const homeViewActive = activeView === "home" && !isSettingsOpen;
-  const returnIcon = {
-    home: HomeIcon,
-    dictionary: Book,
-    brain: Brain,
-    library: Library,
-  }[activeView];
   useTimeOfDayPeriodTick(homeViewActive);
   const {
     data: todayStats = EMPTY_TODAY_DICTATION_STATS,
@@ -625,6 +646,22 @@ const Home = () => {
                       : openAccountSettings("sidebar_lock")
                   }
                 />
+                <SidebarItem
+                  icon={MeetingsIcon}
+                  label={t({
+                    id: "home.sidebar.meetings",
+                    message: "Meetings",
+                  })}
+                  active={activeView === "meetings"}
+                  collapsed={isSidebarCollapsed}
+                  locked={!licenseGateActive}
+                  lockedHint={lockedHint}
+                  onClick={() =>
+                    licenseGateActive
+                      ? setActiveView("meetings")
+                      : openAccountSettings("sidebar_lock")
+                  }
+                />
               </>
             )}
           </div>
@@ -642,82 +679,66 @@ const Home = () => {
             </div>
           ) : null}
 
-          <div className="space-y-1 border-t border-border-primary p-2">
-            <button
-              onClick={toggleSidebarCollapsed}
-              className={`ui-nav-item group h-9 pl-[var(--sidebar-icon-pl,17px)] pr-3 mb-[2px] ${
-                isSidebarCollapsed ? "gap-0" : "gap-3"
-              }`}
-              aria-label={
-                isSidebarCollapsed
-                  ? t({
-                      id: "home.sidebar.expand",
-                      message: "Expand sidebar",
-                    })
-                  : t({
-                      id: "home.sidebar.collapse",
-                      message: "Collapse sidebar",
-                    })
-              }
-            >
-              <div className="flex w-[20px] shrink-0 items-center justify-center">
-                <motion.div
-                  animate={{ rotate: isSidebarCollapsed ? 180 : 0 }}
-                  transition={{ type: "tween", duration: 0.2 }}
-                >
-                  <ChevronLeft size={18} />
-                </motion.div>
-              </div>
-              <span
-                style={{
-                  width: isSidebarCollapsed ? 0 : "auto",
-                  opacity: isSidebarCollapsed ? 0 : 1,
-                }}
-                className="ui-text-nav-item whitespace-nowrap overflow-hidden transition-[width,opacity] duration-200 ease-out"
-              >
-                {t({ id: "home.sidebar.collapse_label", message: "Collapse" })}
-              </span>
-            </button>
-
-            <div className="relative" ref={supportMenuRef}>
+          <div className="flex flex-col gap-1 border-t border-border-primary p-2">
+            <div className="order-3 -mx-0.5 mt-1 flex items-center justify-between border-t border-border-primary pt-2">
               <button
-                onClick={() => setShowSupportPopup(!showSupportPopup)}
-                data-active={showSupportPopup ? "true" : "false"}
-                className={`ui-nav-item group h-9 pl-[var(--sidebar-icon-pl,17px)] pr-3 mb-[2px] ${
-                  isSidebarCollapsed ? "gap-0" : "gap-3"
-                }`}
-                aria-expanded={showSupportPopup}
-                aria-haspopup="menu"
-                aria-label={t({
-                  id: "home.support.menu_aria",
-                  message: "Support menu",
-                })}
+                type="button"
+                onClick={toggleSidebarCollapsed}
+                className="ui-button-ghost h-7 w-7 shrink-0"
+                aria-label={
+                  isSidebarCollapsed
+                    ? t({
+                        id: "home.sidebar.expand",
+                        message: "Expand sidebar",
+                      })
+                    : t({
+                        id: "home.sidebar.collapse",
+                        message: "Collapse sidebar",
+                      })
+                }
+                title={
+                  isSidebarCollapsed
+                    ? t({
+                        id: "home.sidebar.expand",
+                        message: "Expand sidebar",
+                      })
+                    : t({
+                        id: "home.sidebar.collapse",
+                        message: "Collapse sidebar",
+                      })
+                }
               >
-                <div className="flex items-center justify-center w-[20px] shrink-0 group-hover:text-content-secondary">
-                  <Info size={20} weight="regular" />
-                </div>
-                <span
-                  style={{
-                    width: isSidebarCollapsed ? 0 : "auto",
-                    opacity: isSidebarCollapsed ? 0 : 1,
-                  }}
-                  className="ui-text-nav-item whitespace-nowrap overflow-hidden transition-[width,opacity] duration-200 ease-out"
-                >
-                  {t({
+                <SidebarSimple size={18} aria-hidden="true" />
+              </button>
+
+              <div className="relative" ref={supportMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowSupportPopup(!showSupportPopup)}
+                  data-active={showSupportPopup ? "true" : "false"}
+                  className="ui-button-ghost h-7 w-7"
+                  aria-expanded={showSupportPopup}
+                  aria-haspopup="menu"
+                  aria-label={t({
+                    id: "home.support.menu_aria",
+                    message: "Support menu",
+                  })}
+                  title={t({
                     id: "home.support.label",
                     message: "Support",
                   })}
-                </span>
-              </button>
+                >
+                  <Info size={18} weight="regular" aria-hidden="true" />
+                </button>
 
-              <AnimatePresence>
                 {showSupportPopup && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="ui-surface-menu absolute bottom-full left-2 mb-2 w-56 z-[60]"
+                  <FloatingPortal
+                    anchorRef={supportMenuRef}
+                    ref={supportPopupRef}
+                    placement="top-end"
+                    offset={8}
+                    className="ui-surface-menu w-56"
+                    role="menu"
                   >
                     <div className="px-3 pt-3 pb-1">
                       <div className="flex items-center justify-between">
@@ -842,9 +863,9 @@ const Home = () => {
                         </div>
                       </button>
                     </div>
-                  </motion.div>
+                  </FloatingPortal>
                 )}
-              </AnimatePresence>
+              </div>
             </div>
 
             {updateAvailable && (
@@ -853,7 +874,7 @@ const Home = () => {
                   setSettingsTab("about");
                   setIsSettingsOpen(true);
                 }}
-                className={`ui-nav-item group h-9 pl-[var(--sidebar-icon-pl,17px)] pr-3 mb-[2px] ${isSidebarCollapsed ? "gap-0" : "gap-3"}`}
+                className={`order-1 ui-nav-item group h-9 pl-[var(--sidebar-icon-pl,17px)] pr-3 mb-[2px] ${isSidebarCollapsed ? "gap-0" : "gap-3"}`}
                 style={{ color: "var(--color-accent)" }}
               >
                 <div className="flex items-center justify-center w-[20px] shrink-0">
@@ -874,22 +895,23 @@ const Home = () => {
               </button>
             )}
 
-            <SettingsNavToggle
-              open={isSettingsOpen}
-              collapsed={isSidebarCollapsed}
-              openLabel={t({
-                id: "home.sidebar.settings",
-                message: "Settings",
-              })}
-              returnIcon={returnIcon}
-              closeLabel={t({
-                id: "home.sidebar.back",
-                message: "Back",
-              })}
-              onClick={() =>
-                isSettingsOpen ? closeSettings() : setIsSettingsOpen(true)
-              }
-            />
+            <div className="order-2">
+              <SettingsNavToggle
+                open={isSettingsOpen}
+                collapsed={isSidebarCollapsed}
+                openLabel={t({
+                  id: "home.sidebar.settings",
+                  message: "Settings",
+                })}
+                closeLabel={t({
+                  id: "home.sidebar.back",
+                  message: "Back",
+                })}
+                onClick={() =>
+                  isSettingsOpen ? closeSettings() : setIsSettingsOpen(true)
+                }
+              />
+            </div>
           </div>
         </div>
       </aside>
@@ -966,6 +988,18 @@ const Home = () => {
               pendingImportPaths={pendingImportPaths}
               onSetImportPaths={setPendingImportPaths}
               isActive={activeView === "library" && licenseGateActive}
+              scope="files"
+            />
+          </div>
+
+          <div
+            className={`w-full min-w-0 flex-1 min-h-0 ${activeView === "meetings" ? "" : "hidden"}`}
+          >
+            <LibraryView
+              pendingImportPaths={null}
+              onSetImportPaths={setPendingImportPaths}
+              isActive={activeView === "meetings" && licenseGateActive}
+              scope="meetings"
             />
           </div>
         </div>

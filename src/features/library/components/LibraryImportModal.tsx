@@ -93,10 +93,8 @@ const LibraryImportModal = ({
   }, [timestampsSupported]);
 
   useEffect(() => {
-    if (!diarizationSupported) {
-      setDetectSpeakers(false);
-    }
-  }, [diarizationSupported]);
+    setDetectSpeakers(diarizationSupported);
+  }, [selectedModelKey, diarizationSupported]);
 
   useEffect(() => {
     if (importPaths.length > 1) {
@@ -383,13 +381,13 @@ const LibraryImportModal = ({
                 <div className="ui-text-body-sm text-content-primary">
                   {t({
                     id: "library.import.detect_speakers",
-                    message: "Detect speakers",
+                    message: "Detect people",
                   })}
                 </div>
                 <div className="ui-text-meta text-content-disabled">
                   {t({
                     id: "library.import.detect_speakers.description",
-                    message: "Label segments by speaker automatically",
+                    message: "Identify people in segments automatically",
                   })}
                 </div>
               </div>
@@ -398,7 +396,7 @@ const LibraryImportModal = ({
                 onToggle={() => setDetectSpeakers(!detectSpeakers)}
                 ariaLabel={t({
                   id: "library.import.detect_speakers.aria",
-                  message: "Detect speakers",
+                  message: "Detect people",
                 })}
                 size="md"
               />

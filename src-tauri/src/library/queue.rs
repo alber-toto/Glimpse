@@ -21,10 +21,12 @@ use super::processing::{
 };
 use super::types::{
     CHUNK_OVERLAP_SECONDS, DIRECT_TRANSCRIBE_MINUTES, EVENT_LIBRARY_COMPLETE, EVENT_LIBRARY_ERROR,
-    EVENT_LIBRARY_PROGRESS, LibraryCompletePayload, LibraryErrorPayload, LibraryItem,
-    LibraryItemPatch, LibraryItemStatus, LibraryProgressPayload, LibraryProgressUpdate,
-    LibraryTranscriptionResult, MAX_CHUNK_MINUTES, TranscriptSegment, cancelled_error,
-    is_cancelled_error, is_ffmpeg_error_message,
+    EVENT_LIBRARY_METADATA_PROCESSING, EVENT_LIBRARY_PROGRESS, EVENT_LIBRARY_UPDATED,
+    LibraryCompletePayload, LibraryErrorPayload, LibraryItem, LibraryItemPatch, LibraryItemStatus,
+    LibraryMetadataProcessingPayload, LibraryProgressPayload, LibraryProgressUpdate,
+    LibraryTranscriptionResult, LibraryUpdatedPayload, MAX_CHUNK_MINUTES, Speaker,
+    TranscriptSegment, cancelled_error, is_cancelled_error, is_ffmpeg_error_message,
+    is_meeting_item_kind,
 };
 use crate::speech::{
     VAD_MIN_SPEECH_PERCENT_CHUNK, VAD_MIN_SPEECH_PERCENT_FILE, WHISPER_CHUNK_OVERLAP_SECONDS,
@@ -173,6 +175,7 @@ fn start_library_transcription_internal(
 
     let token = state.register_library_transcription(id.clone());
     let app_handle = app.clone();
+    let organize_after_completion = should_automatically_organize(item.transcribed_at.as_deref());
     let item_for_task = item.clone();
     let transcription_started_at = Instant::now();
     async_runtime::spawn(async move {
@@ -181,7 +184,12 @@ fn start_library_transcription_internal(
         let app_for_task = app_handle.clone();
         let result = async_runtime::spawn_blocking(move || {
             let state_handle = app_for_task.state::<AppState>();
-            transcribe_library_item(&app_for_task, &state_handle, &item_for_task, &token_handle)
+            transcribe_library_item_for_kind(
+                &app_for_task,
+                &state_handle,
+                &item_for_task,
+                &token_handle,
+            )
         })
         .await;
 
@@ -238,6 +246,7 @@ fn start_library_transcription_internal(
                         },
                     );
                 } else {
+                    let transcript_for_title = final_transcript.clone();
                     let speech_model = result
                         .speech_model
                         .as_deref()
@@ -272,6 +281,14 @@ fn start_library_transcription_internal(
                         EVENT_LIBRARY_COMPLETE,
                         LibraryCompletePayload { id: id.clone() },
                     );
+                    if organize_after_completion {
+                        schedule_automatic_library_organization(
+                            app_handle.clone(),
+                            id.clone(),
+                            item.name.clone(),
+                            transcript_for_title,
+                        );
+                    }
                 }
             }
             Ok(Err(err)) => {
@@ -343,6 +360,89 @@ fn start_library_transcription_internal(
         }
 
         release_library_slot(&app_handle, &state_handle, &id_for_release);
+    });
+}
+
+fn should_automatically_organize(transcribed_at: Option<&str>) -> bool {
+    transcribed_at.is_none()
+}
+
+fn schedule_automatic_library_organization(
+    app: AppHandle<AppRuntime>,
+    id: String,
+    original_name: String,
+    transcript: String,
+) {
+    async_runtime::spawn(async move {
+        let state = app.state::<AppState>();
+        let settings = state.current_settings_unmasked();
+        let Some(title_settings) = crate::llm_cleanup::title_generation_settings(&settings, true)
+        else {
+            return;
+        };
+        let _ = app.emit(
+            EVENT_LIBRARY_METADATA_PROCESSING,
+            LibraryMetadataProcessingPayload {
+                id: id.clone(),
+                active: true,
+            },
+        );
+        let available_tags = match state.storage().get_library_tags() {
+            Ok(tags) => tags,
+            Err(err) => {
+                tracing::warn!(item_id = %id, "Automatic library organization skipped: failed to load tags: {err}");
+                Vec::new()
+            }
+        };
+        let app_locale = crate::native_i18n::resolved_app_locale(&settings);
+
+        let metadata = match crate::llm_cleanup::generate_library_metadata(
+            &state.http(),
+            &transcript,
+            &available_tags,
+            app_locale,
+            &title_settings,
+        )
+        .await
+        {
+            Ok(metadata) => metadata,
+            Err(err) => {
+                tracing::warn!(
+                    item_id = %id,
+                    "Automatic library organization skipped: {}",
+                    crate::llm_cleanup::llm_issue_message(&err)
+                );
+                let _ = app.emit(
+                    EVENT_LIBRARY_METADATA_PROCESSING,
+                    LibraryMetadataProcessingPayload { id, active: false },
+                );
+                return;
+            }
+        };
+
+        match state.storage().apply_generated_library_metadata(
+            &id,
+            Some(&original_name),
+            &metadata.title,
+            &metadata.tags,
+        ) {
+            Ok(Some(_)) => {
+                let _ = app.emit(
+                    EVENT_LIBRARY_UPDATED,
+                    LibraryUpdatedPayload { id: id.clone() },
+                );
+            }
+            Ok(None) => {
+                tracing::debug!(item_id = %id, "Automatic library organization kept the user's edits");
+            }
+            Err(err) => {
+                tracing::warn!(item_id = %id, "Failed to save automatic library title and tags: {err}");
+            }
+        }
+        let _ = app.emit(
+            EVENT_LIBRARY_METADATA_PROCESSING,
+            LibraryMetadataProcessingPayload { id, active: false },
+        );
     });
 }
 
@@ -434,6 +534,42 @@ struct LocalRun<'a> {
     dictionary: &'a [String],
     language: &'a str,
     sample_rate: u32,
+    progress_scope: ProgressScope,
+}
+
+#[derive(Clone, Copy)]
+struct ProgressScope {
+    start: f32,
+    end: f32,
+    publish_content: bool,
+}
+
+impl ProgressScope {
+    const FULL: Self = Self {
+        start: 0.0,
+        end: 1.0,
+        publish_content: true,
+    };
+
+    fn meeting_track(index: usize, total: usize) -> Self {
+        let total = total.max(1) as f32;
+        Self {
+            start: index as f32 / total,
+            end: (index + 1) as f32 / total,
+            publish_content: false,
+        }
+    }
+
+    fn map(self, mut update: LibraryProgressUpdate) -> LibraryProgressUpdate {
+        update.progress = self.start + update.progress.clamp(0.0, 1.0) * (self.end - self.start);
+        if !self.publish_content {
+            update.transcript = None;
+            update.segments = None;
+            update.chunk_text = None;
+            update.chunk_segments = None;
+        }
+        update
+    }
 }
 
 struct ChunkPlan {
@@ -464,11 +600,218 @@ fn chunk_below_speech_gate(chunk: &[i16], sample_rate: u32) -> bool {
         < VAD_MIN_SPEECH_PERCENT_CHUNK
 }
 
+#[derive(Clone, Copy)]
+enum MeetingTrackSource {
+    Microphone,
+    System,
+}
+
+impl MeetingTrackSource {
+    fn speaker_id(self) -> &'static str {
+        match self {
+            Self::Microphone => "meeting_you",
+            Self::System => "meeting_remote",
+        }
+    }
+
+    fn speaker_name(self, app: &AppHandle<AppRuntime>) -> String {
+        match self {
+            Self::Microphone => crate::toast::native(app, "native.meeting.speaker_you"),
+            Self::System => crate::toast::native(app, "native.meeting.speaker_remote"),
+        }
+    }
+}
+
+fn transcribe_library_item_for_kind(
+    app: &AppHandle<AppRuntime>,
+    state: &AppState,
+    item: &LibraryItem,
+    token: &CancellationToken,
+) -> Result<LibraryTranscriptionResult> {
+    if !is_meeting_item_kind(&item.kind) {
+        return transcribe_library_item(app, state, item, token, ProgressScope::FULL);
+    }
+
+    let Some(item_dir) = Path::new(&item.audio_path).parent() else {
+        return transcribe_library_item(app, state, item, token, ProgressScope::FULL);
+    };
+    let candidates = [
+        (
+            MeetingTrackSource::Microphone,
+            item_dir.join("microphone.wav"),
+        ),
+        (MeetingTrackSource::System, item_dir.join("system.wav")),
+    ];
+    let tracks: Vec<_> = candidates
+        .into_iter()
+        .filter(|(_, path)| {
+            read_wav_info(path)
+                .map(|info| info.total_samples > 0)
+                .unwrap_or(false)
+        })
+        .collect();
+    if tracks.is_empty() {
+        // Compatibility with meetings recorded before source tracks were
+        // retained, and with any manually repaired Library item.
+        return transcribe_library_item(app, state, item, token, ProgressScope::FULL);
+    }
+
+    transcribe_meeting_tracks(app, state, item, token, &tracks)
+}
+
+fn transcribe_meeting_tracks(
+    app: &AppHandle<AppRuntime>,
+    state: &AppState,
+    item: &LibraryItem,
+    token: &CancellationToken,
+    tracks: &[(MeetingTrackSource, PathBuf)],
+) -> Result<LibraryTranscriptionResult> {
+    let mut results = Vec::with_capacity(tracks.len());
+    for (index, (source, path)) in tracks.iter().enumerate() {
+        if token.is_cancelled() {
+            return Err(cancelled_error());
+        }
+        let scope = ProgressScope::meeting_track(index, tracks.len());
+        let mut track_item = item.clone();
+        track_item.audio_path = path.display().to_string();
+        track_item.detect_speakers =
+            meeting_track_person_detection_enabled(item.detect_speakers, *source);
+        let duration_ms = read_wav_info(path)
+            .map(|info| (info.duration_seconds * 1000.0).round() as u64)
+            .unwrap_or_else(|_| (item.duration_seconds * 1000.0).round() as u64);
+        let result = transcribe_library_item(app, state, &track_item, token, scope)?;
+        results.push(label_meeting_track(
+            result,
+            *source,
+            duration_ms,
+            source.speaker_name(app),
+        ));
+        report_progress(
+            app,
+            state.storage(),
+            &item.id,
+            scope.map(LibraryProgressUpdate::with_chunk_counts(1.0, 1, 1)),
+        );
+    }
+
+    Ok(merge_meeting_results(results))
+}
+
+fn meeting_track_person_detection_enabled(
+    meeting_detection_enabled: bool,
+    source: MeetingTrackSource,
+) -> bool {
+    meeting_detection_enabled && matches!(source, MeetingTrackSource::System)
+}
+
+fn label_meeting_track(
+    mut result: LibraryTranscriptionResult,
+    source: MeetingTrackSource,
+    duration_ms: u64,
+    speaker_name: String,
+) -> LibraryTranscriptionResult {
+    if matches!(source, MeetingTrackSource::System)
+        && result
+            .speakers
+            .as_ref()
+            .is_some_and(|speakers| !speakers.is_empty())
+    {
+        return result;
+    }
+    let speaker_id = source.speaker_id().to_string();
+    let speaker = Speaker {
+        id: speaker_id.clone(),
+        name: speaker_name,
+        color: None,
+    };
+
+    let segments = result.segments.get_or_insert_with(Vec::new);
+    if segments.is_empty() && !result.transcript.trim().is_empty() {
+        segments.push(TranscriptSegment {
+            start_ms: 0,
+            end_ms: duration_ms.max(1),
+            text: result.transcript.trim().to_string(),
+            speaker_id: Some(speaker_id.clone()),
+        });
+    } else {
+        for segment in segments.iter_mut() {
+            segment.speaker_id = Some(speaker_id.clone());
+        }
+    }
+    if let Some(words) = result.words.as_mut() {
+        for word in words {
+            word.speaker_id = Some(speaker_id.clone());
+        }
+    }
+    result.speakers = Some(vec![speaker]);
+    result
+}
+
+fn merge_meeting_results(results: Vec<LibraryTranscriptionResult>) -> LibraryTranscriptionResult {
+    let mut segments = Vec::new();
+    let mut words = Vec::new();
+    let mut speakers: Vec<Speaker> = Vec::new();
+    let mut speech_model = None;
+
+    for mut result in results {
+        segments.extend(result.segments.take().unwrap_or_default());
+        words.extend(result.words.take().unwrap_or_default());
+        for speaker in result.speakers.take().unwrap_or_default() {
+            if !speakers.iter().any(|existing| existing.id == speaker.id) {
+                speakers.push(speaker);
+            }
+        }
+        if result.speech_model.is_some() {
+            speech_model = result.speech_model;
+        }
+    }
+
+    segments.sort_by(|left, right| {
+        left.start_ms
+            .cmp(&right.start_ms)
+            .then(left.end_ms.cmp(&right.end_ms))
+            .then(left.speaker_id.cmp(&right.speaker_id))
+    });
+    words.sort_by(|left, right| {
+        left.start_ms
+            .cmp(&right.start_ms)
+            .then(left.end_ms.cmp(&right.end_ms))
+            .then(left.speaker_id.cmp(&right.speaker_id))
+    });
+
+    let transcript = segments
+        .iter()
+        .filter_map(|segment| {
+            let text = segment.text.trim();
+            if text.is_empty() {
+                return None;
+            }
+            let name = segment
+                .speaker_id
+                .as_deref()
+                .and_then(|id| speakers.iter().find(|speaker| speaker.id == id))
+                .map(|speaker| speaker.name.as_str())
+                .unwrap_or("Speaker");
+            Some(format!("{name}: {text}"))
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    LibraryTranscriptionResult {
+        transcript,
+        segments: (!segments.is_empty()).then_some(segments),
+        words: (!words.is_empty()).then_some(words),
+        speech_model,
+        speakers: (!speakers.is_empty()).then_some(speakers),
+    }
+}
+
 fn transcribe_library_item(
     app: &AppHandle<AppRuntime>,
     state: &AppState,
     item: &LibraryItem,
     token: &CancellationToken,
+    progress_scope: ProgressScope,
 ) -> Result<LibraryTranscriptionResult> {
     if token.is_cancelled() {
         return Err(cancelled_error());
@@ -490,8 +833,18 @@ fn transcribe_library_item(
         && remote_speech::is_configured(&settings);
     let mut remote_fallback = false;
     if wants_remote {
-        match transcribe_remote(app, state, &settings, item, &audio_path, token)? {
-            Some(result) => return Ok(result),
+        match transcribe_remote(
+            app,
+            state,
+            &settings,
+            item,
+            &audio_path,
+            token,
+            progress_scope,
+        )? {
+            Some(result) => {
+                return apply_local_diarization_if_needed(app, item, token, &audio_path, result);
+            }
             None => remote_fallback = true,
         }
     }
@@ -513,15 +866,51 @@ fn transcribe_library_item(
         dictionary: &dictionary,
         language: &language,
         sample_rate: wav_info.sample_rate,
+        progress_scope,
     };
 
-    if matches!(ready_model.engine, model_manager::LocalModelEngine::Whisper) {
+    let result = if matches!(ready_model.engine, model_manager::LocalModelEngine::Whisper) {
         transcribe_whisper_chunked(&run, &audio_path, &wav_info)
     } else if wav_info.duration_seconds <= (DIRECT_TRANSCRIBE_MINUTES as f32 * 60.0) {
         transcribe_direct(&run, &audio_path)
     } else {
         transcribe_parakeet_chunked(&run, &audio_path, &wav_info)
+    }?;
+    apply_local_diarization_if_needed(app, item, token, &audio_path, result)
+}
+
+fn apply_local_diarization_if_needed(
+    app: &AppHandle<AppRuntime>,
+    item: &LibraryItem,
+    token: &CancellationToken,
+    audio_path: &Path,
+    mut result: LibraryTranscriptionResult,
+) -> Result<LibraryTranscriptionResult> {
+    if !item.detect_speakers
+        || result
+            .speakers
+            .as_ref()
+            .is_some_and(|speakers| !speakers.is_empty())
+        || !crate::diarization::is_installed(app)
+    {
+        return Ok(result);
     }
+    if token.is_cancelled() {
+        return Err(cancelled_error());
+    }
+    let segments = crate::diarization::run(app, audio_path)?;
+    if token.is_cancelled() {
+        return Err(cancelled_error());
+    }
+    let settings = app.state::<AppState>().current_settings();
+    let strings = crate::native_i18n::MenuStrings::resolve(&settings);
+    crate::diarization::apply_to_transcription(&mut result, &segments, |next_index| {
+        strings.format(
+            "native.library.person_default",
+            &[("nextIndex", &next_index.to_string())],
+        )
+    });
+    Ok(result)
 }
 
 // Ok(Some) = done, Ok(None) = fall back to local, Err = cancel/unavailable.
@@ -532,8 +921,13 @@ fn transcribe_remote(
     item: &LibraryItem,
     audio_path: &Path,
     token: &CancellationToken,
+    progress_scope: ProgressScope,
 ) -> Result<Option<LibraryTranscriptionResult>> {
     let http = state.http();
+    let remote_diarization = item.detect_speakers
+        && glimpse_speech::remote::supports_diarization(&remote_speech::resolved_endpoint(
+            settings,
+        ));
     let attempt = async_runtime::block_on(remote_speech::attempt_remote(
         app,
         &http,
@@ -542,7 +936,7 @@ fn transcribe_remote(
         &settings.local_model,
         remote_speech::TranscribeOptions {
             timestamps: true,
-            diarization: item.detect_speakers,
+            diarization: remote_diarization,
         },
         || token.is_cancelled(),
     ));
@@ -553,11 +947,17 @@ fn transcribe_remote(
                 app,
                 state.storage(),
                 &item.id,
-                LibraryProgressUpdate::with_chunk_counts(1.0, 1, 1),
+                progress_scope.map(LibraryProgressUpdate::with_chunk_counts(1.0, 1, 1)),
             );
             let (segments, speakers) = match success.diarized_segments.as_deref() {
                 Some(segs) => {
-                    let (converted, speakers) = diarize_segments(segs);
+                    let strings = crate::native_i18n::MenuStrings::resolve(settings);
+                    let (converted, speakers) = diarize_segments(segs, |next_index| {
+                        strings.format(
+                            "native.library.person_default",
+                            &[("nextIndex", &next_index.to_string())],
+                        )
+                    });
                     (Some(converted), speakers)
                 }
                 None => (result.segments.as_deref().map(convert_segments_to_ms), None),
@@ -653,7 +1053,12 @@ fn transcribe_whisper_chunked(
                     run.app,
                     run.state.storage(),
                     &run.item.id,
-                    LibraryProgressUpdate::with_chunk_counts(progress, chunk_index, total_chunks),
+                    run.progress_scope
+                        .map(LibraryProgressUpdate::with_chunk_counts(
+                            progress,
+                            chunk_index,
+                            total_chunks,
+                        )),
                 );
                 return Ok(());
             }
@@ -756,7 +1161,7 @@ fn transcribe_whisper_chunked(
                 run.app,
                 run.state.storage(),
                 &run.item.id,
-                LibraryProgressUpdate {
+                run.progress_scope.map(LibraryProgressUpdate {
                     progress,
                     current_chunk: chunk_index,
                     total_chunks,
@@ -764,7 +1169,7 @@ fn transcribe_whisper_chunked(
                     segments: segments_patch,
                     chunk_text: appended_text,
                     chunk_segments,
-                },
+                }),
             );
             Ok(())
         },
@@ -826,7 +1231,12 @@ fn transcribe_parakeet_chunked(
                     run.app,
                     run.state.storage(),
                     &run.item.id,
-                    LibraryProgressUpdate::with_chunk_counts(progress, chunk_index, total_chunks),
+                    run.progress_scope
+                        .map(LibraryProgressUpdate::with_chunk_counts(
+                            progress,
+                            chunk_index,
+                            total_chunks,
+                        )),
                 );
                 return Ok(());
             }
@@ -915,7 +1325,7 @@ fn transcribe_parakeet_chunked(
                 run.app,
                 run.state.storage(),
                 &run.item.id,
-                LibraryProgressUpdate {
+                run.progress_scope.map(LibraryProgressUpdate {
                     progress,
                     current_chunk: chunk_index,
                     total_chunks,
@@ -923,7 +1333,7 @@ fn transcribe_parakeet_chunked(
                     segments: segments_patch,
                     chunk_text: appended_text,
                     chunk_segments,
-                },
+                }),
             );
             Ok(())
         },
@@ -1011,5 +1421,98 @@ fn lowercase_first_alpha(text: &mut String) {
         lowered.extend(ch.to_lowercase());
         lowered.push_str(&text[idx + ch.len_utf8()..]);
         *text = lowered;
+    }
+}
+
+#[cfg(test)]
+mod meeting_tests {
+    use super::*;
+
+    #[test]
+    fn newly_transcribed_items_are_organized_automatically() {
+        assert!(should_automatically_organize(None));
+    }
+
+    #[test]
+    fn retranscription_keeps_existing_metadata() {
+        assert!(!should_automatically_organize(Some("2026-08-23T16:30:00Z")));
+    }
+
+    fn result_with_segment(text: &str, start_ms: u64, end_ms: u64) -> LibraryTranscriptionResult {
+        LibraryTranscriptionResult {
+            transcript: text.to_string(),
+            segments: Some(vec![TranscriptSegment {
+                start_ms,
+                end_ms,
+                text: text.to_string(),
+                speaker_id: None,
+            }]),
+            words: None,
+            speech_model: None,
+            speakers: None,
+        }
+    }
+
+    #[test]
+    fn meeting_merge_keeps_overlapping_sources_as_separate_segments() {
+        let microphone = label_meeting_track(
+            result_with_segment("I am speaking", 100, 1_500),
+            MeetingTrackSource::Microphone,
+            2_000,
+            "You".to_string(),
+        );
+        let system = label_meeting_track(
+            result_with_segment("So am I", 100, 1_400),
+            MeetingTrackSource::System,
+            2_000,
+            "Meeting".to_string(),
+        );
+
+        let merged = merge_meeting_results(vec![microphone, system]);
+        let segments = merged.segments.expect("meeting segments");
+        assert_eq!(segments.len(), 2);
+        assert_eq!(segments[0].start_ms, 100);
+        assert_eq!(segments[1].start_ms, 100);
+        assert_ne!(segments[0].speaker_id, segments[1].speaker_id);
+        assert!(merged.transcript.contains("You: I am speaking"));
+        assert!(merged.transcript.contains("Meeting: So am I"));
+        assert_eq!(merged.speakers.expect("meeting speakers").len(), 2);
+    }
+
+    #[test]
+    fn meeting_track_without_timestamps_gets_a_source_segment() {
+        let result = LibraryTranscriptionResult {
+            transcript: "Fallback transcript".to_string(),
+            segments: None,
+            words: None,
+            speech_model: None,
+            speakers: None,
+        };
+        let labeled = label_meeting_track(
+            result,
+            MeetingTrackSource::Microphone,
+            3_000,
+            "You".to_string(),
+        );
+        let segment = &labeled.segments.expect("fallback segment")[0];
+        assert_eq!(segment.start_ms, 0);
+        assert_eq!(segment.end_ms, 3_000);
+        assert_eq!(segment.speaker_id.as_deref(), Some("meeting_you"));
+    }
+
+    #[test]
+    fn person_detection_only_runs_on_the_meeting_audio_track() {
+        assert!(!meeting_track_person_detection_enabled(
+            true,
+            MeetingTrackSource::Microphone,
+        ));
+        assert!(meeting_track_person_detection_enabled(
+            true,
+            MeetingTrackSource::System,
+        ));
+        assert!(!meeting_track_person_detection_enabled(
+            false,
+            MeetingTrackSource::System,
+        ));
     }
 }

@@ -567,7 +567,7 @@ msgstr "إضافة إدخال في القاموس أو البحث عنه"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.add_speaker"
-msgstr "إضافة متحدث"
+msgstr "إضافة شخص"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -617,7 +617,7 @@ msgstr "كل المنشورات"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.all"
-msgstr "جميع المتحدثين"
+msgstr "جميع الأشخاص"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -712,7 +712,7 @@ msgstr "تعيين"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.assign_new_speaker"
-msgstr "تعيين متحدث جديد"
+msgstr "تعيين شخص جديد"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -1046,7 +1046,7 @@ msgstr "مسح البحث"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker.clear"
-msgstr "مسح المتحدث"
+msgstr "إزالة الشخص"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -1655,22 +1655,22 @@ msgstr "جارٍ الحذف…"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers"
-msgstr "اكتشاف المتحدثين"
+msgstr "اكتشاف الأشخاص"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.aria"
-msgstr "اكتشاف المتحدثين"
+msgstr "اكتشاف الأشخاص"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers"
-msgstr "اكتشاف المتحدثين"
+msgstr "اكتشاف الأشخاص"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.aria"
-msgstr "اكتشاف المتحدثين"
+msgstr "اكتشاف الأشخاص"
 
 #. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
@@ -1936,7 +1936,7 @@ msgstr "توسيع الشريط الجانبي"
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.experimental"
-msgstr "تجريبي"
+msgstr "النماذج التجريبية"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2056,7 +2056,7 @@ msgstr "الملف غير موجود. ربما تم نقله أو حذفه."
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.aria"
-msgstr "تصفية حسب المتحدث"
+msgstr "تصفية حسب الشخص"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
@@ -2473,12 +2473,12 @@ msgstr "اختصار لوحة المفاتيح"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.description"
-msgstr "تصنيف المقاطع حسب المتحدث تلقائيًا"
+msgstr "تحديد الأشخاص في المقاطع تلقائيًا"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.description"
-msgstr "تصنيف المقاطع حسب المتحدث تلقائياً"
+msgstr "تحديد الأشخاص في المقاطع تلقائيًا"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -3062,7 +3062,7 @@ msgstr "لا توجد مواقع بعد"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.no_speakers"
-msgstr "لا يوجد متحدثون بعد"
+msgstr "لا يوجد أشخاص بعد"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -4129,12 +4129,12 @@ msgstr "ترتيب النصوص المُحوَّلة وتصفيتها"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker_default_name"
-msgstr "المتحدث {nextIndex}"
+msgstr "الشخص {nextIndex}"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speakers"
-msgstr "المتحدثون"
+msgstr "الأشخاص"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ProvidersTab.tsx
@@ -4149,7 +4149,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.standard"
-msgstr "قياسي"
+msgstr "نماذج النسخ"
 
 #. js-lingui-explicit-id
 #: src/features/asks/components/AskPrompt.tsx
@@ -4961,3 +4961,320 @@ msgstr "ستظهر كلماتك هنا…"
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.zoom"
 msgstr "تكبير/تصغير"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.meeting"
+msgstr "اجتماع"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recording"
+msgstr "تسجيل"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recovered_meeting"
+msgstr "اجتماع (مستعاد)"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelling"
+msgstr "جارٍ الإلغاء"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelled"
+msgstr "تم الإلغاء"
+
+#. js-lingui-explicit-id
+msgid "library.filter.files"
+msgstr "الملفات"
+
+#. js-lingui-explicit-id
+msgid "library.filter.meetings"
+msgstr "الاجتماعات"
+
+#. js-lingui-explicit-id
+msgid "library.filter.origin_aria_label"
+msgstr "تصفية المكتبة حسب المصدر"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.model_required"
+msgstr "ثبّت نموذجًا للكلام أو قم بتكوينه أولاً."
+
+#. js-lingui-explicit-id
+msgid "library.meeting.start"
+msgstr "تسجيل اجتماع"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.stop"
+msgstr "إيقاف التسجيل"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.name"
+msgstr "اجتماع {date}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_name"
+msgstr "مستعاد: {name}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_title"
+msgstr "تمت استعادة الاجتماع"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_one"
+msgstr "تم حفظ التسجيل المتقطع في المكتبة وسيتم نسخه."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_many"
+msgstr "تم حفظ {count} تسجيلات متقطعة في المكتبة وسيتم نسخها."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_you"
+msgstr "أنت"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_remote"
+msgstr "الاجتماع"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_title"
+msgstr "تم اكتشاف اجتماع"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_message"
+msgstr "يبدو أن هناك مكالمة نشطة في {app}. هل تريد تسجيلها؟"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_record"
+msgstr "تسجيل"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_not_now"
+msgstr "ليس الآن"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.error"
+msgstr "فشل تسجيل الاجتماع. تحقّق من الأذونات وحاول مرة أخرى."
+
+#. js-lingui-explicit-id
+msgid "home.sidebar.meetings"
+msgstr "الاجتماعات"
+
+#. js-lingui-explicit-id
+msgid "meeting.detail.back"
+msgstr "العودة إلى الاجتماعات"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.title"
+msgstr "الاجتماعات"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.description"
+msgstr "سجّل الاجتماعات عبر الإنترنت وانسخها."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.search_placeholder"
+msgstr "البحث في الاجتماعات..."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.empty_state"
+msgstr "سجّل اجتماعك الأول."
+
+#. js-lingui-explicit-id
+msgid "library.card.recovered"
+msgstr "تم الاسترداد"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generate"
+msgstr "إنشاء عنوان ووسوم"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generating"
+msgstr "جارٍ التنظيم..."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error"
+msgstr "تعذّر إنشاء عنوان ووسوم. حاول مرة أخرى."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_configured"
+msgstr "قم بإعداد نموذج كتابة قبل إنشاء عنوان."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rate_limited"
+msgstr "بلغ موفر الكتابة حد الاستخدام. حاول مرة أخرى لاحقًا."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unauthorized"
+msgstr "رفض موفر الكتابة مفتاح API. تحقّق منه في الإعدادات."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_found"
+msgstr "تعذّر العثور على نموذج الكتابة المُعد. تحقّق منه في الإعدادات."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rejected"
+msgstr "رفض موفر الكتابة طلب إنشاء العنوان."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unreachable"
+msgstr "تعذّر الاتصال بموفر الكتابة. تحقّق من اتصالك وحاول مرة أخرى."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.invalid_response"
+msgstr "استجاب نموذج الكتابة، لكنه لم يتمكن من تنظيم هذا العنصر. حاول مرة أخرى."
+
+#. js-lingui-explicit-id
+msgid "native.library.person_default"
+msgstr "الشخص {nextIndex}"
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.aria"
+msgstr "نموذج محلي لاكتشاف الأشخاص"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.title"
+msgstr "اكتشاف الأشخاص محليًا"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.description"
+msgstr "يفصل الأصوات دون رفع التسجيل الصوتي"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.local_private"
+msgstr "محلي"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.delete"
+msgstr "حذف اكتشاف الأشخاص المحلي"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.download"
+msgstr "تنزيل اكتشاف الأشخاص المحلي"
+
+#. js-lingui-explicit-id
+msgid "settings.models.local_intelligence"
+msgstr "الإضافات"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.addon"
+msgstr "إضافة"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_day_aria"
+msgstr "حذف جميع النصوص المفرغة لهذا اليوم"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.title"
+msgstr "هل تريد حذف نصوص هذا اليوم؟"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.description"
+msgstr "سيؤدي هذا إلى حذف جميع النصوص المفرغة وملفاتها الصوتية لهذا اليوم نهائيًا."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.error"
+msgstr "تعذر حذف النصوص المفرغة. حاول مرة أخرى."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.deleting"
+msgstr "جارٍ الحذف..."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.action"
+msgstr "حذف الكل"
+
+#. js-lingui-explicit-id
+msgid "settings.modal.tab.meetings"
+msgstr "الاجتماعات"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.section"
+msgstr "الاكتشاف التلقائي"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.title"
+msgstr "اكتشاف الاجتماعات عبر الإنترنت"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.description"
+msgstr "يعرض اقتراحًا للتسجيل عند بدء اجتماع مدعوم."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.toggle_aria"
+msgstr "تبديل الاكتشاف التلقائي للاجتماعات"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.section"
+msgstr "التطبيقات"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.loading"
+msgstr "جارٍ البحث عن تطبيقات الاجتماعات المثبتة"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.empty"
+msgstr "لم يتم العثور على تطبيقات اجتماعات متوافقة."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.installed"
+msgstr "مثبت على جهاز Mac هذا"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.toggle_aria"
+msgstr "تبديل اكتشاف الاجتماعات لهذا التطبيق"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.description"
+msgstr "تتم مراقبة التطبيقات المحددة فقط. يتطلب الاكتشاف في المتصفح إذن تسهيلات الاستخدام ويتحقق من علامة التبويب النشطة فقط؛ ولا يقرأ Glimpse محتوى الاجتماعات."
+
+msgid "meeting.active.microphone.default"
+msgstr "الميكروفون الافتراضي"
+
+msgid "meeting.active.system.default"
+msgstr "صوت النظام"
+
+msgid "meeting.active.microphone.waveform"
+msgstr "مستوى الميكروفون المباشر"
+
+msgid "meeting.active.system.waveform"
+msgstr "مستوى صوت الاجتماع المباشر"
+
+msgid "meeting.active.title"
+msgstr "التسجيل جارٍ"
+
+msgid "meeting.active.subtitle"
+msgstr "يتم حفظ مصدري الصوت بشكل منفصل"
+
+msgid "meeting.active.microphone"
+msgstr "الميكروفون"
+
+msgid "meeting.active.system"
+msgstr "صوت الاجتماع"
+
+msgid "meeting.active.system.scope"
+msgstr "التقاط صوت النظام"
+
+msgid "meeting.active.local"
+msgstr "محفوظ محليًا · يبدأ النسخ عند إيقاف التسجيل"
+
+msgid "meeting.active.microphone.no_signal"
+msgstr "لم يتم اكتشاف إشارة من الميكروفون"
+
+msgid "meeting.active.system.scope.application"
+msgstr "التطبيق فقط"
+
+msgid "native.meeting.ended_title"
+msgstr "هل انتهى الاجتماع؟"
+
+msgid "native.meeting.ended_message"
+msgstr "لم تعد المكالمة في {app} نشطة. هل تريد إيقاف التسجيل؟"
+
+msgid "native.meeting.ended_stop"
+msgstr "إيقاف التسجيل"
+
+msgid "native.meeting.ended_continue"
+msgstr "متابعة التسجيل"
+
+msgid "settings.general.shortcuts.dictation_key"
+msgstr "استخدام مفتاح الإملاء"
+
+msgid "settings.general.shortcuts.dictation_key.description"
+msgstr "يعيّن مفتاح الميكروفون للإملاء الذكي"

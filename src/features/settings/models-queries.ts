@@ -14,6 +14,7 @@ export const modelKeys = {
   catalog: () => [...modelKeys.all, "catalog"] as const,
   status: (model: string) => [...modelKeys.all, "status", model] as const,
   speech: () => [...modelKeys.all, "speech"] as const,
+  diarization: () => [...modelKeys.all, "diarization"] as const,
   cli: () => [...modelKeys.all, "cli"] as const,
 };
 
@@ -29,6 +30,14 @@ export function useSpeechModels(enabled: boolean = true) {
   return useQuery({
     queryKey: modelKeys.speech(),
     queryFn: modelsApi.listSpeechModels,
+    enabled,
+  });
+}
+
+export function useDiarizationModel(enabled: boolean = true) {
+  return useQuery({
+    queryKey: modelKeys.diarization(),
+    queryFn: modelsApi.getDiarizationModel,
     enabled,
   });
 }

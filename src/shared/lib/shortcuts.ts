@@ -52,6 +52,7 @@ function humanizeKeyToken(token: string): string {
     MouseMiddle: "Middle Click",
     MouseBack: "Mouse Back",
     MouseForward: "Mouse Forward",
+    Dictation: isMacPlatform ? "Dictation key" : "Dictation",
   };
 
   if (directDisplay[token]) {

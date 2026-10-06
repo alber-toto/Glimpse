@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import DotMatrix from "../../../shared/ui/DotMatrix";
 import { useClickOutside } from "../../../shared/hooks/useClickOutside";
+import FloatingPortal from "../../../shared/ui/FloatingPortal";
 import { detectAppPlatform } from "../../../platform/service";
 import type { Personality } from "../../../types";
 import {
@@ -151,6 +152,7 @@ const PersonalityModal = ({
   const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
   const [appHighlightIndex, setAppHighlightIndex] = useState(0);
   const appComboboxRef = useRef<HTMLDivElement>(null);
+  const appMenuRef = useRef<HTMLDivElement>(null);
   const appInputRef = useRef<HTMLInputElement>(null);
   const [websiteInput, setWebsiteInput] = useState("");
   const [websiteError, setWebsiteError] = useState<string | null>(null);
@@ -227,7 +229,12 @@ const PersonalityModal = ({
     setAppHighlightIndex(0);
   }, [appQuery, isAppMenuOpen]);
 
-  useClickOutside(appComboboxRef, () => setIsAppMenuOpen(false), isAppMenuOpen);
+  useClickOutside(
+    appComboboxRef,
+    () => setIsAppMenuOpen(false),
+    isAppMenuOpen,
+    [appMenuRef],
+  );
 
   const addApp = (name: string) => {
     const trimmed = name.trim();
@@ -694,16 +701,16 @@ const PersonalityModal = ({
                         }`}
                       />
                     </button>
-                    <AnimatePresence>
-                      {isAppMenuOpen && filteredAppOptions.length > 0 && (
-                        <motion.ul
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          transition={{ duration: 0.12 }}
-                          role="listbox"
-                          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[220px] overflow-y-auto rounded-md border border-border-secondary bg-surface-overlay px-1 py-1 shadow-lg instructions-scroll"
-                        >
+                    {isAppMenuOpen && filteredAppOptions.length > 0 && (
+                      <FloatingPortal
+                        anchorRef={appComboboxRef}
+                        ref={appMenuRef}
+                        placement="bottom-start"
+                        matchAnchorWidth
+                        role="listbox"
+                        className="max-h-[220px] overflow-y-auto rounded-md border border-border-secondary bg-surface-overlay px-1 py-1 shadow-lg instructions-scroll"
+                      >
+                        <ul>
                           {filteredAppOptions.map((app, index) => (
                             <li key={`app-option-${app.name}`}>
                               <button
@@ -728,9 +735,9 @@ const PersonalityModal = ({
                               </button>
                             </li>
                           ))}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
+                        </ul>
+                      </FloatingPortal>
+                    )}
                   </div>
                   <div className="mt-1 max-h-[240px] overflow-y-auto instructions-scroll">
                     {personality.apps.length === 0 ? (

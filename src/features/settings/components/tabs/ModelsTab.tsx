@@ -11,6 +11,7 @@ import {
   Waveform,
 } from "@phosphor-icons/react";
 import ModelStatCard from "../ModelStatCard";
+import DiarizationModelCard from "../DiarizationModelCard";
 import CloudModelCard from "../CloudModelCard";
 import SectionLabel from "../../../../shared/ui/SectionLabel";
 import { ModelPickerPanel } from "../../../../shared/ui/ModelPickerModal";
@@ -44,6 +45,7 @@ const SIDE_BY_SIDE_WIDTH = 280;
 type ModelsTabProps = {
   variants: Variants;
   modelCatalog: ModelInfo[];
+  diarizationModel: ModelInfo | null;
   modelStatus: Record<string, ModelStatus>;
   downloadState: Record<string, DownloadEvent>;
   localModel: string;
@@ -66,6 +68,7 @@ const InstalledModelRow = ({
   shiftHeld,
   onUse,
   onDelete,
+  auxiliary = false,
 }: {
   model: ModelInfo;
   active: boolean;
@@ -73,6 +76,7 @@ const InstalledModelRow = ({
   shiftHeld: boolean;
   onUse: () => void;
   onDelete: () => void;
+  auxiliary?: boolean;
 }) => {
   const { t } = useLingui();
   const stats = deriveModelStats(model);
@@ -81,14 +85,25 @@ const InstalledModelRow = ({
   const hasTimestamps = hasModelCapability(model, MODEL_CAPABILITY_TIMESTAMPS);
 
   const builtIn = isBuiltInModel(model);
-  const facts = [
-    stats.englishOnly
-      ? t({ id: "settings.models.installed.english", message: "English" })
-      : t({
-          id: "settings.models.installed.multilingual",
-          message: "Multilingual",
+  const facts = auxiliary
+    ? [
+        t({
+          id: "settings.models.diarization.addon",
+          message: "Add-on",
         }),
-  ];
+        t({
+          id: "settings.models.diarization.local_private",
+          message: "Local",
+        }),
+      ]
+    : [
+        stats.englishOnly
+          ? t({ id: "settings.models.installed.english", message: "English" })
+          : t({
+              id: "settings.models.installed.multilingual",
+              message: "Multilingual",
+            }),
+      ];
   facts.push(
     builtIn
       ? t({ id: "settings.models.installed.built_in", message: "Built in" })
@@ -106,7 +121,7 @@ const InstalledModelRow = ({
       <button
         type="button"
         onClick={onUse}
-        disabled={active}
+        disabled={active || auxiliary}
         className="min-w-0 text-left disabled:cursor-default"
       >
         <span className="flex min-w-0 items-center gap-1.5 ui-text-body-sm-strong text-content-primary">
@@ -145,7 +160,7 @@ const InstalledModelRow = ({
       </button>
 
       <div className="flex items-center justify-end gap-2">
-        {active ? (
+        {auxiliary ? null : active ? (
           <span className="flex items-center gap-1 ui-text-meta font-medium text-local">
             <Check size={12} aria-hidden="true" />
             {t({ id: "settings.models.installed.active", message: "Active" })}
@@ -256,6 +271,7 @@ const CloudModelRow = ({
 const ModelsTab = ({
   variants,
   modelCatalog,
+  diarizationModel,
   modelStatus,
   downloadState,
   localModel,
@@ -297,6 +313,37 @@ const ModelsTab = ({
   const installedModels = sortInstalledModels(
     modelCatalog.filter((m) => modelStatus[m.key]?.installed),
   );
+  const localizedDiarizationModel = diarizationModel
+    ? {
+        ...diarizationModel,
+        label: t({
+          id: "settings.models.diarization.title",
+          message: "Local person detection",
+        }),
+      }
+    : null;
+  const diarizationInstalled = Boolean(
+    localizedDiarizationModel &&
+    modelStatus[localizedDiarizationModel.key]?.installed,
+  );
+
+  const renderInstalledDiarizationCard = () =>
+    localizedDiarizationModel && diarizationInstalled ? (
+      <>
+        <span
+          aria-hidden="true"
+          className="self-center text-xl font-light leading-none text-content-disabled"
+        >
+          +
+        </span>
+        <div className="origin-bottom-left self-center rotate-[1.5deg] transition-transform duration-200 hover:rotate-[0.5deg]">
+          <DiarizationModelCard
+            model={localizedDiarizationModel}
+            onDelete={() => handleDelete(localizedDiarizationModel.key)}
+          />
+        </div>
+      </>
+    ) : null;
 
   const cloudConfigured = isRemoteSpeechConfigured({
     enabled: true,
@@ -349,13 +396,18 @@ const ModelsTab = ({
             onDownload={handleDownload}
             onDelete={handleDelete}
             onCancel={handleCancelDownload}
+            auxiliaryModels={
+              localizedDiarizationModel
+                ? [localizedDiarizationModel]
+                : undefined
+            }
           />
         </>
       ) : (
         <div className="flex h-full min-h-0 flex-col gap-5">
           {remoteSpeechEnabled ? (
             installedModel && hasInstalledFallback ? (
-              <div className="flex shrink-0 items-start justify-center gap-4">
+              <div className="flex shrink-0 flex-wrap items-start justify-center gap-4">
                 <div className="flex flex-col items-center gap-2">
                   <CloudModelCard
                     width={SIDE_BY_SIDE_WIDTH}
@@ -383,30 +435,41 @@ const ModelsTab = ({
                     })}
                   </span>
                 </div>
+                {renderInstalledDiarizationCard()}
               </div>
             ) : (
-              <div className="flex shrink-0 flex-col items-center gap-2">
-                <CloudModelCard
-                  providerLabel={providerLabel}
-                  modelLabel={activeModel ?? null}
-                  onClick={onOpenProvidersTab}
-                />
-                <button
-                  type="button"
-                  onClick={() => setRemoteSpeechEnabled(false)}
-                  className="ui-text-meta ui-color-cloud transition-colors hover:text-content-primary"
-                >
-                  {t({
-                    id: "settings.models.cloud.disable",
-                    message: "Disable cloud",
-                  })}
-                </button>
+              <div className="flex shrink-0 flex-wrap items-start justify-center gap-4">
+                <div className="flex flex-col items-center gap-2">
+                  <CloudModelCard
+                    width={
+                      diarizationInstalled ? SIDE_BY_SIDE_WIDTH : undefined
+                    }
+                    providerLabel={providerLabel}
+                    modelLabel={activeModel ?? null}
+                    onClick={onOpenProvidersTab}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRemoteSpeechEnabled(false)}
+                    className="ui-text-meta ui-color-cloud transition-colors hover:text-content-primary"
+                  >
+                    {t({
+                      id: "settings.models.cloud.disable",
+                      message: "Disable cloud",
+                    })}
+                  </button>
+                </div>
+                {renderInstalledDiarizationCard()}
               </div>
             )
           ) : (
             installedModel && (
-              <div className="flex shrink-0 justify-center">
-                {renderLocalCard()}
+              <div className="flex shrink-0 flex-wrap items-start justify-center gap-4">
+                {renderLocalCard(
+                  diarizationInstalled ? SIDE_BY_SIDE_WIDTH : undefined,
+                  diarizationInstalled,
+                )}
+                {renderInstalledDiarizationCard()}
               </div>
             )
           )}
@@ -464,6 +527,17 @@ const ModelsTab = ({
                   onDelete={() => handleDelete(model.key)}
                 />
               ))}
+              {localizedDiarizationModel && diarizationInstalled && (
+                <InstalledModelRow
+                  model={localizedDiarizationModel}
+                  active={false}
+                  aneInstalled={false}
+                  shiftHeld={shiftHeld}
+                  auxiliary
+                  onUse={() => undefined}
+                  onDelete={() => handleDelete(localizedDiarizationModel.key)}
+                />
+              )}
             </div>
           </div>
         </div>

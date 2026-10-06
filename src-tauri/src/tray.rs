@@ -9,7 +9,10 @@ use crate::speech::menu::{
 };
 use crate::{AppRuntime, AppState, FEEDBACK_URL, SETTINGS_WINDOW_LABEL, audio};
 use parking_lot::Mutex;
-use std::sync::{OnceLock, atomic::Ordering};
+use std::sync::{
+    OnceLock,
+    atomic::{AtomicU64, Ordering},
+};
 use tauri::menu::{CheckMenuItemBuilder, Menu, MenuBuilder, MenuItem, SubmenuBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
@@ -17,6 +20,7 @@ use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, Windo
 #[cfg(target_os = "macos")]
 use tauri::ActivationPolicy;
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 // On macOS, share mic constants with the app menu; on other platforms, define locally
 #[cfg(target_os = "macos")]
@@ -28,6 +32,12 @@ const MENU_ID_MIC_DEFAULT: &str = "menu_mic_default";
 const MENU_ID_FEEDBACK: &str = "menu_send_feedback";
 const MENU_ID_CHECK_UPDATES: &str = "menu_check_updates";
 pub(crate) const EVENT_SETTINGS_RENDERER_READY: &str = "settings:renderer_ready";
+const SETTINGS_DEFAULT_WIDTH: f64 = 1040.0;
+const SETTINGS_DEFAULT_HEIGHT: f64 = 750.0;
+const SETTINGS_MIN_WIDTH: f64 = 900.0;
+const SETTINGS_MIN_HEIGHT: f64 = 750.0;
+const SETTINGS_WINDOW_STATE_SAVE_DELAY: std::time::Duration = std::time::Duration::from_millis(500);
+static SETTINGS_WINDOW_STATE_SAVE_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 const EVENT_NAVIGATE_ABOUT: &str = "navigate:about";
 const EVENT_NAVIGATE_HISTORY: &str = "navigate:history";
@@ -51,6 +61,26 @@ struct PendingSettingsNavigation {
 fn pending_settings_navigation() -> &'static Mutex<PendingSettingsNavigation> {
     static PENDING: OnceLock<Mutex<PendingSettingsNavigation>> = OnceLock::new();
     PENDING.get_or_init(|| Mutex::new(PendingSettingsNavigation::default()))
+}
+
+fn settings_window_state_flags() -> StateFlags {
+    StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED
+}
+
+fn save_settings_window_state(app: &AppHandle<AppRuntime>) {
+    if let Err(err) = app.save_window_state(settings_window_state_flags()) {
+        tracing::warn!("Failed to save settings window state: {err}");
+    }
+}
+
+fn schedule_settings_window_state_save(app: AppHandle<AppRuntime>) {
+    let generation = SETTINGS_WINDOW_STATE_SAVE_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(SETTINGS_WINDOW_STATE_SAVE_DELAY).await;
+        if SETTINGS_WINDOW_STATE_SAVE_GENERATION.load(Ordering::SeqCst) == generation {
+            save_settings_window_state(&app);
+        }
+    });
 }
 
 fn flush_pending_settings_navigation(app: &AppHandle<AppRuntime>) {
@@ -369,8 +399,8 @@ pub fn toggle_settings_window(app: &AppHandle<AppRuntime>) -> tauri::Result<()> 
             let builder =
                 WebviewWindowBuilder::new(app, SETTINGS_WINDOW_LABEL, WebviewUrl::default())
                     .title("Glimpse")
-                    .inner_size(900.0, 750.0)
-                    .min_inner_size(900.0, 750.0)
+                    .inner_size(SETTINGS_DEFAULT_WIDTH, SETTINGS_DEFAULT_HEIGHT)
+                    .min_inner_size(SETTINGS_MIN_WIDTH, SETTINGS_MIN_HEIGHT)
                     .resizable(true)
                     .visible(false);
 
@@ -382,7 +412,9 @@ pub fn toggle_settings_window(app: &AppHandle<AppRuntime>) -> tauri::Result<()> 
             #[cfg(target_os = "windows")]
             let builder = builder.decorations(false);
 
-            builder.build()?
+            let window = builder.build()?;
+            window.restore_state(settings_window_state_flags())?;
+            window
         }
     };
 
@@ -428,14 +460,20 @@ pub fn toggle_settings_window(app: &AppHandle<AppRuntime>) -> tauri::Result<()> 
     if !already_registered {
         #[cfg(target_os = "macos")]
         let app_handle = app.clone();
+        let state_app_handle = app.clone();
         let window_clone = window.clone();
-        window.on_window_event(move |event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
+        window.on_window_event(move |event| match event {
+            WindowEvent::Resized(_) | WindowEvent::Moved(_) => {
+                schedule_settings_window_state_save(state_app_handle.clone());
+            }
+            WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
+                save_settings_window_state(&state_app_handle);
                 let _ = window_clone.hide();
                 #[cfg(target_os = "macos")]
                 let _ = app_handle.set_activation_policy(ActivationPolicy::Accessory);
             }
+            _ => {}
         });
     }
 

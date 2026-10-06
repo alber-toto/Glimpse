@@ -438,9 +438,9 @@ const PersonalizationView = ({ isActive = true }: { isActive?: boolean }) => {
               id: "personalization.new_mode",
               message: "New mode",
             })}
-            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-content-primary px-3.5 py-1.5 ui-text-button-sm font-semibold text-surface-secondary transition-all hover:bg-content-secondary shadow-[0_3px_0_-1px_rgba(255,255,255,0.25),inset_0_1px_0_0_rgba(255,255,255,0.1)] active:translate-y-[1px] active:shadow-none"
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-content-primary px-3.5 py-1.5 text-sm leading-5 font-semibold text-surface-secondary transition-all hover:bg-content-secondary shadow-[0_3px_0_-1px_rgba(255,255,255,0.25),inset_0_1px_0_0_rgba(255,255,255,0.1)] active:translate-y-[1px] active:shadow-none"
           >
-            <Plus size={13} aria-hidden="true" />
+            <Plus size={14} aria-hidden="true" />
             {t({
               id: "personalization.new_mode",
               message: "New mode",

@@ -567,7 +567,7 @@ msgstr "Aggiungi o cerca una voce nel dizionario"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.add_speaker"
-msgstr "Aggiungi parlante"
+msgstr "Aggiungi persona"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -617,7 +617,7 @@ msgstr "Tutti i post"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.all"
-msgstr "Tutti gli interlocutori"
+msgstr "Tutte le persone"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/LocalApiTab.tsx
@@ -712,7 +712,7 @@ msgstr "Assegna"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.assign_new_speaker"
-msgstr "Assegna nuovo parlante"
+msgstr "Assegna nuova persona"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -1046,7 +1046,7 @@ msgstr "Cancella ricerca"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker.clear"
-msgstr "Rimuovi relatore"
+msgstr "Rimuovi persona"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
@@ -1655,22 +1655,22 @@ msgstr "Eliminazione in corso…"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers"
-msgstr "Rileva relatori"
+msgstr "Rileva persone"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.aria"
-msgstr "Rileva parlanti"
+msgstr "Rileva persone"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers"
-msgstr "Rileva relatori"
+msgstr "Rileva persone"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.aria"
-msgstr "Rileva parlanti"
+msgstr "Rileva persone"
 
 #. js-lingui-explicit-id
 #: src/features/settings/settingsPanes.ts
@@ -1936,7 +1936,7 @@ msgstr "Espandi barra laterale"
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.experimental"
-msgstr "Sperimentale"
+msgstr "Modelli sperimentali"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AboutTab.tsx
@@ -2056,7 +2056,7 @@ msgstr "File non trovato. Potrebbe essere stato spostato o eliminato."
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.aria"
-msgstr "Filtra per parlante"
+msgstr "Filtra per persona"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryView.tsx
@@ -2473,12 +2473,12 @@ msgstr "Scorciatoia da tastiera"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryImportModal.tsx
 msgid "library.import.detect_speakers.description"
-msgstr "Etichetta i segmenti per parlante automaticamente"
+msgstr "Identifica automaticamente le persone nei segmenti"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryRetranscribeModal.tsx
 msgid "library.retranscribe.detect_speakers.description"
-msgstr "Etichetta i segmenti per relatore automaticamente"
+msgstr "Identifica automaticamente le persone nei segmenti"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/AppTab.tsx
@@ -3062,7 +3062,7 @@ msgstr "Nessun sito ancora"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.filter.no_speakers"
-msgstr "Nessun relatore ancora"
+msgstr "Nessuna persona ancora"
 
 #. js-lingui-explicit-id
 #: src/shared/lib/nativeMenuStrings.ts
@@ -4129,12 +4129,12 @@ msgstr "Ordina e filtra le trascrizioni"
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speaker_default_name"
-msgstr "Parlante {nextIndex}"
+msgstr "Persona {nextIndex}"
 
 #. js-lingui-explicit-id
 #: src/features/library/components/LibraryDetail.tsx
 msgid "library.detail.speakers"
-msgstr "Parlanti"
+msgstr "Persone"
 
 #. js-lingui-explicit-id
 #: src/features/settings/components/tabs/ProvidersTab.tsx
@@ -4149,7 +4149,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/ui/ModelPickerModal.tsx
 msgid "model_picker.category.standard"
-msgstr "Standard"
+msgstr "Modelli di trascrizione"
 
 #. js-lingui-explicit-id
 #: src/features/asks/components/AskPrompt.tsx
@@ -4961,3 +4961,320 @@ msgstr "Le tue parole appariranno qui…"
 #: src/shared/lib/nativeMenuStrings.ts
 msgid "native.menu.zoom"
 msgstr "Zoom"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.meeting"
+msgstr "Riunione"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recording"
+msgstr "Registrazione"
+
+#. js-lingui-explicit-id
+msgid "library.card.origin.recovered_meeting"
+msgstr "Riunione (recuperata)"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelling"
+msgstr "Annullamento in corso"
+
+#. js-lingui-explicit-id
+msgid "library.card.status.cancelled"
+msgstr "Annullato"
+
+#. js-lingui-explicit-id
+msgid "library.filter.files"
+msgstr "File"
+
+#. js-lingui-explicit-id
+msgid "library.filter.meetings"
+msgstr "Riunioni"
+
+#. js-lingui-explicit-id
+msgid "library.filter.origin_aria_label"
+msgstr "Filtra la libreria per origine"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.model_required"
+msgstr "Installa o configura prima un modello vocale."
+
+#. js-lingui-explicit-id
+msgid "library.meeting.start"
+msgstr "Registra riunione"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.stop"
+msgstr "Interrompi registrazione"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.name"
+msgstr "Riunione {date}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_name"
+msgstr "Recuperata: {name}"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_title"
+msgstr "Riunione recuperata"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_one"
+msgstr "La registrazione interrotta è stata salvata nella libreria e verrà trascritta."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.recovered_message_many"
+msgstr "{count} registrazioni interrotte sono state salvate nella libreria e verranno trascritte."
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_you"
+msgstr "Tu"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.speaker_remote"
+msgstr "Riunione"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_title"
+msgstr "Riunione rilevata"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_message"
+msgstr "Sembra che ci sia una chiamata attiva in {app}. Vuoi registrarla?"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_record"
+msgstr "Registra"
+
+#. js-lingui-explicit-id
+msgid "native.meeting.detected_not_now"
+msgstr "Non ora"
+
+#. js-lingui-explicit-id
+msgid "library.meeting.error"
+msgstr "Impossibile registrare la riunione. Controlla le autorizzazioni e riprova."
+
+#. js-lingui-explicit-id
+msgid "home.sidebar.meetings"
+msgstr "Riunioni"
+
+#. js-lingui-explicit-id
+msgid "meeting.detail.back"
+msgstr "Torna alle riunioni"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.title"
+msgstr "Riunioni"
+
+#. js-lingui-explicit-id
+msgid "meeting.view.description"
+msgstr "Registra e trascrivi le riunioni online."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.search_placeholder"
+msgstr "Cerca riunioni..."
+
+#. js-lingui-explicit-id
+msgid "meeting.view.empty_state"
+msgstr "Registra la tua prima riunione."
+
+#. js-lingui-explicit-id
+msgid "library.card.recovered"
+msgstr "Recuperata"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generate"
+msgstr "Genera titolo ed etichette"
+
+#. js-lingui-explicit-id
+msgid "library.card.title.generating"
+msgstr "Organizzazione..."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error"
+msgstr "Impossibile generare un titolo e delle etichette. Riprova."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_configured"
+msgstr "Configura un modello di scrittura prima di generare un titolo."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rate_limited"
+msgstr "Il provider di scrittura ha raggiunto il limite di utilizzo. Riprova più tardi."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unauthorized"
+msgstr "Il provider di scrittura ha rifiutato la chiave API. Controllala nelle Impostazioni."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.not_found"
+msgstr "Il modello di scrittura configurato non è stato trovato. Controllalo nelle Impostazioni."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.rejected"
+msgstr "Il provider di scrittura ha rifiutato la richiesta del titolo."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.unreachable"
+msgstr "Impossibile contattare il provider di scrittura. Controlla la connessione e riprova."
+
+#. js-lingui-explicit-id
+msgid "library.card.title.error.invalid_response"
+msgstr "Il modello di scrittura ha risposto, ma non è riuscito a organizzare questo elemento. Riprova."
+
+#. js-lingui-explicit-id
+msgid "native.library.person_default"
+msgstr "Persona {nextIndex}"
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.aria"
+msgstr "Modello locale di rilevamento delle persone"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.title"
+msgstr "Rilevamento locale delle persone"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.description"
+msgstr "Separa le voci senza caricare l’audio"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.local_private"
+msgstr "Locale"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.delete"
+msgstr "Elimina il rilevamento locale delle persone"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.download"
+msgstr "Scarica il rilevamento locale delle persone"
+
+#. js-lingui-explicit-id
+msgid "settings.models.local_intelligence"
+msgstr "Componenti aggiuntivi"
+
+#. js-lingui-explicit-id
+msgid "settings.models.diarization.addon"
+msgstr "Componente aggiuntivo"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_day_aria"
+msgstr "Elimina tutte le trascrizioni di questo giorno"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.title"
+msgstr "Eliminare le trascrizioni di questo giorno?"
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.description"
+msgstr "Questa azione elimina definitivamente tutte le trascrizioni e i relativi audio di questo giorno."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.error"
+msgstr "Impossibile eliminare le trascrizioni. Riprova."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.deleting"
+msgstr "Eliminazione..."
+
+#. js-lingui-explicit-id
+msgid "transcriptions.group.delete_confirm.action"
+msgstr "Elimina tutto"
+
+#. js-lingui-explicit-id
+msgid "settings.modal.tab.meetings"
+msgstr "Riunioni"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.section"
+msgstr "Rilevamento automatico"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.title"
+msgstr "Rileva riunioni online"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.description"
+msgstr "Mostra una richiesta di registrazione quando inizia una riunione supportata."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.detection.toggle_aria"
+msgstr "Attiva o disattiva il rilevamento automatico delle riunioni"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.section"
+msgstr "Applicazioni"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.loading"
+msgstr "Ricerca delle app per riunioni installate"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.empty"
+msgstr "Non sono state trovate applicazioni per riunioni compatibili."
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.installed"
+msgstr "Installata su questo Mac"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.toggle_aria"
+msgstr "Attiva o disattiva il rilevamento per questa applicazione"
+
+#. js-lingui-explicit-id
+msgid "settings.meetings.apps.description"
+msgstr "Vengono monitorate solo le applicazioni selezionate. Il rilevamento nel browser richiede Accessibilità e controlla solo la scheda attiva; Glimpse non legge il contenuto delle riunioni."
+
+msgid "meeting.active.microphone.default"
+msgstr "Microfono predefinito"
+
+msgid "meeting.active.system.default"
+msgstr "Audio di sistema"
+
+msgid "meeting.active.microphone.waveform"
+msgstr "Livello microfono in tempo reale"
+
+msgid "meeting.active.system.waveform"
+msgstr "Livello audio della riunione in tempo reale"
+
+msgid "meeting.active.title"
+msgstr "Registrazione in corso"
+
+msgid "meeting.active.subtitle"
+msgstr "Le due sorgenti audio vengono salvate separatamente"
+
+msgid "meeting.active.microphone"
+msgstr "Microfono"
+
+msgid "meeting.active.system"
+msgstr "Audio della riunione"
+
+msgid "meeting.active.system.scope"
+msgstr "Acquisizione di sistema"
+
+msgid "meeting.active.local"
+msgstr "Salvato localmente · La trascrizione inizia al termine della registrazione"
+
+msgid "meeting.active.microphone.no_signal"
+msgstr "Nessun segnale del microfono rilevato"
+
+msgid "meeting.active.system.scope.application"
+msgstr "Solo app"
+
+msgid "native.meeting.ended_title"
+msgstr "La riunione è terminata?"
+
+msgid "native.meeting.ended_message"
+msgstr "La chiamata in {app} non è più attiva. Vuoi interrompere la registrazione?"
+
+msgid "native.meeting.ended_stop"
+msgstr "Interrompi registrazione"
+
+msgid "native.meeting.ended_continue"
+msgstr "Continua a registrare"
+
+msgid "settings.general.shortcuts.dictation_key"
+msgstr "Usa il tasto Dettatura"
+
+msgid "settings.general.shortcuts.dictation_key.description"
+msgstr "Assegna il tasto del microfono alla dettatura intelligente"

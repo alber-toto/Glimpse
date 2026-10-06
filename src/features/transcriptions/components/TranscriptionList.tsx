@@ -12,11 +12,15 @@ import {
   X,
   ArrowsDownUp as ArrowDownUp,
   Check,
+  Trash,
+  Warning as AlertTriangle,
 } from "@phosphor-icons/react";
+import { createPortal } from "react-dom";
 import { Virtuoso } from "react-virtuoso";
 import {
   useTranscriptionList,
   useDeleteTranscription,
+  useDeleteTranscriptionsForDay,
   useRetryTranscription,
   useRetryLlmCleanup,
   useUndoLlmCleanup,
@@ -26,6 +30,7 @@ import DotMatrix from "../../../shared/ui/DotMatrix";
 import { useDebouncedValue } from "../../../shared/hooks/useDebouncedValue";
 import { useShiftHeld } from "../../../shared/hooks/useShiftHeld";
 import { useClickOutside } from "../../../shared/hooks/useClickOutside";
+import FloatingPortal from "../../../shared/ui/FloatingPortal";
 import type { TranscriptionRecord } from "../../../types";
 import {
   parseTranscriptionSearch,
@@ -49,6 +54,18 @@ const areSameDay = (left: Date, right: Date) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
+const dayRange = (date: Date) => {
+  const start = startOfDay(date);
+  const end = new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate() + 1,
+  );
+  return { startMs: start.getTime(), endMs: end.getTime() };
+};
+
+type DayDeletion = ReturnType<typeof dayRange> & { label: string };
+
 const VirtualListHeader = () => <div className="h-3" />;
 const VirtualListFooter = () => <div className="h-3" />;
 const virtuosoComponents = {
@@ -64,13 +81,18 @@ const TranscriptionList: React.FC<TranscriptionListProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [dayToDelete, setDayToDelete] = useState<DayDeletion | null>(null);
+  const [deleteDayError, setDeleteDayError] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+  const filterPopupRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const shiftHeld = useShiftHeld(isActive);
 
-  useClickOutside(filterRef, () => setFilterOpen(false), filterOpen);
+  useClickOutside(filterRef, () => setFilterOpen(false), filterOpen, [
+    filterPopupRef,
+  ]);
   useClickOutside(
     searchRef,
     () => {
@@ -115,6 +137,7 @@ const TranscriptionList: React.FC<TranscriptionListProps> = ({
     isFetched,
   } = useTranscriptionList(filter, isActive);
   const deleteMutation = useDeleteTranscription();
+  const deleteDayMutation = useDeleteTranscriptionsForDay();
   const {
     retry: retryMutation,
     cancelRetry: cancelRetryMutation,
@@ -195,6 +218,32 @@ const TranscriptionList: React.FC<TranscriptionListProps> = ({
     },
     [deleteMutation],
   );
+
+  const requestDeleteDay = useCallback(
+    (date: Date) => {
+      setDeleteDayError(false);
+      setDayToDelete({
+        ...dayRange(date),
+        label: formatGroupLabel(date),
+      });
+    },
+    [formatGroupLabel],
+  );
+
+  const confirmDeleteDay = useCallback(async () => {
+    if (!dayToDelete || deleteDayMutation.isPending) return;
+    setDeleteDayError(false);
+    try {
+      await deleteDayMutation.mutateAsync({
+        startMs: dayToDelete.startMs,
+        endMs: dayToDelete.endMs,
+      });
+      setDayToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete the day's transcriptions:", error);
+      setDeleteDayError(true);
+    }
+  }, [dayToDelete, deleteDayMutation]);
 
   const retryTranscription = useCallback(
     async (id: string) => {
@@ -295,12 +344,23 @@ const TranscriptionList: React.FC<TranscriptionListProps> = ({
         >
           {startsGroup && (
             <div
-              className={`flex items-center gap-3 pb-2 px-1 ${index === 0 ? "pt-1" : "pt-6"}`}
+              className={`group/day flex items-center gap-3 pb-2 px-1 ${index === 0 ? "pt-1" : "pt-6"}`}
             >
               <span className="ui-text-body-sm-strong ui-color-secondary shrink-0">
                 {formatGroupLabel(timestamp)}
               </span>
               <div className="ui-divider-trailing flex-1" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={() => requestDeleteDay(timestamp)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md ui-color-muted opacity-0 transition-[opacity,color,background-color] group-hover/day:opacity-100 hover:bg-red-500/10 hover:text-red-400 focus-visible:opacity-100"
+                aria-label={t({
+                  id: "transcriptions.group.delete_day_aria",
+                  message: "Delete all transcriptions for this day",
+                })}
+              >
+                <Trash size={12} aria-hidden="true" />
+              </button>
             </div>
           )}
           <TranscriptionItem
@@ -323,6 +383,8 @@ const TranscriptionList: React.FC<TranscriptionListProps> = ({
     [
       freshIds,
       formatGroupLabel,
+      requestDeleteDay,
+      t,
       isTimeSorted,
       previousTimestampAt,
       recordAt,
@@ -420,86 +482,77 @@ const TranscriptionList: React.FC<TranscriptionListProps> = ({
                 >
                   <ArrowDownUp size={13} aria-hidden="true" />
                 </button>
-                <AnimatePresence>
-                  {filterOpen && (
-                    <motion.div
-                      role="menu"
-                      initial={{ opacity: 0, scale: 0.98, y: -2 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.98, y: -2 }}
-                      transition={{ duration: 0.12 }}
-                      className="ui-surface-menu absolute right-0 top-full mt-1.5 z-30 min-w-[170px] py-1"
-                    >
-                      <div className="px-3 pt-1 pb-1 ui-text-uppercase-micro ui-color-muted">
-                        {t({
-                          id: "transcriptions.filter.sort",
-                          message: "Sort",
-                        })}
-                      </div>
-                      {sortOptions.map((opt) => {
-                        const selected = opt.value === parsed.sort;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={selected}
-                            onClick={() =>
-                              setSearchQuery((q) => withSortToken(q, opt.value))
-                            }
-                            className={`flex w-full items-center justify-between gap-3 px-3 py-1 ui-text-body-sm transition-colors ${
-                              selected
-                                ? "ui-color-primary bg-[var(--surface-interactive-strong)]"
-                                : "ui-color-secondary hover:bg-[var(--surface-interactive)] hover:text-content-primary"
-                            }`}
-                          >
-                            <span>{opt.label}</span>
-                            <span className="w-3 flex items-center justify-center shrink-0">
-                              {selected && (
-                                <Check size={12} aria-hidden="true" />
-                              )}
-                            </span>
-                          </button>
-                        );
+                {filterOpen && (
+                  <FloatingPortal
+                    anchorRef={filterRef}
+                    ref={filterPopupRef}
+                    placement="bottom-end"
+                    role="menu"
+                    className="ui-surface-menu min-w-[170px] py-1"
+                  >
+                    <div className="px-3 pt-1 pb-1 ui-text-uppercase-micro ui-color-muted">
+                      {t({
+                        id: "transcriptions.filter.sort",
+                        message: "Sort",
                       })}
-                      <div className="my-1 mx-3 border-t border-border-secondary" />
-                      <div className="px-3 pt-1 pb-1 ui-text-uppercase-micro ui-color-muted">
-                        {t({
-                          id: "transcriptions.filter.when",
-                          message: "When",
-                        })}
-                      </div>
-                      {timeOptions.map((opt) => {
-                        const selected = opt.value === activeTimePreset;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={selected}
-                            onClick={() =>
-                              setSearchQuery((q) =>
-                                withTimePreset(q, opt.value),
-                              )
-                            }
-                            className={`flex w-full items-center justify-between gap-3 px-3 py-1 ui-text-body-sm transition-colors ${
-                              selected
-                                ? "ui-color-primary bg-[var(--surface-interactive-strong)]"
-                                : "ui-color-secondary hover:bg-[var(--surface-interactive)] hover:text-content-primary"
-                            }`}
-                          >
-                            <span>{opt.label}</span>
-                            <span className="w-3 flex items-center justify-center shrink-0">
-                              {selected && (
-                                <Check size={12} aria-hidden="true" />
-                              )}
-                            </span>
-                          </button>
-                        );
+                    </div>
+                    {sortOptions.map((opt) => {
+                      const selected = opt.value === parsed.sort;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={selected}
+                          onClick={() =>
+                            setSearchQuery((q) => withSortToken(q, opt.value))
+                          }
+                          className={`flex w-full items-center justify-between gap-3 px-3 py-1 ui-text-body-sm transition-colors ${
+                            selected
+                              ? "ui-color-primary bg-[var(--surface-interactive-strong)]"
+                              : "ui-color-secondary hover:bg-[var(--surface-interactive)] hover:text-content-primary"
+                          }`}
+                        >
+                          <span>{opt.label}</span>
+                          <span className="w-3 flex items-center justify-center shrink-0">
+                            {selected && <Check size={12} aria-hidden="true" />}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    <div className="my-1 mx-3 border-t border-border-secondary" />
+                    <div className="px-3 pt-1 pb-1 ui-text-uppercase-micro ui-color-muted">
+                      {t({
+                        id: "transcriptions.filter.when",
+                        message: "When",
                       })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    </div>
+                    {timeOptions.map((opt) => {
+                      const selected = opt.value === activeTimePreset;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={selected}
+                          onClick={() =>
+                            setSearchQuery((q) => withTimePreset(q, opt.value))
+                          }
+                          className={`flex w-full items-center justify-between gap-3 px-3 py-1 ui-text-body-sm transition-colors ${
+                            selected
+                              ? "ui-color-primary bg-[var(--surface-interactive-strong)]"
+                              : "ui-color-secondary hover:bg-[var(--surface-interactive)] hover:text-content-primary"
+                          }`}
+                        >
+                          <span>{opt.label}</span>
+                          <span className="w-3 flex items-center justify-center shrink-0">
+                            {selected && <Check size={12} aria-hidden="true" />}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </FloatingPortal>
+                )}
               </div>
             </motion.div>
           ) : (
@@ -610,6 +663,99 @@ const TranscriptionList: React.FC<TranscriptionListProps> = ({
           </>
         )}
       </div>
+
+      {createPortal(
+        <AnimatePresence>
+          {dayToDelete && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xs px-6"
+              onClick={() => {
+                if (!deleteDayMutation.isPending) setDayToDelete(null);
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.96, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.96, opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="w-full max-w-sm rounded-2xl border border-border-primary bg-surface-tertiary p-5 ui-shadow-modal-deep"
+                onClick={(event) => event.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-day-title"
+              >
+                <div className="mb-3 flex items-start gap-3">
+                  <AlertTriangle
+                    size={20}
+                    className="ui-color-warning-strong mt-0.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0">
+                    <p
+                      id="delete-day-title"
+                      className="ui-text-body-lg font-semibold text-content-primary"
+                    >
+                      {t({
+                        id: "transcriptions.group.delete_confirm.title",
+                        message: "Delete this day's transcriptions?",
+                      })}
+                    </p>
+                    <p className="ui-text-label text-content-disabled">
+                      {t({
+                        id: "transcriptions.group.delete_confirm.description",
+                        message:
+                          "This permanently removes every transcription and its audio for this day.",
+                      })}
+                    </p>
+                    <p className="mt-1 ui-text-label font-medium text-content-secondary">
+                      {dayToDelete.label}
+                    </p>
+                    {deleteDayError && (
+                      <p className="mt-2 ui-text-label ui-color-error-strong">
+                        {t({
+                          id: "transcriptions.group.delete_confirm.error",
+                          message:
+                            "Couldn't delete the transcriptions. Try again.",
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={deleteDayMutation.isPending}
+                    onClick={() => setDayToDelete(null)}
+                    className="rounded-lg border border-border-secondary px-4 py-2 ui-text-body-sm font-medium text-content-secondary transition-colors hover:border-border-hover disabled:opacity-50"
+                  >
+                    {t({ id: "library.modal.cancel", message: "Cancel" })}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleteDayMutation.isPending}
+                    onClick={() => void confirmDeleteDay()}
+                    className="rounded-lg bg-red-500/90 px-4 py-2 ui-text-body-sm font-semibold ui-color-on-solid transition-colors hover:bg-red-500 disabled:opacity-50"
+                  >
+                    {deleteDayMutation.isPending
+                      ? t({
+                          id: "transcriptions.group.delete_confirm.deleting",
+                          message: "Deleting...",
+                        })
+                      : t({
+                          id: "transcriptions.group.delete_confirm.action",
+                          message: "Delete all",
+                        })}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </motion.div>
   );
 };

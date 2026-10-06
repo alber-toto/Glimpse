@@ -94,14 +94,7 @@ fn system_locales() -> Vec<String> {
 
 impl MenuStrings {
     pub fn resolve(settings: &UserSettings) -> Self {
-        let locale = if settings.app_locale == "system" {
-            system_locales()
-                .iter()
-                .find_map(|candidate| match_locale(candidate))
-                .unwrap_or(DEFAULT_LOCALE)
-        } else {
-            match_locale(&settings.app_locale).unwrap_or(DEFAULT_LOCALE)
-        };
+        let locale = resolved_app_locale(settings);
 
         Self {
             entries: catalog(locale).unwrap_or(&[]),
@@ -129,5 +122,18 @@ impl MenuStrings {
             text = text.replace(&format!("{{{name}}}"), value);
         }
         text
+    }
+}
+
+/// Resolve the locale exactly as the frontend and native menus do, including
+/// the user's preferred display language when the app setting is "system".
+pub fn resolved_app_locale(settings: &UserSettings) -> &'static str {
+    if settings.app_locale == "system" {
+        system_locales()
+            .iter()
+            .find_map(|candidate| match_locale(candidate))
+            .unwrap_or(DEFAULT_LOCALE)
+    } else {
+        match_locale(&settings.app_locale).unwrap_or(DEFAULT_LOCALE)
     }
 }
